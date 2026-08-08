@@ -45,6 +45,7 @@ foreach ($relative in $files) {
 }
 
 foreach ($required in @(
+    "LICENSE",
     "third_party/licenses/GFS-GPL-3.0.txt",
     "third_party/licenses/AgentTeams-Apache-2.0.txt",
     "third_party/manifest.json"

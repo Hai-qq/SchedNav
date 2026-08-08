@@ -108,4 +108,8 @@ launcher 不读取或保存 DeepSeek Key，只把 Worker 携带的 bearer identi
 - `.venv-gfs/`、模型 checkpoint、日志、缓存与 `artifacts/` 运行产物；
 - 密钥、令牌、Cookie、私有配置或其他凭据。
 
-第三方项目使用固定 commit、来源链接、compatibility patch 和许可证文本声明，不复制其源码树。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。SchedNav 第一方代码的开源许可证仍待项目方最终选择；在确定前不对第三方授予额外许可。
+第三方项目使用固定 commit、来源链接、compatibility patch 和许可证文本声明，不复制其源码树。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## License
+
+SchedNav 第一方代码采用 [MIT License](LICENSE)。GFS compatibility patch、AgentTeams compatibility patch 和第三方许可证文本继续分别受其上游 GPL-3.0-only、Apache-2.0 等条款约束；根目录 MIT 不会重新许可这些第三方材料。

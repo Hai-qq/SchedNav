@@ -24,6 +24,7 @@
 - GitHub 公开仓库为 `https://github.com/Hai-qq/SchedNav`，`main` 是现役公开边界；后续 commit 或 push 仍需用户明确授权。
 - `26ASPLOS-Spot/` 是固定的上游基座；修复应保持最小、可审计并优先放在 adapter/patch 层。
 - `clusterdata/` 是 Alibaba 官方 sparse checkout；不要修改原始 CSV。
+- SchedNav 第一方代码采用 MIT License；GFS / AgentTeams compatibility patch 和第三方许可证文本继续受对应上游许可证约束，不得用根目录 MIT 重新许可。
 - GitHub 公开仓库只发布 SchedNav 自研代码、配置、测试和文档；不得提交 `26ASPLOS-Spot/`、`clusterdata/`、原始或派生 Trace、虚拟环境、checkpoint、日志、缓存、运行产物或凭据。
 - 第三方基座与数据通过来源 URL、固定 commit/hash 和获取步骤复现，不复制到 SchedNav 仓库。
 - 任何拟公开的小型 fixture 必须先核验来源、许可和脱敏边界。
