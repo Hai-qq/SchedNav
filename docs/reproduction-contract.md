@@ -63,7 +63,7 @@ recorder initial skip 20h
 - 输出只读的结构化 preemption、Spot run-start 与 Spot guarantee event ledger，不改变 scheduler 决策；
 - 将似然计算中 Softplus 后下溢为 0 的 scale clamp 到 dtype epsilon，避免合法 FIFO 训练在 PyTorch 分布校验中失败。
 
-它不修改 scheduler、placer、quota 或 preemption cost。新账本补丁前后的五类既有 Spot CSV 完全一致；新增两类 CSV 只观察 run-start 与 guarantee 状态转换。FIFO 则正是触发 estimator 数值缺陷的路径。补丁基于 GPL-3.0-only 的 GFS；若公开分发补丁，必须保留上游归属和 GPL-3.0 义务。SchedNav 自身许可证需在首次发布代码前单独决策。
+它不修改 scheduler、placer、quota 或 preemption cost。新账本补丁前后的五类既有 Spot CSV 完全一致；新增两类 CSV 只观察 run-start 与 guarantee 状态转换。FIFO 则正是触发 estimator 数值缺陷的路径。补丁基于 GPL-3.0-only 的 GFS；公开仓库保留上游归属、完整 GPL-3.0 文本和对应 patch。SchedNav 第一方代码的许可证需在比赛正式发布或接受外部贡献前单独决策。
 
 ## 隔离与证据
 
@@ -152,5 +152,5 @@ FIFO 最终账本版双运行同样得到七类 CSV `deterministic_match=true`�
 - 上游 `logger_init` 在同一进程向 root logger 叠加 handler，导致部分人类可读日志重复；CSV evidence 不受影响，日志也不参与确定性比较。
 - 首次运行 `r1` 暴露并记录了 Windows checkpoint 路径失败；后续成功运行和最终 attested 运行都使用独立目录，没有覆盖失败证据。
 - 本地保留失败运行、两次前置成功运行和两次 attested 运行；它们全部位于被忽略的 `artifacts/`，清理前应先由用户确认。
-- SchedNav 自身开源许可证尚未选择；在首次 push 前必须结合 GFS GPL-3.0 patch 边界作出明确决定。
+- SchedNav 第一方代码许可证尚未选择；当前公开可见代码不附加许可，必须在比赛正式发布或接受外部贡献前结合 GFS GPL-3.0 patch 边界作出明确决定。
 - 上游 `ckpt_times` 从未递增，因此 checkpoint count 仍不可报告。event ledger 已提供 preemption timestamp、cause、rollback、overhead 和新增 requested-GPU-seconds，但该数值不是硬件能耗或 GPU core utilization；正式 eviction/guarantee 指标不依赖 `ckpt_times`。
