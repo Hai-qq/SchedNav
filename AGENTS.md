@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-项目比赛中文名为“智算领航：面向 GPU 集群的多智能体算力调度决策系统”，开源项目名为 `SchedNav`，英文定位为 “SchedNav — Agentic Control Plane for GPU Cluster Scheduling”。本项目在 GFS GPU simulator 之上构建高层 Agentic Control Plane；GFS 保留细粒度 Job-to-GPU/Node placement 权限。
+`SchedNav` 是构建在 GFS GPU simulator 之上的 Agentic Control Plane for GPU Cluster Scheduling；它负责负载分析、高层策略、仿真编排、SLO 审计和 human approval，GFS 始终保留细粒度 Job-to-GPU/Node placement 权限。
 
 ## 当前边界
 
