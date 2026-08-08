@@ -85,6 +85,8 @@ class CanonicalTrace:
     nodes: tuple[TraceNode, ...]
     jobs: tuple[TraceJob, ...]
     fingerprint: str
+    evaluation_start_seconds: float | None = None
+    evaluation_end_seconds: float | None = None
 
     @property
     def capacity_gpus(self) -> int:
@@ -105,9 +107,10 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
         "files",
         "trace_fingerprint",
     }
-    if set(manifest) != required:
+    optional = {"evaluation_window_seconds"}
+    if not required.issubset(manifest) or not set(manifest).issubset(required | optional):
         raise ValueError(
-            f"Trace manifest fields must be exactly {sorted(required)}"
+            f"Trace manifest fields must contain {sorted(required)} and only allow {sorted(optional)}"
         )
     if manifest["schema_version"] != TRACE_SCHEMA:
         raise ValueError(f"Expected schema_version={TRACE_SCHEMA}")
@@ -195,6 +198,25 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
         raise ValueError("A trace requires at least one job")
     jobs.sort(key=lambda job: (job.submit_time_seconds, job.job_id))
 
+    evaluation_start: float | None = None
+    evaluation_end: float | None = None
+    if "evaluation_window_seconds" in manifest:
+        window = manifest["evaluation_window_seconds"]
+        if not isinstance(window, dict) or set(window) != {"start", "end"}:
+            raise ValueError("evaluation_window_seconds must contain exactly start and end")
+        evaluation_start = _non_negative_float(window["start"], "evaluation window start")
+        evaluation_end = _non_negative_float(window["end"], "evaluation window end")
+        if evaluation_end <= evaluation_start:
+            raise ValueError("Evaluation window end must be greater than its start")
+        if jobs[0].submit_time_seconds > evaluation_start:
+            raise ValueError("Evaluation window cannot start before the first trace arrival")
+        if jobs[-1].submit_time_seconds > evaluation_end:
+            raise ValueError("Canonical evaluation traces cannot contain post-window arrivals")
+        if not any(
+            evaluation_start <= job.submit_time_seconds <= evaluation_end for job in jobs
+        ):
+            raise ValueError("Evaluation window must contain at least one arrival")
+
     fingerprint_payload = {
         key: value for key, value in manifest.items() if key != "trace_fingerprint"
     }
@@ -207,6 +229,8 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
         nodes=tuple(nodes),
         jobs=tuple(jobs),
         fingerprint=str(manifest["trace_fingerprint"]),
+        evaluation_start_seconds=evaluation_start,
+        evaluation_end_seconds=evaluation_end,
     )
 
 
@@ -218,13 +242,20 @@ def write_canonical_trace(
     source: dict[str, Any],
     nodes: list[TraceNode],
     jobs: list[TraceJob],
+    evaluation_start_seconds: float | None = None,
+    evaluation_end_seconds: float | None = None,
 ) -> Path:
     """Write canonical CSV files and a content-addressed manifest."""
     output_dir = output_dir.resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
     datetime.fromisoformat(time_origin)
     if not trace_id or not nodes or not jobs:
         raise ValueError("trace_id, nodes, and jobs are required")
+    if (evaluation_start_seconds is None) != (evaluation_end_seconds is None):
+        raise ValueError("Evaluation window start and end must be supplied together")
+    if evaluation_start_seconds is not None and evaluation_end_seconds is not None:
+        if evaluation_start_seconds < 0 or evaluation_end_seconds <= evaluation_start_seconds:
+            raise ValueError("Expected 0 <= evaluation start < evaluation end")
+    output_dir.mkdir(parents=True, exist_ok=True)
     node_path = output_dir / "nodes.csv"
     job_path = output_dir / "jobs.csv"
     with node_path.open("w", encoding="utf-8", newline="") as handle:
@@ -267,6 +298,11 @@ def write_canonical_trace(
             job_path.name: _sha256_file(job_path),
         },
     }
+    if evaluation_start_seconds is not None and evaluation_end_seconds is not None:
+        manifest["evaluation_window_seconds"] = {
+            "start": float(evaluation_start_seconds),
+            "end": float(evaluation_end_seconds),
+        }
     manifest["trace_fingerprint"] = canonical_sha256(manifest)
     manifest_path = output_dir / "trace.json"
     manifest_path.write_text(
@@ -312,6 +348,12 @@ def slice_canonical_trace(
         "gpu_models": sorted(gpu_models) if gpu_models is not None else None,
         "semantics": "Origin-preserving inclusive arrival prefix; selected jobs drain to completion.",
     }
+    sliced_evaluation_start = (
+        trace.evaluation_start_seconds
+        if trace.evaluation_start_seconds is not None
+        and max_submit_time_seconds > trace.evaluation_start_seconds
+        else None
+    )
     return write_canonical_trace(
         output_dir,
         trace_id=trace_id,
@@ -319,6 +361,13 @@ def slice_canonical_trace(
         source=source,
         nodes=nodes,
         jobs=jobs,
+        evaluation_start_seconds=sliced_evaluation_start,
+        evaluation_end_seconds=(
+            min(trace.evaluation_end_seconds, max_submit_time_seconds)
+            if sliced_evaluation_start is not None
+            and trace.evaluation_end_seconds is not None
+            else None
+        ),
     )
 
 
@@ -498,6 +547,8 @@ def import_alibaba_trace(
     source_commit: str = "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
     gpu_models: set[str] | None = None,
     max_submit_time_seconds: float | None = None,
+    evaluation_start_seconds: float | None = None,
+    evaluation_end_seconds: float | None = None,
 ) -> Path:
     """Convert Alibaba's published node/job tables into the canonical contract."""
     node_info_path = node_info_path.resolve()
@@ -505,6 +556,18 @@ def import_alibaba_trace(
     if not node_info_path.is_file() or not job_info_path.is_file():
         raise FileNotFoundError("Alibaba node_info_df.csv and job_info_df.csv are required")
     datetime.fromisoformat(time_origin)
+    if (evaluation_start_seconds is None) != (evaluation_end_seconds is None):
+        raise ValueError("Evaluation window start and end must be supplied together")
+    if evaluation_start_seconds is not None and evaluation_end_seconds is not None:
+        if evaluation_start_seconds < 0 or evaluation_end_seconds <= evaluation_start_seconds:
+            raise ValueError("Expected 0 <= evaluation start < evaluation end")
+        if (
+            max_submit_time_seconds is not None
+            and max_submit_time_seconds != evaluation_end_seconds
+        ):
+            raise ValueError("max_submit_time_seconds must equal the evaluation end")
+        max_submit_time_seconds = evaluation_end_seconds
+
     nodes: list[TraceNode] = []
     with node_info_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
@@ -567,7 +630,13 @@ def import_alibaba_trace(
         "filter": {
             "gpu_models": sorted(gpu_models) if gpu_models is not None else None,
             "max_submit_time_seconds": max_submit_time_seconds,
-            "semantics": "All selected arrivals from the source origin through the inclusive cutoff; jobs drain to completion.",
+            "evaluation_start_seconds": evaluation_start_seconds,
+            "evaluation_end_seconds": evaluation_end_seconds,
+            "semantics": (
+                "All selected arrivals through the inclusive evaluation end are replayed for state warm-up; only arrivals inside the explicit evaluation window contribute job SLO metrics, while allocation is integrated over that window."
+                if evaluation_start_seconds is not None
+                else "All selected arrivals from the source origin through the inclusive cutoff; jobs drain to completion."
+            ),
         },
     }
     return write_canonical_trace(
@@ -577,4 +646,6 @@ def import_alibaba_trace(
         source=source,
         nodes=nodes,
         jobs=jobs,
+        evaluation_start_seconds=evaluation_start_seconds,
+        evaluation_end_seconds=evaluation_end_seconds,
     )

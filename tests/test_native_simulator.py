@@ -126,6 +126,34 @@ class NativeSimulatorTests(unittest.TestCase):
         self.assertTrue(audit["metrics_schema_supported"])
         self.assertTrue(audit["audit_passed"])
 
+    def test_explicit_window_replays_warmup_but_audits_only_window_arrivals(self):
+        root = Path(self.temporary.name)
+        trace = load_canonical_trace(
+            write_canonical_trace(
+                root / "windowed",
+                trace_id="windowed",
+                time_origin="2026-01-01 00:00:00",
+                source={"dataset": "unit-fixture"},
+                nodes=[TraceNode("n1", "A", 2)],
+                jobs=[
+                    TraceJob("warmup-spot", 0, 20, 2, "Spot", "A"),
+                    TraceJob("evaluated-hp", 10, 2, 2, "HP", "A"),
+                    TraceJob("evaluated-spot", 12, 2, 2, "Spot", "A"),
+                ],
+                evaluation_start_seconds=10,
+                evaluation_end_seconds=12,
+            )
+        )
+        result = simulate_trace(trace, _policy("fifo"))
+        metrics = build_metrics_report(result)
+
+        self.assertEqual(len(result["jobs"]), 3)
+        self.assertEqual(metrics["jobs"]["HP"]["job_count"], 1)
+        self.assertEqual(metrics["jobs"]["Spot"]["job_count"], 1)
+        self.assertEqual(metrics["spot_runs"]["event_count"], 1)
+        self.assertGreater(result["cluster"]["warmup_allocated_gpu_seconds"], 0)
+        self.assertEqual(result["cluster"]["allocation_rate_mean"], 1.0)
+
     def test_checked_in_action_space_contains_only_executable_profiles(self):
         action_space = json.loads(
             (PROJECT_ROOT / "configs" / "action_spaces" / "native-v1.json").read_text(

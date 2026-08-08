@@ -19,7 +19,9 @@ Agents select only a cataloged high-level `SimulationPolicy`. The engine owns qu
 - drain-to-completion execution;
 - per-job, run-start, guarantee and preemption ledgers.
 
-The simulator integrates allocated GPU-seconds exactly between discrete events. Allocation rate is allocated GPU-seconds divided by physical GPU-seconds inside the evaluation arrival window. Jobs still drain to completion after the window, but drain capacity-time is excluded from the utilization denominator. A Spot eviction is a preemption event, and the eviction rate is events divided by explicit Spot run starts.
+The simulator integrates allocated GPU-seconds exactly between discrete events. Allocation rate is allocated GPU-seconds divided by physical GPU-seconds inside the explicit evaluation window, or the arrival window when no explicit boundary is declared. Jobs still drain to completion after the window, but drain capacity-time is excluded from the utilization denominator.
+
+When a trace declares an explicit window, pre-window arrivals are replayed as warm-up. They can occupy GPUs or complete during the evaluated interval, but they are not counted in HP/Spot completion, JCT, queue, eviction, Spot-run or guarantee populations. Cluster allocation before the evaluation start is recorded separately as `warmup_allocated_gpu_seconds`. A Spot eviction is a preemption event, and the eviction rate is events for evaluation-population Spot jobs divided by their explicit run starts.
 
 ## Policy contract
 

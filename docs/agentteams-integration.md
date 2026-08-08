@@ -83,6 +83,18 @@ Approval is required before:
 
 If declared metrics remain tied, the Manager returns `tie_requires_human_approval`. Human selection is recorded as an operational choice and is not rewritten as evidence that one tied policy is faster or better.
 
+## Verified native-local workflow
+
+Project `proj-20260808-104144` exercised the complete topology with every role on `deepseek-v4-flash`:
+
+1. Workload Analyst called `analyze_workload` and produced workload fingerprint `49f0638a1278d85b1a4e4c045074d00e131ceb42200de2a1a0825c20310e2d33`.
+2. Scheduling Strategist selected exactly the four registered native actions and emitted no placement fields.
+3. Simulation Agent called `simulate_policy` four times with distinct idempotency keys and fresh bridge tasks.
+4. SLO Auditor called `audit_slo` four times using the fresh `native-fifo` metrics artifact as the baseline.
+5. Manager called `compare_policies` and `rank_policies`; the resulting portfolio fingerprint is `3a6bad71c54d012944434e475f0c426e2fb9e220bb7aca095f1698507ee26cdb` and ranking fingerprint is `5a8d161859458fd7c628207ecd06910e4ebaab875aed4e71e379f2457bdfb4b4`.
+
+All delegated tasks reached `completed`; the project reached `completed` with outcome `approval_pending`. The ranking returned `tie_requires_human_approval` for the three preemptive actions. AgentTeams task state, full artifacts and logs remain local runtime evidence; the public repository contains only the aggregate [policy-evaluation receipt](../evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json).
+
 ## Bundle build
 
 ```powershell

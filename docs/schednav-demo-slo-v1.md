@@ -54,3 +54,16 @@ There is no LLM-selected weight vector or undeclared fourth metric.
 A dataset without published or justified HP/Spot labels cannot pass this full SLO because the required class-specific metrics are unavailable. Such a dataset can still validate ingestion, placement, completion, JCT, allocation and determinism, but must not be presented as a complete SLO evaluation.
 
 The 3,600-second queue threshold, 90% guarantee target and 10% eviction ceiling are retained as explicit project requirements with the source URL recorded in the machine-readable SLO provenance. Their use does not make metrics from different traces directly comparable.
+
+## Verified 2024-04-12 evaluation
+
+On the representative Alibaba `GPU-series-2` window, the same-Trace FIFO HP p95 JCT is 44,971.1 seconds, so the generated 1% hard limit is 45,420.811 seconds. This value belongs only to this exact Trace fingerprint and population.
+
+| Policy | Allocation | HP p95 JCT | HP p95 queue | Spot p95 JCT | Eviction/run | Guarantee | Hard SLO | 80% soft target |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| `native-fifo` | 79.0511% | 44,971.1 s | 0 s | 21,961.1 s | 0% | 100% | 8/8 pass | no |
+| `native-preemptive-0000` | 80.5542% | 44,971.1 s | 0 s | 21,961.1 s | 5.6180% | 100% | 8/8 pass | yes |
+| `native-preemptive-1800` | 80.7023% | 44,971.1 s | 0 s | 21,961.1 s | 5.6180% | 100% | 8/8 pass | yes |
+| `native-preemptive-3600` | 80.7893% | 44,971.1 s | 0 s | 21,961.1 s | 5.6180% | 100% | 8/8 pass | yes |
+
+Every policy also has 100% HP/Spot completion and zero HP preempted jobs. Because all three preemptive policies fall within the strict one-percentage-point allocation band and have identical Spot p95 JCT and eviction rate, the formal result is `tie_requires_human_approval`. See the [aggregate receipt](../evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json).

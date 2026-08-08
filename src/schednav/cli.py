@@ -61,6 +61,8 @@ def main() -> int:
     alibaba_parser.add_argument("--time-origin", default="2024-03-01 00:00:00")
     alibaba_parser.add_argument("--gpu-model", action="append", dest="gpu_models")
     alibaba_parser.add_argument("--max-submit-time-seconds", type=float)
+    alibaba_parser.add_argument("--evaluation-start-seconds", type=float)
+    alibaba_parser.add_argument("--evaluation-end-seconds", type=float)
 
     workload_parser = subparsers.add_parser(
         "analyze-trace", help="analyze any canonical SchedNav trace"
@@ -155,6 +157,8 @@ def main() -> int:
             time_origin=args.time_origin,
             gpu_models=set(args.gpu_models) if args.gpu_models else None,
             max_submit_time_seconds=args.max_submit_time_seconds,
+            evaluation_start_seconds=args.evaluation_start_seconds,
+            evaluation_end_seconds=args.evaluation_end_seconds,
         )
         trace = load_canonical_trace(manifest)
         result = {

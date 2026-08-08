@@ -9,6 +9,7 @@ import unittest
 from schednav.native_trace import (
     TraceJob,
     TraceNode,
+    import_alibaba_trace,
     import_philly_trace,
     load_canonical_trace,
     slice_canonical_trace,
@@ -127,6 +128,83 @@ class NativeTraceTests(unittest.TestCase):
                     root / "invalid",
                     service_class="made-up",
                 )
+
+    def test_round_trips_an_explicit_evaluation_window_with_warmup_arrivals(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = write_canonical_trace(
+                root,
+                trace_id="windowed",
+                time_origin="2026-01-01 00:00:00",
+                source={"dataset": "unit-fixture"},
+                nodes=[TraceNode("n1", "A", 2)],
+                jobs=[
+                    TraceJob("warmup", 0, 20, 1, "HP", "A"),
+                    TraceJob("evaluated", 10, 2, 1, "Spot", "A"),
+                ],
+                evaluation_start_seconds=10,
+                evaluation_end_seconds=20,
+            )
+            trace = load_canonical_trace(manifest)
+            self.assertEqual(trace.evaluation_start_seconds, 10)
+            self.assertEqual(trace.evaluation_end_seconds, 20)
+            value = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual(
+                value["evaluation_window_seconds"], {"start": 10.0, "end": 20.0}
+            )
+
+            prefix = load_canonical_trace(
+                slice_canonical_trace(
+                    trace,
+                    root / "prefix",
+                    trace_id="warmup-only-prefix",
+                    max_submit_time_seconds=10,
+                )
+            )
+            self.assertIsNone(prefix.evaluation_start_seconds)
+            self.assertIsNone(prefix.evaluation_end_seconds)
+
+    def test_imports_alibaba_warmup_and_records_the_explicit_window(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            node_path = root / "node_info_df.csv"
+            with node_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["node_name", "gpu_model", "gpu_capacity_num"])
+                writer.writerow(["n1", "GPU-series-2", 8])
+            job_path = root / "job_info_df.csv"
+            with job_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(
+                    [
+                        "job_name",
+                        "gpu_model",
+                        "gpu_request",
+                        "worker_num",
+                        "submit_time",
+                        "duration",
+                        "job_type",
+                    ]
+                )
+                writer.writerow(["warmup", "GPU-series-2", 1, 1, 0, 20, "Spot"])
+                writer.writerow(["evaluated", "GPU-series-2", 2, 1, 10, 2, "HP"])
+                writer.writerow(["post-window", "GPU-series-2", 1, 1, 21, 2, "HP"])
+
+            trace = load_canonical_trace(
+                import_alibaba_trace(
+                    node_path,
+                    job_path,
+                    root / "canonical",
+                    gpu_models={"GPU-series-2"},
+                    evaluation_start_seconds=10,
+                    evaluation_end_seconds=20,
+                )
+            )
+
+            self.assertEqual([job.job_id for job in trace.jobs], ["warmup", "evaluated"])
+            self.assertEqual(trace.evaluation_start_seconds, 10)
+            self.assertEqual(trace.evaluation_end_seconds, 20)
+            self.assertEqual(trace.source["filter"]["max_submit_time_seconds"], 20)
 
 
 if __name__ == "__main__":

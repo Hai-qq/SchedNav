@@ -36,6 +36,20 @@ The public aggregate receipt is [philly-validation.json](../evidence/native-v1/p
 
 An origin-preserving A100 first-day slice contains 432 nodes and 1,285 jobs, including 1,284 HP jobs, one Spot job and fractional GPU demand. Two current-engine FIFO runs produced identical result and metrics fingerprints. The aggregate [Alibaba validation receipt](../evidence/native-v1/alibaba-a100-day1-validation.json) records the source hashes, filters, population, evaluation-window allocation and limitations; no raw or per-job data is included.
 
+## Verified mixed HP/Spot policy evaluation
+
+The representative `GPU-series-2` window for 2024-04-12 uses 122 nodes and 976 GPUs. SchedNav replays 6,501 arrivals from the source origin for carry-in state, then evaluates only the 94 HP and 84 Spot arrivals in seconds `3,628,800..3,715,199`. The peak sampled requested pressure is 1.167008.
+
+Four bounded policies were each simulated twice from the same canonical Trace fingerprint. All repeated result and metrics fingerprints match; all four pass the eight hard constraints in SchedNav Demo SLO v1. The three preemptive policies meet the 80% allocation soft target, but the declared hierarchy leaves them tied and requires human approval. The aggregate [policy-evaluation receipt](../evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json) contains the exact metrics, fingerprints and ranking without raw or per-job data.
+
+To reproduce the full import, double simulation, comparison, audit and ranking sequence with a separately downloaded source trace:
+
+```powershell
+.\scripts\run_demo_experiment.ps1 `
+  -DatasetDirectory C:\datasets\cluster-trace-v2026-spot-gpu `
+  -OutputDirectory C:\experiments\schednav-gpu-series-2-2024-04-12
+```
+
 ## Evaluation rule
 
 Results from different datasets are separate evidence populations. SchedNav compares policies within the same trace fingerprint and window; it never compares raw metrics across unrelated datasets as though they were controlled experiments. Multi-dataset validation is used to test robustness and expose regime-specific behavior.

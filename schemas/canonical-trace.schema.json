@@ -10,6 +10,15 @@
     "trace_id": {"type": "string", "minLength": 1},
     "time_origin": {"type": "string"},
     "source": {"type": "object"},
+    "evaluation_window_seconds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "number", "minimum": 0},
+        "end": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
     "nodes_file": {"type": "string", "minLength": 1},
     "jobs_file": {"type": "string", "minLength": 1},
     "files": {

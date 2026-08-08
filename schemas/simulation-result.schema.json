@@ -38,6 +38,7 @@
         "simulation_start",
         "simulation_end",
         "allocated_gpu_seconds",
+        "warmup_allocated_gpu_seconds",
         "evaluation_allocated_gpu_seconds",
         "drain_allocated_gpu_seconds",
         "allocation_rate_mean"

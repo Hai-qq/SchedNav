@@ -1,0 +1,141 @@
+{
+  "schema_version": "schednav.policy-evaluation-receipt/v1",
+  "status": "approval_pending",
+  "dataset": {
+    "name": "Alibaba cluster-trace-v2026-spot-gpu",
+    "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-v2026-spot-gpu",
+    "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "node_info_sha256": "35ef4d6288061265f2f9a207ef3df79bb1301cb9c0646a62087449e176781895",
+    "job_info_sha256": "f921e1932ae13196e204fdb0351d6697a7a0ef2e82e00ae123ed20e873284fb2"
+  },
+  "trace": {
+    "trace_id": "alibaba-gpu-series-2-2024-04-12",
+    "trace_fingerprint": "6564e0b2ab5953b757c41d01dcf24636da445d5c78948a79973e46f2c027ea1b",
+    "gpu_models": ["GPU-series-2"],
+    "node_count": 122,
+    "capacity_gpus": 976,
+    "replayed_arrival_count": 6501,
+    "evaluation_window_seconds": {
+      "start": 3628800,
+      "end": 3715199
+    },
+    "semantics": "All selected arrivals through the evaluation end are replayed from source origin for state warm-up. Only 94 HP and 84 Spot arrivals inside the explicit window contribute job SLO metrics; allocation is integrated only over that window."
+  },
+  "workload": {
+    "workload_fingerprint": "49f0638a1278d85b1a4e4c045074d00e131ceb42200de2a1a0825c20310e2d33",
+    "hp_job_count": 94,
+    "hp_requested_gpus": 3601,
+    "hp_requested_gpu_hours": 25006.497778,
+    "spot_job_count": 84,
+    "spot_requested_gpus": 360,
+    "spot_requested_gpu_hours": 2896.923889,
+    "combined_peak_active_pressure": 1.167008,
+    "spot_requested_gpu_share": 0.090886
+  },
+  "experiment": {
+    "engine": "schednav-sim/v1",
+    "repetitions_per_policy": 2,
+    "same_trace_and_window": true,
+    "all_result_and_metrics_fingerprints_repeat": true,
+    "fifo_hp_p95_jct_seconds": 44971.1,
+    "hp_p95_jct_hard_limit_seconds": 45420.811,
+    "policies": [
+      {
+        "action_id": "native-fifo",
+        "policy_fingerprint": "4fc0c2c331d76dd6f39bc652697185e278181f9ffb9a57a4dbbc9306481dc1cc",
+        "result_fingerprint": "e6d36b72dffa9cc30186c35138f58ea0ac27a2d1331a3205fa1ae72c46d2e335",
+        "metrics_fingerprint": "1d86d5adba05e269e775c943fc87322867ee7ebb879ae9ba66a00ef89f174d97",
+        "audit_fingerprint": "9ab7d1d0cb0ed9902cc816c8d6e8615270f895f155d79403feac152756fcea04",
+        "hp_completion_rate": 1.0,
+        "hp_preempted_job_count": 0,
+        "hp_p95_jct_seconds": 44971.1,
+        "hp_p95_queue_seconds": 0.0,
+        "spot_completion_rate": 1.0,
+        "spot_p95_jct_seconds": 21961.1,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_guarantee_success_rate": 1.0,
+        "allocation_rate_mean": 0.790511198615497,
+        "hard_slo_passed": true,
+        "allocation_soft_target_met": false
+      },
+      {
+        "action_id": "native-preemptive-0000",
+        "policy_fingerprint": "0fa119c922ab5a10e88dc56f35c9798a6d552fa6f350243d44cc8100154c5b14",
+        "result_fingerprint": "3f29e681cdef434efdd0c02c59f7726e47d9d80509863922e5758db3b7e72eb2",
+        "metrics_fingerprint": "ce2cfcd75068a234a85ef405add05601109835be7289a3567be58cdcb2356c92",
+        "audit_fingerprint": "708c6a688195a7cd1ad7bba8652cd2fae217f8a91a71635910f0916d763b36d8",
+        "hp_completion_rate": 1.0,
+        "hp_preempted_job_count": 0,
+        "hp_p95_jct_seconds": 44971.1,
+        "hp_p95_queue_seconds": 0.0,
+        "spot_completion_rate": 1.0,
+        "spot_p95_jct_seconds": 21961.1,
+        "spot_eviction_rate_per_run": 0.056179775280898875,
+        "spot_guarantee_success_rate": 1.0,
+        "allocation_rate_mean": 0.8055423474656943,
+        "hard_slo_passed": true,
+        "allocation_soft_target_met": true
+      },
+      {
+        "action_id": "native-preemptive-1800",
+        "policy_fingerprint": "3e0c2f2a631458fb8c614ca7563ffda439d63ee27093553b3886e4317cb8e47b",
+        "result_fingerprint": "03fbd87fa668e394c70d1165a012b8cbd2945f73658cee16b93780efccb48b6d",
+        "metrics_fingerprint": "79570eb8574e16560a0d3bca1cf027a2a59d040cb8f6941210872e30383c273a",
+        "audit_fingerprint": "1de414bd862e0c8c8b25e2034e8f53d45ea110b730cf169d10c98a8c49a3cbcd",
+        "hp_completion_rate": 1.0,
+        "hp_preempted_job_count": 0,
+        "hp_p95_jct_seconds": 44971.1,
+        "hp_p95_queue_seconds": 0.0,
+        "spot_completion_rate": 1.0,
+        "spot_p95_jct_seconds": 21961.1,
+        "spot_eviction_rate_per_run": 0.056179775280898875,
+        "spot_guarantee_success_rate": 1.0,
+        "allocation_rate_mean": 0.8070226839298194,
+        "hard_slo_passed": true,
+        "allocation_soft_target_met": true
+      },
+      {
+        "action_id": "native-preemptive-3600",
+        "policy_fingerprint": "53299ec7e6464f5e24209702438709739a321ee3f4f11100088cf4da2206f6ae",
+        "result_fingerprint": "ce108758825bf2b9d50d7524114d00a59f0b64f63835fa3996a027a992b5eb40",
+        "metrics_fingerprint": "1b42ad6918cec09ca7497dae289eb3974a305a5eb4c16c9750c13ed7ca968a52",
+        "audit_fingerprint": "45cb4b654e010392b60d2b55272bb6340eccdd575d50615663f17d70638f6339",
+        "hp_completion_rate": 1.0,
+        "hp_preempted_job_count": 0,
+        "hp_p95_jct_seconds": 44971.1,
+        "hp_p95_queue_seconds": 0.0,
+        "spot_completion_rate": 1.0,
+        "spot_p95_jct_seconds": 21961.1,
+        "spot_eviction_rate_per_run": 0.056179775280898875,
+        "spot_guarantee_success_rate": 1.0,
+        "allocation_rate_mean": 0.8078927655317808,
+        "hard_slo_passed": true,
+        "allocation_soft_target_met": true
+      }
+    ]
+  },
+  "slo": {
+    "name": "SchedNav Demo SLO v1",
+    "slo_fingerprint": "231df931685f03f7e100c5b032d68bdf2ca25a2c42cd68502cc2a0e79bccf2e5",
+    "hard_constraint_count": 8,
+    "all_candidates_passed_all_hard_constraints": true
+  },
+  "ranking": {
+    "selection_status": "tie_requires_human_approval",
+    "portfolio_fingerprint": "3a6bad71c54d012944434e475f0c426e2fb9e220bb7aca095f1698507ee26cdb",
+    "ranking_fingerprint": "5a8d161859458fd7c628207ecd06910e4ebaab875aed4e71e379f2457bdfb4b4",
+    "remaining_action_ids": [
+      "native-preemptive-0000",
+      "native-preemptive-1800",
+      "native-preemptive-3600"
+    ],
+    "reason": "All three are within the strict one-percentage-point allocation band and have identical Spot p95 JCT and eviction rate. No undeclared tie-breaker was added."
+  },
+  "not_redistributed": [
+    "raw source trace",
+    "canonical per-job CSV",
+    "per-job simulation results",
+    "runtime logs"
+  ],
+  "receipt_fingerprint": "0fd9f5815dbe65566147af83276ca446e44cb6ccbc36fad44ac072cd9a9f464d"
+}

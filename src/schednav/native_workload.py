@@ -45,12 +45,20 @@ def analyze_canonical_workload(
     if sample_interval_seconds <= 0:
         raise ValueError("sample_interval_seconds must be positive")
     start = (
-        min(job.submit_time_seconds for job in trace.jobs)
+        (
+            trace.evaluation_start_seconds
+            if trace.evaluation_start_seconds is not None
+            else min(job.submit_time_seconds for job in trace.jobs)
+        )
         if evaluation_start_seconds is None
         else float(evaluation_start_seconds)
     )
     end = (
-        max(job.submit_time_seconds for job in trace.jobs)
+        (
+            trace.evaluation_end_seconds
+            if trace.evaluation_end_seconds is not None
+            else max(job.submit_time_seconds for job in trace.jobs)
+        )
         if evaluation_end_seconds is None
         else float(evaluation_end_seconds)
     )

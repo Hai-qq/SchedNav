@@ -162,11 +162,21 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
     preemption_events: list[dict[str, Any]] = []
     spot_runs: list[dict[str, Any]] = []
     next_enqueue_order = len(arrivals)
-    evaluation_start = min(job.submit_time_seconds for job in arrivals)
-    evaluation_end = max(job.submit_time_seconds for job in arrivals)
-    now = evaluation_start
+    simulation_start = min(job.submit_time_seconds for job in arrivals)
+    evaluation_start = (
+        trace.evaluation_start_seconds
+        if trace.evaluation_start_seconds is not None
+        else simulation_start
+    )
+    evaluation_end = (
+        trace.evaluation_end_seconds
+        if trace.evaluation_end_seconds is not None
+        else max(job.submit_time_seconds for job in arrivals)
+    )
+    now = simulation_start
     simulation_start = now
     allocated_gpu_seconds = 0.0
+    warmup_allocated_gpu_seconds = 0.0
     evaluation_allocated_gpu_seconds = 0.0
 
     def queue_key(job_id: str) -> tuple[Any, ...]:
@@ -304,6 +314,11 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         delta = next_time - now
         allocated = sum(states[job_id].job.gpu_count for job_id in running)
         allocated_gpu_seconds += allocated * delta
+        warmup_overlap = max(
+            0.0,
+            min(next_time, evaluation_start) - now,
+        )
+        warmup_allocated_gpu_seconds += allocated * warmup_overlap
         evaluation_overlap = max(
             0.0,
             min(next_time, evaluation_end) - max(now, evaluation_start),
@@ -349,9 +364,12 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             "simulation_start": simulation_start,
             "simulation_end": simulation_end,
             "allocated_gpu_seconds": allocated_gpu_seconds,
+            "warmup_allocated_gpu_seconds": warmup_allocated_gpu_seconds,
             "evaluation_allocated_gpu_seconds": evaluation_allocated_gpu_seconds,
             "drain_allocated_gpu_seconds": (
-                allocated_gpu_seconds - evaluation_allocated_gpu_seconds
+                allocated_gpu_seconds
+                - warmup_allocated_gpu_seconds
+                - evaluation_allocated_gpu_seconds
             ),
             "allocation_rate_mean": (
                 evaluation_allocated_gpu_seconds
@@ -374,6 +392,11 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                 "jct_seconds": float(state.completion) - state.job.submit_time_seconds,
                 "preemption_count": state.preemptions,
                 "run_count": state.run_count,
+                "evaluation_population": (
+                    evaluation_start
+                    <= state.job.submit_time_seconds
+                    <= evaluation_end
+                ),
             }
             for state in sorted(states.values(), key=lambda item: item.job.job_id)
         ],
@@ -409,8 +432,13 @@ def build_metrics_report(result: dict[str, Any]) -> dict[str, Any]:
     if result.get("schema_version") != RESULT_SCHEMA or canonical_sha256(payload) != supplied:
         raise ValueError("A valid SchedNav simulation result is required")
     jobs_by_type: dict[str, Any] = {}
+    evaluation_jobs = [
+        job for job in result["jobs"] if bool(job.get("evaluation_population"))
+    ]
     for service_class in ("HP", "Spot"):
-        selected = [job for job in result["jobs"] if job["service_class"] == service_class]
+        selected = [
+            job for job in evaluation_jobs if job["service_class"] == service_class
+        ]
         preemptions = [int(job["preemption_count"]) for job in selected]
         jobs_by_type[service_class] = {
             "job_count": len(selected),
@@ -424,8 +452,17 @@ def build_metrics_report(result: dict[str, Any]) -> dict[str, Any]:
                 sum(value > 0 for value in preemptions) / len(selected) if selected else None
             ),
         }
-    events = result["preemption_events"]
-    spot_runs = result["spot_runs"]
+    evaluation_spot_ids = {
+        job["job_id"] for job in evaluation_jobs if job["service_class"] == "Spot"
+    }
+    events = [
+        event
+        for event in result["preemption_events"]
+        if event["preempted_job_id"] in evaluation_spot_ids
+    ]
+    spot_runs = [
+        run for run in result["spot_runs"] if run["job_id"] in evaluation_spot_ids
+    ]
     successful_guarantees = sum(bool(run["guarantee_succeeded"]) for run in spot_runs)
     failed_guarantees = len(spot_runs) - successful_guarantees
     spot_preemption_count = jobs_by_type["Spot"]["preemption_count"]
@@ -479,7 +516,7 @@ def build_metrics_report(result: dict[str, Any]) -> dict[str, Any]:
                 for run in spot_runs
             ),
             "consistent_with_job_csv": len(spot_runs)
-            == sum(job["run_count"] for job in result["jobs"] if job["service_class"] == "Spot"),
+            == sum(job["run_count"] for job in evaluation_jobs if job["service_class"] == "Spot"),
         },
         "spot_guarantee": {
             "available": True,
@@ -496,8 +533,8 @@ def build_metrics_report(result: dict[str, Any]) -> dict[str, Any]:
         "evidence": {"simulation_result_fingerprint": result["result_fingerprint"]},
         "definitions": {
             "allocation_rate_mean": "Allocated GPU-seconds divided by physical GPU-seconds inside the evaluation arrival window; drain is excluded from this utilization denominator.",
-            "spot_eviction_rate_per_run": "Spot preemption events divided by explicit Spot run starts.",
-            "spot_guarantee_success_rate": "Spot runs completing or remaining uninterrupted for the configured guarantee duration, divided by all Spot runs.",
+            "spot_eviction_rate_per_run": "Preemption events for evaluation-window Spot arrivals divided by their explicit run starts, including drain.",
+            "spot_guarantee_success_rate": "Runs of evaluation-window Spot arrivals completing or remaining uninterrupted for the configured guarantee duration, divided by all their runs, including drain.",
         },
     }
     report["metrics_fingerprint"] = canonical_sha256(report)

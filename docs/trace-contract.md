@@ -12,7 +12,7 @@ nodes.csv
 jobs.csv
 ```
 
-`trace.json` records the dataset identity, time origin, source provenance, file hashes and a canonical fingerprint. Relative paths cannot escape the trace directory and every file hash is verified before use.
+`trace.json` records the dataset identity, time origin, source provenance, file hashes and a canonical fingerprint. Relative paths cannot escape the trace directory and every file hash is verified before use. It may also declare `evaluation_window_seconds: {start, end}`.
 
 `nodes.csv` has three columns:
 
@@ -33,14 +33,18 @@ job_id,submit_time_seconds,duration_seconds,gpu_count,service_class,gpu_model
 - Raw datasets and per-job converted traces stay outside the public repository.
 - The manifest records the source URL/version and SHA-256 of source inputs when available.
 - Dataset adapters must document every semantic mapping, filter and skipped-record rule.
-- A filtered trace starts at the published origin and applies an inclusive arrival cutoff unless an explicit state snapshot contract is added later.
+- A prefix trace starts at the published origin and applies an inclusive arrival cutoff.
+- An explicit evaluation trace replays all selected arrivals from the published origin through the inclusive evaluation end. Arrivals before `evaluation_window_seconds.start` are warm-up state: they affect scheduling state but are excluded from the evaluated HP/Spot job population. Allocation is integrated only inside the declared window.
+- Explicit evaluation traces cannot contain post-window arrivals and must contain at least one arrival inside the window.
 - Content fingerprints cover the normalized files and metadata so AgentTeams passes references rather than large trace payloads.
 
 ## Built-in adapters
 
 ### Alibaba Spot GPU Trace
 
-`schednav import-alibaba` converts `node_info_df.csv` and `job_info_df.csv`. It preserves published HP/Spot labels, `gpu_request × worker_num`, GPU model and relative submit time. Optional GPU-model and inclusive submit-time filters are recorded in provenance.
+`schednav import-alibaba` converts `node_info_df.csv` and `job_info_df.csv`. It preserves published HP/Spot labels, `gpu_request × worker_num`, GPU model and relative submit time. Optional GPU-model, inclusive submit-time and explicit evaluation-window filters are recorded in provenance.
+
+For a historical window with correct carry-in state, pass both `--evaluation-start-seconds` and `--evaluation-end-seconds`. The importer keeps earlier selected arrivals for warm-up and excludes arrivals after the evaluation end. Supplying only one boundary is rejected.
 
 ### Microsoft Philly GPU Trace
 

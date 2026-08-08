@@ -121,9 +121,10 @@ $env:PYTHONPATH = (Resolve-Path .\src).Path
 schednav import-alibaba `
   --node-info C:\datasets\gpu-trace\node_info_df.csv `
   --job-info C:\datasets\gpu-trace\job_info_df.csv `
-  --output-dir C:\datasets\schednav\a100-day1 `
-  --gpu-model A100-SXM4-80GB `
-  --max-submit-time-seconds 86400
+  --output-dir C:\datasets\schednav\gpu-series-2-window `
+  --gpu-model GPU-series-2 `
+  --evaluation-start-seconds 3628800 `
+  --evaluation-end-seconds 3715199
 ```
 
 运行内置 simulator：
@@ -140,13 +141,19 @@ schednav simulate `
 
 ## Multi-dataset validation
 
-第一方内核已在两个独立来源的真实 GPU Trace 上运行。[Alibaba A100 validation receipt](evidence/native-v1/alibaba-a100-day1-validation.json) 记录了带原始 HP/Spot 标签的一天窗口；[Philly validation receipt](evidence/native-v1/philly-validation.json) 记录了官方数据 hash、111,846 个有效转换任务、前 1,000 个任务的 origin-preserving slice，以及两次 FIFO 运行完全相同的 result/metrics fingerprint。
+第一方内核已在两个独立来源的真实 GPU Trace 上运行。[Alibaba mixed HP/Spot policy evaluation](evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json) 记录了一个带 warm-up carry-in 的代表性窗口、四策略双次仿真、8 项硬 SLO 审计和正式排名；[Alibaba A100 validation receipt](evidence/native-v1/alibaba-a100-day1-validation.json) 记录了另一 GPU 型号的一天入口验证；[Philly validation receipt](evidence/native-v1/philly-validation.json) 记录了官方数据 hash、111,846 个有效转换任务、前 1,000 个任务的 origin-preserving slice，以及两次 FIFO 运行完全相同的 result/metrics fingerprint。
 
 该 Philly 验证只覆盖 ingestion、placement、completion、JCT、allocation 和 determinism。由于源数据没有 HP/Spot 标签，Spot eviction、guarantee 和 HP-vs-Spot SLO 明确保持未验证。
+
+代表性 Alibaba 窗口的四个策略全部通过 8 项硬 SLO。三个抢占策略达到 80% allocation 软目标，但在严格 1 个百分点 allocation tie band 内，且 Spot p95 JCT 与 eviction rate 相同，因此结果保持 `tie_requires_human_approval`，未添加隐藏的第四排序指标。
+
+完整实验可用 `scripts/run_demo_experiment.ps1` 一次执行：导入真实 Trace、分析负载、每个策略独立运行两次、验证确定性、生成 FIFO baseline、审计 SLO 并分层排名。脚本要求单独下载数据，且拒绝覆盖已有输出目录。
 
 ## AgentTeams integration
 
 SchedNav 映射为 1 个 Manager + 4 个 Worker，并通过受限 MCP bridge 调用负载分析、仿真、比较、审计与排名操作。模型 ID 固定为 `deepseek-v4-flash`。
+
+真实 `native-local` 流程已由四个 Worker 完成负载分析、限定策略选择、四次独立仿真与四次 SLO 审计，再由 Manager 调用比较和排名工具。最终项目状态为 `completed / approval_pending`，与公开实验回执一致地停在三策略人工审批门。
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\src).Path
