@@ -1,0 +1,46 @@
+diff --git a/install/agentteams-install.ps1 b/install/agentteams-install.ps1
+index 92fd04f..cc2d73d 100644
+--- a/install/agentteams-install.ps1
++++ b/install/agentteams-install.ps1
+@@ -1022,6 +1022,11 @@ AGENTTEAMS_PORT_MANAGER_CONSOLE=$($Config.PORT_MANAGER_CONSOLE)
+ AGENTTEAMS_MATRIX_DOMAIN=$($Config.MATRIX_DOMAIN)
+ AGENTTEAMS_MATRIX_CLIENT_DOMAIN=$($Config.MATRIX_CLIENT_DOMAIN)
+ 
++# Matrix AppService
++AGENTTEAMS_MATRIX_APPSERVICE_ENABLED=$($Config.MATRIX_APPSERVICE_ENABLED)
++AGENTTEAMS_MATRIX_APPSERVICE_AS_TOKEN=$($Config.MATRIX_APPSERVICE_AS_TOKEN)
++AGENTTEAMS_MATRIX_APPSERVICE_HS_TOKEN=$($Config.MATRIX_APPSERVICE_HS_TOKEN)
++
+ # Gateway
+ AGENTTEAMS_AI_GATEWAY_DOMAIN=$($Config.AI_GATEWAY_DOMAIN)
+ AGENTTEAMS_MANAGER_GATEWAY_KEY=$($Config.MANAGER_GATEWAY_KEY)
+@@ -2669,6 +2674,17 @@ function Install-Manager {
+     $config.MINIO_PASSWORD = if ($env:AGENTTEAMS_MINIO_PASSWORD) { $env:AGENTTEAMS_MINIO_PASSWORD } else { $config.ADMIN_PASSWORD }
+     $config.MANAGER_GATEWAY_KEY = if ($env:AGENTTEAMS_MANAGER_GATEWAY_KEY) { $env:AGENTTEAMS_MANAGER_GATEWAY_KEY } else { New-RandomKey }
+ 
++    # Keep the Windows installer in parity with agentteams-install.sh: current
++    # embedded controller images require stable Matrix AppService credentials.
++    $config.MATRIX_APPSERVICE_ENABLED = if ($null -ne $env:AGENTTEAMS_MATRIX_APPSERVICE_ENABLED) { $env:AGENTTEAMS_MATRIX_APPSERVICE_ENABLED } else { "true" }
++    if ($config.MATRIX_APPSERVICE_ENABLED -ne "false" -and $config.MATRIX_APPSERVICE_ENABLED -ne "0") {
++        $config.MATRIX_APPSERVICE_AS_TOKEN = if ($env:AGENTTEAMS_MATRIX_APPSERVICE_AS_TOKEN) { $env:AGENTTEAMS_MATRIX_APPSERVICE_AS_TOKEN } else { New-RandomKey }
++        $config.MATRIX_APPSERVICE_HS_TOKEN = if ($env:AGENTTEAMS_MATRIX_APPSERVICE_HS_TOKEN) { $env:AGENTTEAMS_MATRIX_APPSERVICE_HS_TOKEN } else { New-RandomKey }
++    } else {
++        $config.MATRIX_APPSERVICE_AS_TOKEN = ""
++        $config.MATRIX_APPSERVICE_HS_TOKEN = ""
++    }
++
+     # Store additional config
+     $config.LANGUAGE = $script:AGENTTEAMS_LANGUAGE
+     $config.REGISTRY = $script:AGENTTEAMS_REGISTRY
+@@ -3069,7 +3085,10 @@ function Install-Manager {
+             "-e", "AGENTTEAMS_WORKSPACE_DIR=$($config.WORKSPACE_DIR)",
+             "-e", "AGENTTEAMS_HOST_SHARE_DIR=$($config.HOST_SHARE_DIR)",
+             "-e", "AGENTTEAMS_MANAGER_ENABLED=true",
+-            "-e", "AGENTTEAMS_PORT_MANAGER_CONSOLE=$($config.PORT_MANAGER_CONSOLE)"
++            "-e", "AGENTTEAMS_PORT_MANAGER_CONSOLE=$($config.PORT_MANAGER_CONSOLE)",
++            "-e", "AGENTTEAMS_MATRIX_APPSERVICE_ENABLED=$($config.MATRIX_APPSERVICE_ENABLED)",
++            "-e", "AGENTTEAMS_MATRIX_APPSERVICE_AS_TOKEN=$($config.MATRIX_APPSERVICE_AS_TOKEN)",
++            "-e", "AGENTTEAMS_MATRIX_APPSERVICE_HS_TOKEN=$($config.MATRIX_APPSERVICE_HS_TOKEN)"
+         )
+ 
+         if ($script:AGENTTEAMS_TIMEZONE) {

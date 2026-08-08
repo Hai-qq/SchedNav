@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/agent-identities.schema.json",
+  "title": "SchedNav Agent Identity list",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "topology", "manager", "workers"],
+  "properties": {
+    "schema_version": {"const": "schednav.agent-identities/v1"},
+    "topology": {"const": "manager-with-standalone-workers"},
+    "manager": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "responsibilities", "skills", "forbidden_actions"],
+      "properties": {
+        "id": {"const": "schednav-manager"},
+        "responsibilities": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "skills": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "forbidden_actions": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "workers": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "role", "skill", "inputs", "outputs", "forbidden_actions"],
+        "properties": {
+          "id": {"enum": ["workload-analyst", "scheduling-strategist", "simulation-agent", "slo-auditor"]},
+          "role": {"type": "string", "minLength": 1},
+          "skill": {"type": "string", "minLength": 1},
+          "inputs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "outputs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "forbidden_actions": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}

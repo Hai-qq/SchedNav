@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/action-space.schema.json",
+  "title": "SchedNav finite action space",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "status", "allowed", "profiles", "forbidden"],
+  "properties": {
+    "schema_version": {"const": "schednav.action-space/v1"},
+    "name": {"type": "string"},
+    "status": {"type": "string"},
+    "allowed": {
+      "type": "object",
+      "required": ["scheduler", "guarantee_hours", "guarantee_rate", "ckpt_interval_seconds"]
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "items": {"$ref": "policy-action.schema.json"}
+    },
+    "forbidden": {"type": "array", "items": {"type": "string"}}
+  }
+}

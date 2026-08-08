@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/slo-spec.schema.json",
+  "title": "SchedNav SLO specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "constraints"],
+  "properties": {
+    "schema_version": {"const": "schednav.slo-spec/v1"},
+    "name": {"type": "string", "minLength": 1},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_date", "paper_url", "baseline_policy_action_id"],
+      "properties": {
+        "decision_date": {"type": "string", "format": "date"},
+        "paper_url": {"type": "string", "format": "uri"},
+        "baseline_policy_action_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "metric", "operator", "threshold", "severity"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "metric": {"$ref": "#/$defs/metricName"},
+          "operator": {"enum": ["<", "<=", ">", ">="]},
+          "threshold": {
+            "oneOf": [
+              {"type": "number"},
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "baseline_metric", "multiplier"],
+                "properties": {
+                  "kind": {"const": "baseline_relative"},
+                  "baseline_metric": {"$ref": "#/$defs/metricName"},
+                  "multiplier": {"type": "number"},
+                  "addend": {"type": "number"}
+                }
+              }
+            ]
+          },
+          "severity": {"enum": ["hard", "soft"]}
+        }
+      }
+    },
+    "ranking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allocation_metric", "allocation_tie_band", "second_metric", "third_metric", "unresolved_tie"],
+      "properties": {
+        "allocation_metric": {"const": "allocation_rate_mean"},
+        "allocation_tie_band": {"type": "number", "exclusiveMinimum": 0},
+        "second_metric": {"const": "spot_jct_p95_seconds"},
+        "third_metric": {"const": "spot_eviction_rate_per_run"},
+        "unresolved_tie": {"const": "human_approval"}
+      }
+    }
+  },
+  "$defs": {
+    "metricName": {
+      "enum": ["hp_completion_rate", "hp_jct_mean_seconds", "hp_jct_p50_seconds", "hp_jct_p95_seconds", "hp_queue_mean_seconds", "hp_queue_p95_seconds", "hp_preempted_job_count", "spot_completion_rate", "spot_jct_mean_seconds", "spot_jct_p50_seconds", "spot_jct_p95_seconds", "spot_queue_mean_seconds", "spot_queue_p95_seconds", "spot_preemption_count", "spot_preempted_job_rate", "spot_eviction_rate_per_run", "spot_guarantee_success_rate", "allocation_rate_mean", "preemption_added_gpu_seconds"]
+    }
+  }
+}

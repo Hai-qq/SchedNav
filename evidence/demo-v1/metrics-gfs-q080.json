@@ -1,0 +1,121 @@
+{
+  "cluster": {
+    "allocation_rate_mean": 0.733534,
+    "sample_count": 1440,
+    "sample_interval_seconds": 60
+  },
+  "definitions": {
+    "added_gpu_seconds_total": "Sum of (rollback_seconds + overhead_seconds) multiplied by the preempted job's requested GPUs; this is simulator-added allocation work, not hardware utilization.",
+    "allocation_rate_mean": "Mean of equally spaced GFS gpu_utilization samples; this is allocation, not GPU core utilization.",
+    "checkpoint_events": "The upstream ckpt_times job column remains unusable; checkpoint rollback is instead observed per preemption event.",
+    "population": "Jobs whose submit_time is within the inclusive evaluation window; drain continues until completion.",
+    "preempted_job_rate": "Jobs with preempt_times > 0 divided by jobs of the same type in the evaluation arrival window.",
+    "spot_eviction_rate_per_run": "Spot eviction events divided by explicit Spot run-start events for the evaluation arrival population, including run starts and evictions during drain; this follows the GFS paper's evictions-per-runs definition.",
+    "spot_guarantee_success_rate": "Succeeded guarantee-period events divided by all succeeded and failed guarantee-period events for Spot jobs in the evaluation arrival population, including events during drain."
+  },
+  "evidence": {
+    "job_csv_sha256": "882750166e4463c2a599fb277e91ccf3cdf3c7509e3d23fe8dfa50f148f21f6f",
+    "preemption_event_csv_sha256": "c796761e934a949b458015fd38b13b0368a4767157e0d94880f60ab6f84d8556",
+    "sequence_csv_sha256": "e260bbef17aeacd67f0030cd4abdbbee4a4794d4e0f0ace0fb78a7558e1505b7",
+    "spot_guarantee_event_csv_sha256": "329a76f8b7a5c6356714623758d8a9ced438b296c5bcd2d05ef56f2ce7c59b05",
+    "spot_run_event_csv_sha256": "03d769f9e3afee3390aff0da42de2f02645851199c57abf645df9bd30c221f2d"
+  },
+  "jobs": {
+    "HP": {
+      "completed_count": 94,
+      "completion_rate": 1.0,
+      "jct_seconds": {
+        "mean": 8644.989362,
+        "p50": 1102.0,
+        "p95": 44972.1
+      },
+      "job_count": 94,
+      "preempted_job_count": 0,
+      "preempted_job_rate": 0.0,
+      "preemption_count": 0,
+      "queue_seconds": {
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0
+      }
+    },
+    "Spot": {
+      "completed_count": 84,
+      "completion_rate": 1.0,
+      "jct_seconds": {
+        "mean": 14475.940476,
+        "p50": 21696.0,
+        "p95": 21962.1
+      },
+      "job_count": 84,
+      "preempted_job_count": 1,
+      "preempted_job_rate": 0.011904761904761904,
+      "preemption_count": 2,
+      "queue_seconds": {
+        "mean": 59.916667,
+        "p50": 0.0,
+        "p95": 0.0
+      }
+    }
+  },
+  "metrics_fingerprint": "cd34b1ac80ad809039a719927d72d14591ae03f99ed3dd6223f2233f63dd7362",
+  "policy": {
+    "ckpt_interval_seconds": 3600,
+    "deterministic": true,
+    "device": "cpu",
+    "estimator_validation_days": 7,
+    "guarantee_hours": [
+      1
+    ],
+    "guarantee_rate": 0.8,
+    "num_workers": 0,
+    "pred_len_hours": 4,
+    "recorder_initial_skip_hours": 20,
+    "scheduler": "spot_scheduler",
+    "seed": 20260807,
+    "seq_len_hours": 672,
+    "train_epochs": 10
+  },
+  "policy_fingerprint": "f173d6be4fc3f9bef0dd627c47cc417dfd13bc010161e5a30f5e07ca187ba48e",
+  "preemption_events": {
+    "added_gpu_seconds_total": 226728.0,
+    "available": true,
+    "consistent_with_job_csv": true,
+    "counted_spot_failure_count": 2,
+    "event_count": 2,
+    "events_during_drain": 0,
+    "events_during_evaluation_window": 2,
+    "eviction_rate_per_run": 0.023255813953488372,
+    "overhead_seconds_total": 80.0,
+    "preempted_job_count": 1,
+    "rollback_seconds_total": 3304.0,
+    "spot_run_count": 86
+  },
+  "run_spec_fingerprint": "48b4fcc924c4bd5abcb910e9d9c289b45a71167d898838e8603fc261c7c988ab",
+  "schema_version": "schednav.metrics-report/v1",
+  "source": {
+    "gfs_commit": "e998d5453e626a0b743b3fd5137c54c987db780b",
+    "gfs_patch_sha256": "623ceda161983b150b5fb339e4755016ce121c12b86e7fc6f5382dc7f6e54ae1",
+    "trace_commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71"
+  },
+  "spot_guarantee": {
+    "available": true,
+    "consistent_with_preemption_events": true,
+    "event_count": 403,
+    "failed_count": 2,
+    "succeeded_count": 401,
+    "success_rate": 0.9950372208436724
+  },
+  "spot_runs": {
+    "available": true,
+    "consistent_with_job_csv": true,
+    "event_count": 86,
+    "events_during_drain": 0,
+    "events_during_evaluation_window": 86
+  },
+  "trace_id": "bc9a823b77714070",
+  "window_seconds": {
+    "end": 3715199,
+    "start": 3628800
+  }
+}

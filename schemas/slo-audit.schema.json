@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/slo-audit.schema.json",
+  "title": "SchedNav SLO audit",
+  "type": "object",
+  "required": ["schema_version", "slo_name", "slo_fingerprint", "metrics_fingerprint", "metrics_schema_supported", "metrics_fingerprint_valid", "trace_id", "policy_fingerprint", "scheduler", "baseline", "evidence_checks", "audit_passed", "hard_constraint_count", "soft_violation_count", "results", "definition", "audit_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.slo-audit/v1"},
+    "slo_name": {"type": "string"},
+    "slo_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metrics_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metrics_schema_supported": {"type": "boolean"},
+    "metrics_fingerprint_valid": {"type": "boolean"},
+    "trace_id": {"type": "string", "minLength": 1},
+    "policy_fingerprint": {"type": "string", "minLength": 1},
+    "scheduler": {"enum": ["fifo_spot", "spot_scheduler"]},
+    "baseline": {"type": "object"},
+    "evidence_checks": {"type": "object"},
+    "audit_passed": {"type": "boolean"},
+    "hard_constraint_count": {"type": "integer", "minimum": 0},
+    "soft_violation_count": {"type": "integer", "minimum": 0},
+    "results": {"type": "array", "items": {"type": "object"}},
+    "definition": {"type": "string"},
+    "audit_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

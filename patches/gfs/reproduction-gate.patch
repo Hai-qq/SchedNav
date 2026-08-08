@@ -1,0 +1,499 @@
+diff --git a/estimator/gpu_request_estimator.py b/estimator/gpu_request_estimator.py
+index 5ff24fb..699a9e7 100644
+--- a/estimator/gpu_request_estimator.py
++++ b/estimator/gpu_request_estimator.py
+@@ -122,7 +122,8 @@ class GPURequestEstimator:
+         train_data, train_loader = self._get_data(flag='train', data=data, timestamp=now_timestamp)
+         vali_data, vali_loader = self._get_data(flag='val', data=data, timestamp=now_timestamp)
+ 
+-        path = os.path.join(self.args.checkpoints, str(now_timestamp))
++        checkpoint_key = pd.Timestamp(now_timestamp).strftime("%Y%m%dT%H%M%S")
++        path = os.path.join(self.args.checkpoints, checkpoint_key)
+         if not os.path.exists(path):
+             os.makedirs(path)
+ 
+diff --git a/estimator/utils/losses.py b/estimator/utils/losses.py
+index 58a62ff..430e9aa 100644
+--- a/estimator/utils/losses.py
++++ b/estimator/utils/losses.py
+@@ -90,6 +90,7 @@ class likelihood_loss(nn.Module):
+             loss: (Variable) average log-likelihood loss across the batch
+         '''
+         zero_index = (labels != 0)
++        sigma = sigma.clamp_min(t.finfo(sigma.dtype).eps)
+         # print(mu.shape, sigma.shape)
+         # print(mu[zero_index], sigma[zero_index])
+         distribution = t.distributions.normal.Normal(mu[zero_index], sigma[zero_index])
+diff --git a/policy/fifo_spot.py b/policy/fifo_spot.py
+index 9a053ea..8996a3d 100644
+--- a/policy/fifo_spot.py
++++ b/policy/fifo_spot.py
+@@ -39,7 +39,7 @@ class FifoWithSpot(Policy):
+                 vc = self.cluster.vc_dict[vc_name]
+                 for job in run_ls:
+                     if job["type"] == "Spot" and self.time - job.get_ckpt_time() >= job["spot_duration"]:  # 达保
+-                        self.record_spot_succeed(job)
++                        self.record_spot_succeed(job, "guarantee_duration_completed")
+                         job.set_ckpt_time(self.time)
+ 
+                     if job["remain"] == 0:
+@@ -50,7 +50,7 @@ class FifoWithSpot(Policy):
+                         self.run_list[vc_name].remove(job)
+                         self.gpu_request_dict[vc_name][job["type"]] -= job["gpu_request"] * job["worker_num"]
+                         if job["type"] == "Spot":
+-                            self.record_spot_succeed(job)
++                            self.record_spot_succeed(job, "job_completed")
+                     else:
+                         job["remain"] -= 1
+ 
+@@ -124,7 +124,14 @@ class FifoWithSpot(Policy):
+ 
+             self.time += 1
+ 
+-        self.recorder.log_recorder(self._name, self.args.log_range, spot_quota_record=self.spot_quota_record)
++        self.recorder.log_recorder(
++            self._name,
++            self.args.log_range,
++            spot_quota_record=self.spot_quota_record,
++            preemption_event_records=self.preemption_event_records,
++            spot_run_event_records=self.spot_run_event_records,
++            spot_guarantee_event_records=self.spot_guarantee_event_records,
++        )
+         # self.spot_scheduler_log(log_range)
+ 
+     def pend_job(self, job):
+@@ -147,6 +154,7 @@ class FifoWithSpot(Policy):
+         job["status"] = "run"
+         if job["type"] == "Spot":
+             job.update({"spot_duration": 3600})
++            self.record_spot_run_event(job)
+             self.spot_que_list[job["vc_name"]].remove(job)
+             # key = job["gpu_model"] + '&&' + job["cluster_name"]
+             # self.spot_que_list[key].remove(job)
+@@ -160,14 +168,27 @@ class FifoWithSpot(Policy):
+         for preempt_job in preempt_jobs:
+             preempt_job.update({"nodes": []})
+             if preempt_job["status"] == "run":
+-                preempt_job["remain"] = (preempt_job["remain"] + self.preempt_overhead(preempt_job) +
+-                                         (self.time - preempt_job["start_time"]) % self.args.ckpt_interval)
++                remain_before = preempt_job["remain"]
++                overhead_seconds = self.preempt_overhead(preempt_job)
++                rollback_seconds = (self.time - preempt_job["start_time"]) % self.args.ckpt_interval
++                remain_after = remain_before + overhead_seconds + rollback_seconds
++                preempt_job["remain"] = remain_after
+ 
+                 self.run_list[vc_name].remove(preempt_job)
+                 self.gpu_request_dict[vc_name][preempt_job["type"]] -= (
+                         preempt_job["gpu_request"] * preempt_job["worker_num"])
+ 
+-                if preempt_job["type"] == "Spot" and preempt_job["spot_duration"] > 0:
++                counted_as_spot_failure = preempt_job["type"] == "Spot" and preempt_job["spot_duration"] > 0
++                self.record_preemption_event(
++                    job,
++                    preempt_job,
++                    remain_before,
++                    remain_after,
++                    rollback_seconds,
++                    overhead_seconds,
++                    counted_as_spot_failure,
++                )
++                if counted_as_spot_failure:
+                     self.record_spot_failed(vc_name, preempt_job)
+                 self.pend_job(preempt_job)
+         job["remain"] += self.preempt_overhead(job)
+@@ -297,13 +318,15 @@ class FifoWithSpot(Policy):
+         return gpus, preempt_spots
+ 
+     def record_spot_failed(self, vc_name, preempt_job):
++        self.record_spot_guarantee_event(preempt_job, "failed", "preempted")
+         preempt_job["preempt_times"] += 1
+         self.preemption_times += 1
+         self.spot_failed[vc_name] += 1
+         vc = self.cluster.vc_dict[vc_name]
+         vc.record_spot(self.time, preempt_job, succeed=0)
+ 
+-    def record_spot_succeed(self, job):
++    def record_spot_succeed(self, job, reason):
++        self.record_spot_guarantee_event(job, "succeeded", reason)
+         vc_name = job["vc_name"]
+         self.spot_succeed[vc_name] += 1
+         vc = self.cluster.vc_dict[vc_name]
+diff --git a/policy/policy.py b/policy/policy.py
+index 84c8a24..bc7ccc6 100644
+--- a/policy/policy.py
++++ b/policy/policy.py
+@@ -27,6 +27,9 @@ class Policy:
+         self.gpu_request_dict = self.init_gpu_request_dict()
+         self.guar_request_dict = {}
+         self.spot_quota_record = []
++        self.preemption_event_records = []
++        self.spot_run_event_records = []
++        self.spot_guarantee_event_records = []
+         self.run_list = self.init_job_list_dict()  # Running Jobs
+         self.guar_gpu_time, self.spot_gpu_time = self.init_count_dict(), self.init_count_dict()
+         self.preemption_times = 0
+@@ -41,6 +44,80 @@ class Policy:
+ 
+         self.vc_echo_scaling = False
+ 
++    def record_preemption_event(
++        self,
++        preemptor_job,
++        preempted_job,
++        remain_before,
++        remain_after,
++        rollback_seconds,
++        overhead_seconds,
++        counted_as_spot_failure,
++    ):
++        requested_gpus = preempted_job["gpu_request"] * preempted_job["worker_num"]
++        self.preemption_event_records.append(
++            {
++                "event_ordinal": len(self.preemption_event_records) + 1,
++                "time": int(self.time),
++                "scheduler": self._name,
++                "vc_name": preempted_job["vc_name"],
++                "cause": "hp_placement",
++                "preemptor_job_index": preemptor_job["job_index"],
++                "preemptor_job_name": preemptor_job["job_name"],
++                "preemptor_type": preemptor_job["type"],
++                "preempted_job_index": preempted_job["job_index"],
++                "preempted_job_name": preempted_job["job_name"],
++                "preempted_type": preempted_job["type"],
++                "preempted_submit_time": preempted_job["submit_time"],
++                "preempted_requested_gpus": requested_gpus,
++                "preemption_ordinal_for_job": preempted_job["preempt_times"] + 1,
++                "run_seconds_since_start": self.time - preempted_job["start_time"],
++                "checkpoint_interval_seconds": self.args.ckpt_interval,
++                "rollback_seconds": rollback_seconds,
++                "overhead_seconds": overhead_seconds,
++                "remain_before_seconds": remain_before,
++                "remain_after_seconds": remain_after,
++                "added_gpu_seconds": requested_gpus * (rollback_seconds + overhead_seconds),
++                "counted_as_spot_failure": counted_as_spot_failure,
++                "event_in_evaluation_window": self.args.log_range[0] <= self.time <= self.args.log_range[1],
++            }
++        )
++
++    def record_spot_guarantee_event(self, job, outcome, reason):
++        self.spot_guarantee_event_records.append(
++            {
++                "event_ordinal": len(self.spot_guarantee_event_records) + 1,
++                "time": int(self.time),
++                "scheduler": self._name,
++                "vc_name": job["vc_name"],
++                "job_index": job["job_index"],
++                "job_name": job["job_name"],
++                "job_type": job["type"],
++                "job_submit_time": job["submit_time"],
++                "outcome": outcome,
++                "reason": reason,
++                "guarantee_duration_seconds": job["spot_duration"],
++                "run_seconds_since_guarantee_start": self.time - job.get_ckpt_time(),
++                "event_in_evaluation_window": self.args.log_range[0] <= self.time <= self.args.log_range[1],
++            }
++        )
++
++    def record_spot_run_event(self, job):
++        self.spot_run_event_records.append(
++            {
++                "event_ordinal": len(self.spot_run_event_records) + 1,
++                "time": int(self.time),
++                "scheduler": self._name,
++                "vc_name": job["vc_name"],
++                "job_index": job["job_index"],
++                "job_name": job["job_name"],
++                "job_type": job["type"],
++                "job_submit_time": job["submit_time"],
++                "run_ordinal_for_job": job["preempt_times"] + 1,
++                "event_in_evaluation_window": self.args.log_range[0] <= self.time <= self.args.log_range[1],
++            }
++        )
++
+     def init_placer(self):
+         vc_placer = {}
+         for vc in self.cluster.vc_dict:
+diff --git a/policy/recorder/recorder.py b/policy/recorder/recorder.py
+index 1a34da5..17282ac 100644
+--- a/policy/recorder/recorder.py
++++ b/policy/recorder/recorder.py
+@@ -25,6 +25,25 @@ class Recorder:
+         # Spot额度数据
+         self.spot_quota_columns = ["time", "vc_name", "guarantee_hour", "predict_free", "eta"]
+ 
++        self.preemption_event_columns = [
++            "event_ordinal", "time", "scheduler", "vc_name", "cause",
++            "preemptor_job_index", "preemptor_job_name", "preemptor_type",
++            "preempted_job_index", "preempted_job_name", "preempted_type",
++            "preempted_submit_time", "preempted_requested_gpus", "preemption_ordinal_for_job",
++            "run_seconds_since_start", "checkpoint_interval_seconds", "rollback_seconds",
++            "overhead_seconds", "remain_before_seconds", "remain_after_seconds",
++            "added_gpu_seconds", "counted_as_spot_failure", "event_in_evaluation_window",
++        ]
++        self.spot_run_event_columns = [
++            "event_ordinal", "time", "scheduler", "vc_name", "job_index", "job_name",
++            "job_type", "job_submit_time", "run_ordinal_for_job", "event_in_evaluation_window",
++        ]
++        self.spot_guarantee_event_columns = [
++            "event_ordinal", "time", "scheduler", "vc_name", "job_index", "job_name",
++            "job_type", "job_submit_time", "outcome", "reason", "guarantee_duration_seconds",
++            "run_seconds_since_guarantee_start", "event_in_evaluation_window",
++        ]
++
+         self.vc_record_df_list = []
+         self.record_df_list = []
+         self.org_request_df_list = []
+@@ -85,7 +104,15 @@ class Recorder:
+         org_data.fillna(0.0, inplace=True)
+         return org_data
+ 
+-    def log_recorder(self, policy_name, log_range, spot_quota_record=None):
++    def log_recorder(
++        self,
++        policy_name,
++        log_range,
++        spot_quota_record=None,
++        preemption_event_records=None,
++        spot_run_event_records=None,
++        spot_guarantee_event_records=None,
++    ):
+         vc_record_df = pd.concat(self.vc_record_df_list)
+         record_df = pd.concat(self.record_df_list)
+         # placement = self.policy.placement
+@@ -110,6 +137,27 @@ class Recorder:
+                                            vc_record_df["total_gpu_num"]).round(3)
+         vc_record_df.to_csv(f"{self._log_dir}/{cluster_name}/{policy_name}_vc_record.csv", index=False)
+ 
++        preemption_event_df = pd.DataFrame(
++            preemption_event_records or [], columns=self.preemption_event_columns
++        )
++        preemption_event_df.to_csv(
++            f"{self._log_dir}/{cluster_name}/{policy_name}_preemption_events.csv", index=False
++        )
++
++        spot_run_event_df = pd.DataFrame(
++            spot_run_event_records or [], columns=self.spot_run_event_columns
++        )
++        spot_run_event_df.to_csv(
++            f"{self._log_dir}/{cluster_name}/{policy_name}_spot_run_events.csv", index=False
++        )
++
++        spot_guarantee_event_df = pd.DataFrame(
++            spot_guarantee_event_records or [], columns=self.spot_guarantee_event_columns
++        )
++        spot_guarantee_event_df.to_csv(
++            f"{self._log_dir}/{cluster_name}/{policy_name}_spot_guarantee_events.csv", index=False
++        )
++
+         self.logger.info(f"{cluster_name}  | Log Time Start {log_range[0]} | Log Time End {log_range[1]}")
+         log_df = df[(df.submit_time >= log_range[0]) & (df.submit_time <= log_range[1])]
+         log_seq = record_df[(record_df.time >= log_range[0]) & (record_df.time <= log_range[1])]
+diff --git a/policy/spot.py b/policy/spot.py
+index e746124..f4c5482 100644
+--- a/policy/spot.py
++++ b/policy/spot.py
+@@ -37,7 +37,7 @@ class SpotScheduler(Policy):
+                 vc = self.cluster.vc_dict[vc_name]
+                 for job in run_ls:
+                     if job["type"] == "Spot" and self.time - job.get_ckpt_time() >= job["spot_duration"]:  # 达保
+-                        self.record_spot_succeed(job)
++                        self.record_spot_succeed(job, "guarantee_duration_completed")
+                         job.set_ckpt_time(self.time)
+ 
+                     if job["remain"] == 0:
+@@ -48,7 +48,7 @@ class SpotScheduler(Policy):
+                         self.run_list[vc_name].remove(job)
+                         self.gpu_request_dict[vc_name][job["type"]] -= job["gpu_request"]
+                         if job["type"] == "Spot":
+-                            self.record_spot_succeed(job)
++                            self.record_spot_succeed(job, "job_completed")
+                         else:
+                             self.guar_request_dict[job["org_key"]] -= job["gpu_request"]
+                     else:
+@@ -128,7 +128,14 @@ class SpotScheduler(Policy):
+ 
+             self.time += 1
+ 
+-        self.recorder.log_recorder(self._name, self.args.log_range, spot_quota_record=self.spot_quota_record)
++        self.recorder.log_recorder(
++            self._name,
++            self.args.log_range,
++            spot_quota_record=self.spot_quota_record,
++            preemption_event_records=self.preemption_event_records,
++            spot_run_event_records=self.spot_run_event_records,
++            spot_guarantee_event_records=self.spot_guarantee_event_records,
++        )
+         # self.spot_scheduler_log(log_range)
+ 
+     def pend_job(self, job):
+@@ -151,6 +158,7 @@ class SpotScheduler(Policy):
+         job["status"] = "run"
+         if job["type"] == "Spot":
+             job.update({"spot_duration": 3600})
++            self.record_spot_run_event(job)
+             self.spot_que_list[job["vc_name"]].remove(job)
+         else:
+             raise ValueError
+@@ -162,13 +170,26 @@ class SpotScheduler(Policy):
+         for preempt_job in preempt_jobs:
+             preempt_job.update({"nodes": []})
+             if preempt_job["status"] == "run":
+-                preempt_job["remain"] = (preempt_job["remain"] + self.preempt_overhead(preempt_job) +
+-                                         (self.time - preempt_job["start_time"]) % self.args.ckpt_interval)
++                remain_before = preempt_job["remain"]
++                overhead_seconds = self.preempt_overhead(preempt_job)
++                rollback_seconds = (self.time - preempt_job["start_time"]) % self.args.ckpt_interval
++                remain_after = remain_before + overhead_seconds + rollback_seconds
++                preempt_job["remain"] = remain_after
+ 
+                 self.run_list[vc_name].remove(preempt_job)
+                 self.gpu_request_dict[vc_name][preempt_job["type"]] -= preempt_job["gpu_request"]
+ 
+-                if preempt_job["type"] == "Spot" and preempt_job["spot_duration"] > 0:
++                counted_as_spot_failure = preempt_job["type"] == "Spot" and preempt_job["spot_duration"] > 0
++                self.record_preemption_event(
++                    job,
++                    preempt_job,
++                    remain_before,
++                    remain_after,
++                    rollback_seconds,
++                    overhead_seconds,
++                    counted_as_spot_failure,
++                )
++                if counted_as_spot_failure:
+                     self.record_spot_failed(vc_name, preempt_job)
+                 self.pend_job(preempt_job)
+         job["remain"] += self.preempt_overhead(job)
+@@ -380,13 +401,15 @@ class SpotScheduler(Policy):
+         return cost
+ 
+     def record_spot_failed(self, vc_name, preempt_job):
++        self.record_spot_guarantee_event(preempt_job, "failed", "preempted")
+         preempt_job["preempt_times"] += 1
+         self.preemption_times += 1
+         self.spot_failed[vc_name] += 1
+         vc = self.cluster.vc_dict[vc_name]
+         vc.record_spot(self.time, preempt_job, succeed=0)
+ 
+-    def record_spot_succeed(self, job):
++    def record_spot_succeed(self, job, reason):
++        self.record_spot_guarantee_event(job, "succeeded", reason)
+         vc_name = job["vc_name"]
+         self.spot_succeed[vc_name] += 1
+         vc = self.cluster.vc_dict[vc_name]
+diff --git a/requirements.txt b/requirements.txt
+index 70af029..59890d8 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -8,4 +8,5 @@ matplotlib
+ xgboost
+ pandas~=2.2.2
+ scikit-learn~=1.5.1
+-torch~=2.4.1
+\ No newline at end of file
++torch~=2.4.1
++chinese-calendar~=1.11.0
+diff --git a/simulator.py b/simulator.py
+index 92896f8..d02f591 100644
+--- a/simulator.py
++++ b/simulator.py
+@@ -1,13 +1,28 @@
+ import time
+ import os
+ import argparse
++import random
+ import torch
+ 
++import numpy as np
+ import pandas as pd
+ import utils
+ import cluster
+ 
+ 
++ALIBABA_TRACE_ORIGIN = "2024-03-01 00:00:00"
++
++
++def configure_determinism(args):
++    random.seed(args.seed)
++    np.random.seed(args.seed)
++    torch.manual_seed(args.seed)
++    if torch.cuda.is_available():
++        torch.cuda.manual_seed_all(args.seed)
++    if args.deterministic:
++        torch.use_deterministic_algorithms(True, warn_only=True)
++
++
+ def main(args):
+     code_start = time.perf_counter()
+ 
+@@ -22,8 +37,17 @@ def main(args):
+ 
+     CLUSTER = cluster.Cluster(cluster_trace)
+ 
+-    trace_range = ("2024-03-01 00:00:00", "2024-08-31 23:59:59")
+-    log_range = ("2024-08-01 00:00:00", "2024-08-31 23:59:59")
++    trace_range = (args.trace_start, args.trace_end)
++    log_range = (args.log_start, args.log_end)
++
++    if pd.Timestamp(args.trace_start) != pd.Timestamp(ALIBABA_TRACE_ORIGIN):
++        raise ValueError(
++            "The current GFS trace loader expects submit_time to be relative to "
++            f"{ALIBABA_TRACE_ORIGIN}; later trace starts require an explicit state snapshot."
++        )
++    if not (pd.Timestamp(args.trace_start) <= pd.Timestamp(args.log_start)
++            <= pd.Timestamp(args.log_end) <= pd.Timestamp(args.trace_end)):
++        raise ValueError("Expected trace_start <= log_start <= log_end <= trace_end")
+ 
+     log_range = ((pd.Timestamp(log_range[0]) - pd.Timestamp(trace_range[0])).total_seconds(),
+                  (pd.Timestamp(log_range[1]) - pd.Timestamp(trace_range[0])).total_seconds())
+@@ -54,6 +78,14 @@ if __name__ == "__main__":
+     parser.add_argument("-e", "--experiment-name", default="experiment", type=str, help="Experiment Name")
+     parser.add_argument("-t", "--trace-dir", default="./data/experiment", type=str, help="Trace File Directory")
+     parser.add_argument("-l", "--log-dir", default="./log", type=str, help="Log Directory")
++    parser.add_argument('--trace-start', default=ALIBABA_TRACE_ORIGIN, type=str,
++                        help='Trace submit_time origin; current Alibaba trace requires 2024-03-01 00:00:00')
++    parser.add_argument('--trace-end', default='2024-08-31 23:59:59', type=str,
++                        help='Last trace arrival timestamp')
++    parser.add_argument('--log-start', default='2024-08-01 00:00:00', type=str,
++                        help='Evaluation window start timestamp')
++    parser.add_argument('--log-end', default='2024-08-31 23:59:59', type=str,
++                        help='Evaluation window end timestamp')
+ 
+     parser.add_argument(
+         "-s", "--scheduler", default="spot_scheduler", choices=utils.get_available_schedulers(), type=str, help="Scheduler Algorithm"
+@@ -63,14 +95,18 @@ if __name__ == "__main__":
+     parser.add_argument("--sweep", action="store_true", default=False, help="Run All Scheduler Policies in One Time")
+ 
+     # spot guarantee request
+-    parser.add_argument('--guarantee_hour', type=int, default=[1], help='list of spot guarantee hours')
++    parser.add_argument('--guarantee_hour', type=int, nargs='+', default=[1], help='list of spot guarantee hours')
+     parser.add_argument('--guarantee_rate', type=float, default=0.9, help='spot guarantee rate target')
+     parser.add_argument('--ckpt_interval', type=int, default=3600, help='spot checkpoint interval(sec)')
+ 
+     # data loader
+     parser.add_argument('--freq', type=str, default='h',
+                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
++    parser.add_argument('--embed', type=str, default='timeF', help='time feature encoding mode')
+     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
++    parser.add_argument('--seed', type=int, default=20260807, help='random seed')
++    parser.add_argument('--deterministic', action='store_true', default=False,
++                        help='request deterministic PyTorch algorithms')
+ 
+     # forecasting task
+     parser.add_argument('--seq_len', type=int, default=672, help='input sequence length')
+@@ -100,12 +136,14 @@ if __name__ == "__main__":
+ 
+     # GPU
+     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
++    parser.add_argument('--cpu', action='store_true', default=False, help='force CPU execution')
+     parser.add_argument('--gpu', type=int, default=0, help='gpu')
+     parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple gpus', default=False)
+     parser.add_argument('--devices', type=str, default='0,1,2,3', help='device ids of multiple gpus')
+ 
+     args = parser.parse_args()
+-    args.use_gpu = True if torch.cuda.is_available() else False
++    args.use_gpu = bool(torch.cuda.is_available() and not args.cpu)
++    configure_determinism(args)
+ 
+     if args.use_gpu and args.use_multi_gpu:
+         args.devices = args.devices.replace(' ', '')

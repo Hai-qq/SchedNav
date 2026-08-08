@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schednav.local/schemas/bridge-task.schema.json",
+  "title": "SchedNav Host Bridge Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "operation",
+    "status",
+    "request_fingerprint",
+    "created_at",
+    "started_at",
+    "finished_at",
+    "artifacts",
+    "error"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.bridge-task/v1"},
+    "task_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "operation": {
+      "enum": ["analyze_workload", "simulate_policy", "compare_policies", "audit_slo", "rank_policies"]
+    },
+    "status": {"enum": ["queued", "running", "succeeded", "failed"]},
+    "request_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string"},
+    "started_at": {"type": ["string", "null"]},
+    "finished_at": {"type": ["string", "null"]},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "error": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"type": "string"},
+            "message": {"type": "string"}
+          }
+        }
+      ]
+    }
+  }
+}

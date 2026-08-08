@@ -1,0 +1,8 @@
+# Reproduced Windows/Python 3.11 runtime for the vendored GFS subset.
+numpy==2.0.2
+pandas==2.2.3
+scipy==1.17.1
+scikit-learn==1.5.2
+torch==2.4.1
+matplotlib==3.11.1
+chinese-calendar==1.11.0

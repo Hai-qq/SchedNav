@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/policy-portfolio.schema.json",
+  "title": "SchedNav policy portfolio",
+  "type": "object",
+  "required": ["schema_version", "comparable", "criteria", "source", "trace_id", "window_seconds", "population", "candidates", "pairwise", "definition", "portfolio_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.policy-portfolio/v1"},
+    "comparable": {"type": "boolean"},
+    "criteria": {"type": "object"},
+    "source": {"type": "object"},
+    "trace_id": {"type": "string"},
+    "window_seconds": {"type": "object"},
+    "population": {"type": ["object", "null"]},
+    "candidates": {"type": "array", "minItems": 3, "maxItems": 5, "items": {"type": "object"}},
+    "pairwise": {"type": "array", "minItems": 3, "items": {"type": "object"}},
+    "definition": {"type": "string"},
+    "portfolio_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/policy-comparison.schema.json",
+  "title": "SchedNav policy comparison",
+  "type": "object",
+  "required": ["schema_version", "comparable", "criteria", "left", "right", "population", "metric_deltas", "interpretation_caveats", "definition", "comparison_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.policy-comparison/v1"},
+    "comparable": {"type": "boolean"},
+    "criteria": {"type": "object"},
+    "left": {"type": "object"},
+    "right": {"type": "object"},
+    "population": {"type": ["object", "null"]},
+    "metric_deltas": {"type": "object"},
+    "interpretation_caveats": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "definition": {"type": "string"},
+    "comparison_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

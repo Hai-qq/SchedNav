@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/metrics-report.schema.json",
+  "title": "SchedNav metrics report",
+  "type": "object",
+  "required": ["schema_version", "run_spec_fingerprint", "policy_fingerprint", "policy", "source", "trace_id", "jobs", "cluster", "preemption_events", "spot_runs", "spot_guarantee", "evidence", "definitions", "metrics_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.metrics-report/v1"},
+    "run_spec_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy": {
+      "type": "object",
+      "required": ["scheduler", "guarantee_hours", "guarantee_rate", "ckpt_interval_seconds"],
+      "properties": {
+        "scheduler": {"enum": ["fifo_spot", "spot_scheduler"]},
+        "guarantee_hours": {"type": "array", "items": {"type": "integer"}},
+        "guarantee_rate": {"type": "number"},
+        "ckpt_interval_seconds": {"type": "integer"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["gfs_commit", "gfs_patch_sha256", "trace_commit"],
+      "additionalProperties": false,
+      "properties": {
+        "gfs_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "gfs_patch_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "trace_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "trace_id": {"type": "string"},
+    "jobs": {
+      "type": "object",
+      "required": ["HP", "Spot"],
+      "additionalProperties": false,
+      "properties": {
+        "HP": {"$ref": "#/$defs/jobMetrics"},
+        "Spot": {"$ref": "#/$defs/jobMetrics"}
+      }
+    },
+    "cluster": {"type": "object"},
+    "preemption_events": {
+      "type": "object",
+      "required": ["available", "event_count", "counted_spot_failure_count", "preempted_job_count", "events_during_evaluation_window", "events_during_drain", "rollback_seconds_total", "overhead_seconds_total", "added_gpu_seconds_total", "consistent_with_job_csv", "spot_run_count", "eviction_rate_per_run"],
+      "properties": {
+        "available": {"type": "boolean"},
+        "event_count": {"type": "integer", "minimum": 0},
+        "counted_spot_failure_count": {"type": "integer", "minimum": 0},
+        "preempted_job_count": {"type": "integer", "minimum": 0},
+        "events_during_evaluation_window": {"type": "integer", "minimum": 0},
+        "events_during_drain": {"type": "integer", "minimum": 0},
+        "rollback_seconds_total": {"type": "number", "minimum": 0},
+        "overhead_seconds_total": {"type": "number", "minimum": 0},
+        "added_gpu_seconds_total": {"type": "number", "minimum": 0},
+        "consistent_with_job_csv": {"type": "boolean"},
+        "spot_run_count": {"type": "integer", "minimum": 0},
+        "eviction_rate_per_run": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "spot_runs": {
+      "type": "object",
+      "required": ["available", "event_count", "events_during_evaluation_window", "events_during_drain", "consistent_with_job_csv"],
+      "properties": {
+        "available": {"type": "boolean"},
+        "event_count": {"type": "integer", "minimum": 0},
+        "events_during_evaluation_window": {"type": "integer", "minimum": 0},
+        "events_during_drain": {"type": "integer", "minimum": 0},
+        "consistent_with_job_csv": {"type": "boolean"}
+      }
+    },
+    "spot_guarantee": {
+      "type": "object",
+      "required": ["available", "event_count", "succeeded_count", "failed_count", "success_rate", "consistent_with_preemption_events"],
+      "properties": {
+        "available": {"type": "boolean"},
+        "event_count": {"type": "integer", "minimum": 0},
+        "succeeded_count": {"type": "integer", "minimum": 0},
+        "failed_count": {"type": "integer", "minimum": 0},
+        "success_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "consistent_with_preemption_events": {"type": "boolean"}
+      }
+    },
+    "evidence": {"type": "object"},
+    "definitions": {"type": "object"},
+    "metrics_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "jobMetrics": {
+      "type": "object",
+      "required": ["job_count", "completed_count", "completion_rate", "jct_seconds", "queue_seconds", "preemption_count", "preempted_job_count", "preempted_job_rate"],
+      "properties": {
+        "job_count": {"type": "integer", "minimum": 0},
+        "completed_count": {"type": "integer", "minimum": 0},
+        "completion_rate": {"type": ["number", "null"]},
+        "jct_seconds": {"type": "object"},
+        "queue_seconds": {"type": "object"},
+        "preemption_count": {"type": "integer", "minimum": 0},
+        "preempted_job_count": {"type": "integer", "minimum": 0},
+        "preempted_job_rate": {"type": ["number", "null"]}
+      }
+    }
+  }
+}

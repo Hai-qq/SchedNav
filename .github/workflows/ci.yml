@@ -1,0 +1,26 @@
+name: first-party-contracts
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install SchedNav
+        run: python -m pip install -e .
+      - name: Check public repository boundary
+        shell: pwsh
+        run: .\scripts\check_public_boundary.ps1
+      - name: Run contract tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v

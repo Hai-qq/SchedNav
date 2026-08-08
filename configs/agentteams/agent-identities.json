@@ -1,0 +1,56 @@
+{
+  "schema_version": "schednav.agent-identities/v1",
+  "topology": "manager-with-standalone-workers",
+  "manager": {
+    "id": "schednav-manager",
+    "responsibilities": [
+      "create and track finite evaluation tasks",
+      "pass schema artifacts by reference",
+      "compare completed policy evidence",
+      "apply only the SLO-declared hierarchical ranking and preserve unresolved ties",
+      "request human approval for expensive simulation batches and final recommendation"
+    ],
+    "skills": [
+      "compare-gfs-policies"
+    ],
+    "forbidden_actions": [
+      "direct Job-to-node/GPU placement",
+      "inventing SLO thresholds",
+      "recommending before all selected simulations and audits complete"
+    ]
+  },
+  "workers": [
+    {
+      "id": "workload-analyst",
+      "role": "Workload Analyst",
+      "skill": "analyze-gpu-workload",
+      "inputs": ["trace_window_ref"],
+      "outputs": ["workload_summary_ref"],
+      "forbidden_actions": ["policy recommendation", "simulated performance claims"]
+    },
+    {
+      "id": "scheduling-strategist",
+      "role": "Scheduling Strategist",
+      "skill": "select-bounded-gfs-policies",
+      "inputs": ["workload_summary_ref", "action_space_ref"],
+      "outputs": ["policy_action_refs"],
+      "forbidden_actions": ["unlisted policy values", "placement", "winner selection"]
+    },
+    {
+      "id": "simulation-agent",
+      "role": "Simulation Agent",
+      "skill": "simulate-gfs-policy",
+      "inputs": ["trace_manifest_ref", "policy_action_ref"],
+      "outputs": ["run_manifest_ref", "metrics_report_ref", "gate_report_ref"],
+      "forbidden_actions": ["shared mutable simulator state", "overwriting an existing run", "subjective policy judgment"]
+    },
+    {
+      "id": "slo-auditor",
+      "role": "SLO Auditor",
+      "skill": "audit-gpu-slo",
+      "inputs": ["metrics_report_ref", "fifo_baseline_metrics_ref", "slo_spec_ref"],
+      "outputs": ["slo_audit_ref"],
+      "forbidden_actions": ["inventing thresholds", "changing metrics", "overriding evidence or hard constraint failures"]
+    }
+  ]
+}

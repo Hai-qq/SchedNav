@@ -1,0 +1,38 @@
+{
+  "schema_version": "schednav.reproduction-run/v1",
+  "experiment_name": "stress-gpu-series-2-2024-04-12",
+  "gfs_dir": "26ASPLOS-Spot",
+  "gfs_commit": "e998d5453e626a0b743b3fd5137c54c987db780b",
+  "gfs_patch": "patches/gfs/reproduction-gate.patch",
+  "source_trace_dir": "clusterdata/cluster-trace-v2026-spot-gpu",
+  "trace_commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+  "python_executable": ".venv-gfs/Scripts/python.exe",
+  "artifacts_dir": "artifacts/reproduction",
+  "window": {
+    "submit_time_origin": "2024-03-01 00:00:00",
+    "trace_end": "2024-04-12 23:59:59",
+    "evaluation_start": "2024-04-12 00:00:00",
+    "evaluation_end": "2024-04-12 23:59:59",
+    "gpu_models": [
+      "GPU-series-2"
+    ],
+    "drain_mode": "until_all_jobs_end"
+  },
+  "policy": {
+    "scheduler": "spot_scheduler",
+    "guarantee_hours": [
+      1
+    ],
+    "guarantee_rate": 0.9,
+    "ckpt_interval_seconds": 3600,
+    "seq_len_hours": 672,
+    "pred_len_hours": 4,
+    "estimator_validation_days": 7,
+    "recorder_initial_skip_hours": 20,
+    "train_epochs": 10,
+    "num_workers": 0,
+    "seed": 20260807,
+    "device": "cpu",
+    "deterministic": true
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "audit_fingerprint": "adf28652c1fd9fa9916d3b71fc01ae15dfbf1d620ae982952e125f76eadca5c3",
+  "audit_passed": true,
+  "baseline": {
+    "compatible_fifo": true,
+    "metrics_fingerprint": "2a1bc18b4c60272727417e731ac6aeb0ee9e3bb3a1d737b22da18047c5f64104",
+    "policy_fingerprint": "6194e8411cff3f89d54c3c82f0cd159d96ba8a446dbfaabea270905caf9bceed",
+    "required": true
+  },
+  "definition": "Hard constraints and required evidence/baseline checks determine audit_passed. Soft failures remain visible and are consumed only by the declared hierarchical ranking policy.",
+  "evidence_checks": {
+    "baseline_compatible_fifo": true,
+    "baseline_metrics_fingerprint_valid": true,
+    "baseline_required": true,
+    "preemption_ledger_consistent": true,
+    "spot_guarantee_ledger_consistent": true,
+    "spot_run_ledger_consistent": true
+  },
+  "hard_constraint_count": 8,
+  "metrics_fingerprint": "2a1bc18b4c60272727417e731ac6aeb0ee9e3bb3a1d737b22da18047c5f64104",
+  "metrics_fingerprint_valid": true,
+  "metrics_schema_supported": true,
+  "policy_fingerprint": "6194e8411cff3f89d54c3c82f0cd159d96ba8a446dbfaabea270905caf9bceed",
+  "results": [
+    {
+      "id": "hp-completion-rate",
+      "metric": "hp_completion_rate",
+      "observed": 1.0,
+      "operator": ">=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 1.0,
+      "threshold_source": {
+        "kind": "absolute"
+      }
+    },
+    {
+      "id": "hp-preempted-job-count",
+      "metric": "hp_preempted_job_count",
+      "observed": 0,
+      "operator": "<=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 0.0,
+      "threshold_source": {
+        "kind": "absolute"
+      }
+    },
+    {
+      "id": "hp-p95-jct-fifo-regression",
+      "metric": "hp_jct_p95_seconds",
+      "observed": 45012.1,
+      "operator": "<=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 45462.221,
+      "threshold_source": {
+        "addend": 0.0,
+        "baseline_metric": "hp_jct_p95_seconds",
+        "baseline_observed": 45012.1,
+        "kind": "baseline_relative",
+        "multiplier": 1.01
+      }
+    },
+    {
+      "id": "hp-p95-queue-seconds",
+      "metric": "hp_queue_p95_seconds",
+      "observed": 0.0,
+      "operator": "<=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 3600.0,
+      "threshold_source": {
+        "kind": "absolute"
+      }
+    },
+    {
+      "id": "spot-completion-rate",
+      "metric": "spot_completion_rate",
+      "observed": 1.0,
+      "operator": ">=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 1.0,
+      "threshold_source": {
+        "kind": "absolute"
+      }
+    },
+    {
+      "id": "spot-eviction-rate-per-run",
+      "metric": "spot_eviction_rate_per_run",
+      "observed": 0.0,
+      "operator": "<=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 0.1,
+      "threshold_source": {
+        "kind": "absolute"
+      }
+    },
+    {
+      "id": "spot-guarantee-success-rate",
+      "metric": "spot_guarantee_success_rate",
+      "observed": 1.0,
+      "operator": ">=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 0.9,
+      "threshold_source": {
+        "kind": "absolute"
+      }
+    },
+    {
+      "id": "allocation-fifo-nondegradation",
+      "metric": "allocation_rate_mean",
+      "observed": 0.090224,
+      "operator": ">=",
+      "passed": true,
+      "severity": "hard",
+      "status": "passed",
+      "threshold": 0.090224,
+      "threshold_source": {
+        "addend": 0.0,
+        "baseline_metric": "allocation_rate_mean",
+        "baseline_observed": 0.090224,
+        "kind": "baseline_relative",
+        "multiplier": 1.0
+      }
+    },
+    {
+      "id": "allocation-soft-target",
+      "metric": "allocation_rate_mean",
+      "observed": 0.090224,
+      "operator": ">=",
+      "passed": false,
+      "severity": "soft",
+      "status": "failed",
+      "threshold": 0.8,
+      "threshold_source": {
+        "kind": "absolute"
+      }
+    }
+  ],
+  "scheduler": "fifo_spot",
+  "schema_version": "schednav.slo-audit/v1",
+  "slo_fingerprint": "713ac374322d472a7f2dfdabc1f896dd642ed405444b04d652f97113249b849e",
+  "slo_name": "SchedNav Demo SLO v1",
+  "soft_violation_count": 1,
+  "trace_id": "bc9a823b77714070"
+}

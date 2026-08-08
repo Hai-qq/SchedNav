@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schednav.local/schemas/host-bridge-config.schema.json",
+  "title": "SchedNav Host Bridge Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_root",
+    "task_subdir",
+    "max_workers",
+    "run_configs",
+    "action_space",
+    "actions",
+    "slo_specs",
+    "baseline_metrics"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.host-bridge-config/v1"},
+    "artifact_root": {"type": "string", "minLength": 1},
+    "task_subdir": {"type": "string", "minLength": 1},
+    "max_workers": {"const": 1},
+    "run_configs": {"$ref": "#/$defs/pathMap"},
+    "action_space": {"type": "string", "minLength": 1},
+    "actions": {"$ref": "#/$defs/pathMap"},
+    "slo_specs": {"$ref": "#/$defs/pathMap"},
+    "baseline_metrics": {"$ref": "#/$defs/pathMap"}
+  },
+  "$defs": {
+    "pathMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "string", "minLength": 1}
+    }
+  }
+}

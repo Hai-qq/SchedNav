@@ -1,0 +1,10 @@
+{
+  "schema_version": "schednav.agentteams-packages/v1",
+  "packages": {
+    "schednav-manager": ["compare-gfs-policies"],
+    "workload-analyst": ["analyze-gpu-workload"],
+    "scheduling-strategist": ["select-bounded-gfs-policies"],
+    "simulation-agent": ["simulate-gfs-policy"],
+    "slo-auditor": ["audit-gpu-slo"]
+  }
+}

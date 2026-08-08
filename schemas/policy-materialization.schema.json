@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/policy-materialization.schema.json",
+  "title": "SchedNav policy materialization receipt",
+  "type": "object",
+  "required": ["schema_version", "action_space_fingerprint", "action_fingerprint", "run_spec_fingerprint", "controlled_fields", "materialization_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.policy-materialization/v1"},
+    "action_space_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "action_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "run_spec_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "controlled_fields": {"type": "array", "items": {"type": "string"}},
+    "materialization_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

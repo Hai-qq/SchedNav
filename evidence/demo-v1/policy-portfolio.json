@@ -1,0 +1,1020 @@
+{
+  "candidates": [
+    {
+      "action": {
+        "ckpt_interval_seconds": 3600,
+        "guarantee_hours": [
+          1
+        ],
+        "guarantee_rate": 0.9,
+        "scheduler": "fifo_spot"
+      },
+      "metrics": {
+        "allocation_rate_mean": 0.090224,
+        "hp_completion_rate": 1.0,
+        "hp_jct_mean_seconds": 8684.138298,
+        "hp_jct_p50_seconds": 1142.0,
+        "hp_jct_p95_seconds": 45012.1,
+        "hp_preempted_job_count": 0,
+        "hp_queue_mean_seconds": 0.0,
+        "hp_queue_p95_seconds": 0.0,
+        "preemption_added_gpu_seconds": 0,
+        "spot_completion_rate": 1.0,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_guarantee_success_rate": 1.0,
+        "spot_jct_mean_seconds": 35456.190476,
+        "spot_jct_p50_seconds": 40218.0,
+        "spot_jct_p95_seconds": 40686.0,
+        "spot_preempted_job_rate": 0.0,
+        "spot_preemption_count": 0,
+        "spot_queue_mean_seconds": 21080.452381,
+        "spot_queue_p95_seconds": 21856.4
+      },
+      "metrics_fingerprint": "2a1bc18b4c60272727417e731ac6aeb0ee9e3bb3a1d737b22da18047c5f64104",
+      "policy_fingerprint": "6194e8411cff3f89d54c3c82f0cd159d96ba8a446dbfaabea270905caf9bceed"
+    },
+    {
+      "action": {
+        "ckpt_interval_seconds": 3600,
+        "guarantee_hours": [
+          1
+        ],
+        "guarantee_rate": 0.9,
+        "scheduler": "spot_scheduler"
+      },
+      "metrics": {
+        "allocation_rate_mean": 0.733534,
+        "hp_completion_rate": 1.0,
+        "hp_jct_mean_seconds": 8644.989362,
+        "hp_jct_p50_seconds": 1102.0,
+        "hp_jct_p95_seconds": 44972.1,
+        "hp_preempted_job_count": 0,
+        "hp_queue_mean_seconds": 0.0,
+        "hp_queue_p95_seconds": 0.0,
+        "preemption_added_gpu_seconds": 226728.0,
+        "spot_completion_rate": 1.0,
+        "spot_eviction_rate_per_run": 0.023255813953488372,
+        "spot_guarantee_success_rate": 0.9950372208436724,
+        "spot_jct_mean_seconds": 14475.940476,
+        "spot_jct_p50_seconds": 21696.0,
+        "spot_jct_p95_seconds": 21962.1,
+        "spot_preempted_job_rate": 0.011904761904761904,
+        "spot_preemption_count": 2,
+        "spot_queue_mean_seconds": 59.916667,
+        "spot_queue_p95_seconds": 0.0
+      },
+      "metrics_fingerprint": "ec9528e6cbaeaf8aeae2b6e282e921a21cec771890064c5f6f179361af44c77c",
+      "policy_fingerprint": "a7fe2f906bf44eddfbf40ca4c9c9284bdcd09663d3ebeb5dafee75f05ed425d2"
+    },
+    {
+      "action": {
+        "ckpt_interval_seconds": 3600,
+        "guarantee_hours": [
+          1
+        ],
+        "guarantee_rate": 0.8,
+        "scheduler": "spot_scheduler"
+      },
+      "metrics": {
+        "allocation_rate_mean": 0.733534,
+        "hp_completion_rate": 1.0,
+        "hp_jct_mean_seconds": 8644.989362,
+        "hp_jct_p50_seconds": 1102.0,
+        "hp_jct_p95_seconds": 44972.1,
+        "hp_preempted_job_count": 0,
+        "hp_queue_mean_seconds": 0.0,
+        "hp_queue_p95_seconds": 0.0,
+        "preemption_added_gpu_seconds": 226728.0,
+        "spot_completion_rate": 1.0,
+        "spot_eviction_rate_per_run": 0.023255813953488372,
+        "spot_guarantee_success_rate": 0.9950372208436724,
+        "spot_jct_mean_seconds": 14475.940476,
+        "spot_jct_p50_seconds": 21696.0,
+        "spot_jct_p95_seconds": 21962.1,
+        "spot_preempted_job_rate": 0.011904761904761904,
+        "spot_preemption_count": 2,
+        "spot_queue_mean_seconds": 59.916667,
+        "spot_queue_p95_seconds": 0.0
+      },
+      "metrics_fingerprint": "cd34b1ac80ad809039a719927d72d14591ae03f99ed3dd6223f2233f63dd7362",
+      "policy_fingerprint": "f173d6be4fc3f9bef0dd627c47cc417dfd13bc010161e5a30f5e07ca187ba48e"
+    },
+    {
+      "action": {
+        "ckpt_interval_seconds": 3600,
+        "guarantee_hours": [
+          1
+        ],
+        "guarantee_rate": 0.95,
+        "scheduler": "spot_scheduler"
+      },
+      "metrics": {
+        "allocation_rate_mean": 0.733534,
+        "hp_completion_rate": 1.0,
+        "hp_jct_mean_seconds": 8644.989362,
+        "hp_jct_p50_seconds": 1102.0,
+        "hp_jct_p95_seconds": 44972.1,
+        "hp_preempted_job_count": 0,
+        "hp_queue_mean_seconds": 0.0,
+        "hp_queue_p95_seconds": 0.0,
+        "preemption_added_gpu_seconds": 226728.0,
+        "spot_completion_rate": 1.0,
+        "spot_eviction_rate_per_run": 0.023255813953488372,
+        "spot_guarantee_success_rate": 0.9950372208436724,
+        "spot_jct_mean_seconds": 14475.940476,
+        "spot_jct_p50_seconds": 21696.0,
+        "spot_jct_p95_seconds": 21962.1,
+        "spot_preempted_job_rate": 0.011904761904761904,
+        "spot_preemption_count": 2,
+        "spot_queue_mean_seconds": 59.916667,
+        "spot_queue_p95_seconds": 0.0
+      },
+      "metrics_fingerprint": "1e5c668b2d227ca296ae1dd9b1df232efe39249b219318a05769a78c9b6ae36d",
+      "policy_fingerprint": "d16f3bf5a2f17d7eeb9e93190a306a8b8a75d9d6f0ae172332c610ebbfc46324"
+    }
+  ],
+  "comparable": true,
+  "criteria": {
+    "candidate_count_between_3_and_5": true,
+    "event_ledgers_available": true,
+    "event_ledgers_consistent": true,
+    "execution_controls_match": true,
+    "guarantee_ledgers_available": true,
+    "guarantee_ledgers_consistent": true,
+    "metrics_fingerprints_valid": true,
+    "metrics_schema_supported": true,
+    "policy_actions_unique": true,
+    "population_match": true,
+    "populations_complete": true,
+    "run_ledgers_available": true,
+    "run_ledgers_consistent": true,
+    "source_match": true,
+    "trace_id_match": true,
+    "window_match": true
+  },
+  "definition": "This report preserves three to five simulation-backed candidates and right-minus-left pairwise deltas. It does not apply SLOs, rank candidates, or select a winner.",
+  "pairwise": [
+    {
+      "comparable": true,
+      "comparison_fingerprint": "4fdf347fce209ab2e9444e78a93089fc9c20a2bc5edb77fdc3687f0deaa0ab6a",
+      "left_policy_fingerprint": "6194e8411cff3f89d54c3c82f0cd159d96ba8a446dbfaabea270905caf9bceed",
+      "metric_deltas": {
+        "allocation_rate_mean": {
+          "left": 0.090224,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 7.130143,
+          "right": 0.733534,
+          "right_minus_left": 0.64331
+        },
+        "hp_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_mean_seconds": {
+          "left": 8684.138298,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.004508,
+          "right": 8644.989362,
+          "right_minus_left": -39.148936
+        },
+        "hp_jct_p50_seconds": {
+          "left": 1142.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.035026,
+          "right": 1102.0,
+          "right_minus_left": -40.0
+        },
+        "hp_jct_p95_seconds": {
+          "left": 45012.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.000889,
+          "right": 44972.1,
+          "right_minus_left": -40.0
+        },
+        "hp_preempted_job_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_mean_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "preemption_added_gpu_seconds": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 226728.0,
+          "right_minus_left": 226728.0
+        },
+        "spot_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "spot_eviction_rate_per_run": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.023255813953488372,
+          "right_minus_left": 0.023256
+        },
+        "spot_guarantee_success_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": -0.004963,
+          "right": 0.9950372208436724,
+          "right_minus_left": -0.004963
+        },
+        "spot_jct_mean_seconds": {
+          "left": 35456.190476,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.591723,
+          "right": 14475.940476,
+          "right_minus_left": -20980.25
+        },
+        "spot_jct_p50_seconds": {
+          "left": 40218.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.46054,
+          "right": 21696.0,
+          "right_minus_left": -18522.0
+        },
+        "spot_jct_p95_seconds": {
+          "left": 40686.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.460205,
+          "right": 21962.1,
+          "right_minus_left": -18723.9
+        },
+        "spot_preempted_job_rate": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.011904761904761904,
+          "right_minus_left": 0.011905
+        },
+        "spot_preemption_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 2,
+          "right_minus_left": 2.0
+        },
+        "spot_queue_mean_seconds": {
+          "left": 21080.452381,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.997158,
+          "right": 59.916667,
+          "right_minus_left": -21020.535714
+        },
+        "spot_queue_p95_seconds": {
+          "left": 21856.4,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -1.0,
+          "right": 0.0,
+          "right_minus_left": -21856.4
+        }
+      },
+      "right_policy_fingerprint": "a7fe2f906bf44eddfbf40ca4c9c9284bdcd09663d3ebeb5dafee75f05ed425d2"
+    },
+    {
+      "comparable": true,
+      "comparison_fingerprint": "ab663c0d729bdfc10ef858e8f2e2e88b5b56547c51d79eb98006c719316d8d2c",
+      "left_policy_fingerprint": "6194e8411cff3f89d54c3c82f0cd159d96ba8a446dbfaabea270905caf9bceed",
+      "metric_deltas": {
+        "allocation_rate_mean": {
+          "left": 0.090224,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 7.130143,
+          "right": 0.733534,
+          "right_minus_left": 0.64331
+        },
+        "hp_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_mean_seconds": {
+          "left": 8684.138298,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.004508,
+          "right": 8644.989362,
+          "right_minus_left": -39.148936
+        },
+        "hp_jct_p50_seconds": {
+          "left": 1142.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.035026,
+          "right": 1102.0,
+          "right_minus_left": -40.0
+        },
+        "hp_jct_p95_seconds": {
+          "left": 45012.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.000889,
+          "right": 44972.1,
+          "right_minus_left": -40.0
+        },
+        "hp_preempted_job_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_mean_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "preemption_added_gpu_seconds": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 226728.0,
+          "right_minus_left": 226728.0
+        },
+        "spot_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "spot_eviction_rate_per_run": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.023255813953488372,
+          "right_minus_left": 0.023256
+        },
+        "spot_guarantee_success_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": -0.004963,
+          "right": 0.9950372208436724,
+          "right_minus_left": -0.004963
+        },
+        "spot_jct_mean_seconds": {
+          "left": 35456.190476,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.591723,
+          "right": 14475.940476,
+          "right_minus_left": -20980.25
+        },
+        "spot_jct_p50_seconds": {
+          "left": 40218.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.46054,
+          "right": 21696.0,
+          "right_minus_left": -18522.0
+        },
+        "spot_jct_p95_seconds": {
+          "left": 40686.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.460205,
+          "right": 21962.1,
+          "right_minus_left": -18723.9
+        },
+        "spot_preempted_job_rate": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.011904761904761904,
+          "right_minus_left": 0.011905
+        },
+        "spot_preemption_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 2,
+          "right_minus_left": 2.0
+        },
+        "spot_queue_mean_seconds": {
+          "left": 21080.452381,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.997158,
+          "right": 59.916667,
+          "right_minus_left": -21020.535714
+        },
+        "spot_queue_p95_seconds": {
+          "left": 21856.4,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -1.0,
+          "right": 0.0,
+          "right_minus_left": -21856.4
+        }
+      },
+      "right_policy_fingerprint": "f173d6be4fc3f9bef0dd627c47cc417dfd13bc010161e5a30f5e07ca187ba48e"
+    },
+    {
+      "comparable": true,
+      "comparison_fingerprint": "b1abaad9f1b882fac1918f4daa3e8cf1a47cf7315cd9c07fab5afaa611b3eceb",
+      "left_policy_fingerprint": "6194e8411cff3f89d54c3c82f0cd159d96ba8a446dbfaabea270905caf9bceed",
+      "metric_deltas": {
+        "allocation_rate_mean": {
+          "left": 0.090224,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 7.130143,
+          "right": 0.733534,
+          "right_minus_left": 0.64331
+        },
+        "hp_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_mean_seconds": {
+          "left": 8684.138298,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.004508,
+          "right": 8644.989362,
+          "right_minus_left": -39.148936
+        },
+        "hp_jct_p50_seconds": {
+          "left": 1142.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.035026,
+          "right": 1102.0,
+          "right_minus_left": -40.0
+        },
+        "hp_jct_p95_seconds": {
+          "left": 45012.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.000889,
+          "right": 44972.1,
+          "right_minus_left": -40.0
+        },
+        "hp_preempted_job_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_mean_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "preemption_added_gpu_seconds": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 226728.0,
+          "right_minus_left": 226728.0
+        },
+        "spot_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "spot_eviction_rate_per_run": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.023255813953488372,
+          "right_minus_left": 0.023256
+        },
+        "spot_guarantee_success_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": -0.004963,
+          "right": 0.9950372208436724,
+          "right_minus_left": -0.004963
+        },
+        "spot_jct_mean_seconds": {
+          "left": 35456.190476,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.591723,
+          "right": 14475.940476,
+          "right_minus_left": -20980.25
+        },
+        "spot_jct_p50_seconds": {
+          "left": 40218.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.46054,
+          "right": 21696.0,
+          "right_minus_left": -18522.0
+        },
+        "spot_jct_p95_seconds": {
+          "left": 40686.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.460205,
+          "right": 21962.1,
+          "right_minus_left": -18723.9
+        },
+        "spot_preempted_job_rate": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.011904761904761904,
+          "right_minus_left": 0.011905
+        },
+        "spot_preemption_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 2,
+          "right_minus_left": 2.0
+        },
+        "spot_queue_mean_seconds": {
+          "left": 21080.452381,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -0.997158,
+          "right": 59.916667,
+          "right_minus_left": -21020.535714
+        },
+        "spot_queue_p95_seconds": {
+          "left": 21856.4,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": -1.0,
+          "right": 0.0,
+          "right_minus_left": -21856.4
+        }
+      },
+      "right_policy_fingerprint": "d16f3bf5a2f17d7eeb9e93190a306a8b8a75d9d6f0ae172332c610ebbfc46324"
+    },
+    {
+      "comparable": true,
+      "comparison_fingerprint": "78529bba353da9c8e2f78a188e6c675cb0f633327d68180a8cb49c7ae03c2b3e",
+      "left_policy_fingerprint": "a7fe2f906bf44eddfbf40ca4c9c9284bdcd09663d3ebeb5dafee75f05ed425d2",
+      "metric_deltas": {
+        "allocation_rate_mean": {
+          "left": 0.733534,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.733534,
+          "right_minus_left": 0.0
+        },
+        "hp_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_mean_seconds": {
+          "left": 8644.989362,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 8644.989362,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_p50_seconds": {
+          "left": 1102.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 1102.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_p95_seconds": {
+          "left": 44972.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 44972.1,
+          "right_minus_left": 0.0
+        },
+        "hp_preempted_job_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_mean_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "preemption_added_gpu_seconds": {
+          "left": 226728.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 226728.0,
+          "right_minus_left": 0.0
+        },
+        "spot_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "spot_eviction_rate_per_run": {
+          "left": 0.023255813953488372,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.023255813953488372,
+          "right_minus_left": 0.0
+        },
+        "spot_guarantee_success_rate": {
+          "left": 0.9950372208436724,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.9950372208436724,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_mean_seconds": {
+          "left": 14475.940476,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 14475.940476,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_p50_seconds": {
+          "left": 21696.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 21696.0,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_p95_seconds": {
+          "left": 21962.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 21962.1,
+          "right_minus_left": 0.0
+        },
+        "spot_preempted_job_rate": {
+          "left": 0.011904761904761904,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.011904761904761904,
+          "right_minus_left": 0.0
+        },
+        "spot_preemption_count": {
+          "left": 2,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 2,
+          "right_minus_left": 0.0
+        },
+        "spot_queue_mean_seconds": {
+          "left": 59.916667,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 59.916667,
+          "right_minus_left": 0.0
+        },
+        "spot_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        }
+      },
+      "right_policy_fingerprint": "f173d6be4fc3f9bef0dd627c47cc417dfd13bc010161e5a30f5e07ca187ba48e"
+    },
+    {
+      "comparable": true,
+      "comparison_fingerprint": "8968548a8a6f66e13e8bd2831c95fcc98b239dc9f708ce900bd78869529d597f",
+      "left_policy_fingerprint": "a7fe2f906bf44eddfbf40ca4c9c9284bdcd09663d3ebeb5dafee75f05ed425d2",
+      "metric_deltas": {
+        "allocation_rate_mean": {
+          "left": 0.733534,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.733534,
+          "right_minus_left": 0.0
+        },
+        "hp_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_mean_seconds": {
+          "left": 8644.989362,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 8644.989362,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_p50_seconds": {
+          "left": 1102.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 1102.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_p95_seconds": {
+          "left": 44972.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 44972.1,
+          "right_minus_left": 0.0
+        },
+        "hp_preempted_job_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_mean_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "preemption_added_gpu_seconds": {
+          "left": 226728.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 226728.0,
+          "right_minus_left": 0.0
+        },
+        "spot_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "spot_eviction_rate_per_run": {
+          "left": 0.023255813953488372,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.023255813953488372,
+          "right_minus_left": 0.0
+        },
+        "spot_guarantee_success_rate": {
+          "left": 0.9950372208436724,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.9950372208436724,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_mean_seconds": {
+          "left": 14475.940476,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 14475.940476,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_p50_seconds": {
+          "left": 21696.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 21696.0,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_p95_seconds": {
+          "left": 21962.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 21962.1,
+          "right_minus_left": 0.0
+        },
+        "spot_preempted_job_rate": {
+          "left": 0.011904761904761904,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.011904761904761904,
+          "right_minus_left": 0.0
+        },
+        "spot_preemption_count": {
+          "left": 2,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 2,
+          "right_minus_left": 0.0
+        },
+        "spot_queue_mean_seconds": {
+          "left": 59.916667,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 59.916667,
+          "right_minus_left": 0.0
+        },
+        "spot_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        }
+      },
+      "right_policy_fingerprint": "d16f3bf5a2f17d7eeb9e93190a306a8b8a75d9d6f0ae172332c610ebbfc46324"
+    },
+    {
+      "comparable": true,
+      "comparison_fingerprint": "63fc60ff979c58e9ad76975b01b788d54d94c0ef989e275fddb87ffc8ef141b4",
+      "left_policy_fingerprint": "f173d6be4fc3f9bef0dd627c47cc417dfd13bc010161e5a30f5e07ca187ba48e",
+      "metric_deltas": {
+        "allocation_rate_mean": {
+          "left": 0.733534,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.733534,
+          "right_minus_left": 0.0
+        },
+        "hp_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_mean_seconds": {
+          "left": 8644.989362,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 8644.989362,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_p50_seconds": {
+          "left": 1102.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 1102.0,
+          "right_minus_left": 0.0
+        },
+        "hp_jct_p95_seconds": {
+          "left": 44972.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 44972.1,
+          "right_minus_left": 0.0
+        },
+        "hp_preempted_job_count": {
+          "left": 0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_mean_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "hp_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        },
+        "preemption_added_gpu_seconds": {
+          "left": 226728.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 226728.0,
+          "right_minus_left": 0.0
+        },
+        "spot_completion_rate": {
+          "left": 1.0,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 1.0,
+          "right_minus_left": 0.0
+        },
+        "spot_eviction_rate_per_run": {
+          "left": 0.023255813953488372,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.023255813953488372,
+          "right_minus_left": 0.0
+        },
+        "spot_guarantee_success_rate": {
+          "left": 0.9950372208436724,
+          "preferred_direction": "higher_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.9950372208436724,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_mean_seconds": {
+          "left": 14475.940476,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 14475.940476,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_p50_seconds": {
+          "left": 21696.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 21696.0,
+          "right_minus_left": 0.0
+        },
+        "spot_jct_p95_seconds": {
+          "left": 21962.1,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 21962.1,
+          "right_minus_left": 0.0
+        },
+        "spot_preempted_job_rate": {
+          "left": 0.011904761904761904,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 0.011904761904761904,
+          "right_minus_left": 0.0
+        },
+        "spot_preemption_count": {
+          "left": 2,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 2,
+          "right_minus_left": 0.0
+        },
+        "spot_queue_mean_seconds": {
+          "left": 59.916667,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": 0.0,
+          "right": 59.916667,
+          "right_minus_left": 0.0
+        },
+        "spot_queue_p95_seconds": {
+          "left": 0.0,
+          "preferred_direction": "lower_is_better",
+          "relative_to_left": null,
+          "right": 0.0,
+          "right_minus_left": 0.0
+        }
+      },
+      "right_policy_fingerprint": "d16f3bf5a2f17d7eeb9e93190a306a8b8a75d9d6f0ae172332c610ebbfc46324"
+    }
+  ],
+  "population": {
+    "HP": 94,
+    "Spot": 84
+  },
+  "portfolio_fingerprint": "d85a87ef45fd56936dc449edf176e2504e61e11c367e3b5c2ae60f1ca47e228a",
+  "schema_version": "schednav.policy-portfolio/v1",
+  "source": {
+    "gfs_commit": "e998d5453e626a0b743b3fd5137c54c987db780b",
+    "gfs_patch_sha256": "623ceda161983b150b5fb339e4755016ce121c12b86e7fc6f5382dc7f6e54ae1",
+    "trace_commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71"
+  },
+  "trace_id": "bc9a823b77714070",
+  "window_seconds": {
+    "end": 3715199,
+    "start": 3628800
+  }
+}

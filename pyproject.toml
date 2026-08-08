@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schednav"
+version = "0.1.0.dev0"
+description = "Agentic control plane for GPU cluster scheduling"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+schednav-reproduce = "schednav.cli:main"
+schednav-bridge = "schednav.host_bridge:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

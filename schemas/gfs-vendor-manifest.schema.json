@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schednav.local/schemas/gfs-vendor-manifest.schema.json",
+  "title": "SchedNav Vendored GFS Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repository", "upstream_commit", "license", "compatibility_patch_sha256", "files"],
+  "properties": {
+    "schema_version": {"const": "schednav.gfs-vendor-manifest/v1"},
+    "repository": {"type": "string", "format": "uri"},
+    "upstream_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "license": {"const": "GPL-3.0-only"},
+    "compatibility_patch_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "files": {"$ref": "#/$defs/files"}
+  },
+  "$defs": {
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sha256", "size_bytes"],
+        "properties": {
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+# Third-party upstream source and datasets are local dependencies only.
+/26ASPLOS-Spot/
+/AgentTeams/
+/clusterdata/
+/data/
+/datasets/
+/trace/
+/traces/
+
+# Local environments, caches, and generated evidence.
+/.venv-gfs/
+/.venv/
+/venv/
+__pycache__/
+*.py[cod]
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+*.egg-info/
+/build/
+/dist/
+.coverage
+/htmlcov/
+/artifacts/
+/checkpoints/
+/log/
+/logs/
+*.ckpt
+*.pt
+*.pth
+
+# Secrets and machine-local configuration.
+.env
+.env.*
+!.env.example
+*.pem
+*.key

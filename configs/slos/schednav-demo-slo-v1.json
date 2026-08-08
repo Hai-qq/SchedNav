@@ -1,0 +1,89 @@
+{
+  "schema_version": "schednav.slo-spec/v1",
+  "name": "SchedNav Demo SLO v1",
+  "provenance": {
+    "decision_date": "2026-08-08",
+    "paper_url": "https://arxiv.org/abs/2509.11134",
+    "baseline_policy_action_id": "repository-default-fifo"
+  },
+  "constraints": [
+    {
+      "id": "hp-completion-rate",
+      "metric": "hp_completion_rate",
+      "operator": ">=",
+      "threshold": 1.0,
+      "severity": "hard"
+    },
+    {
+      "id": "hp-preempted-job-count",
+      "metric": "hp_preempted_job_count",
+      "operator": "<=",
+      "threshold": 0,
+      "severity": "hard"
+    },
+    {
+      "id": "hp-p95-jct-fifo-regression",
+      "metric": "hp_jct_p95_seconds",
+      "operator": "<=",
+      "threshold": {
+        "kind": "baseline_relative",
+        "baseline_metric": "hp_jct_p95_seconds",
+        "multiplier": 1.01
+      },
+      "severity": "hard"
+    },
+    {
+      "id": "hp-p95-queue-seconds",
+      "metric": "hp_queue_p95_seconds",
+      "operator": "<=",
+      "threshold": 3600,
+      "severity": "hard"
+    },
+    {
+      "id": "spot-completion-rate",
+      "metric": "spot_completion_rate",
+      "operator": ">=",
+      "threshold": 1.0,
+      "severity": "hard"
+    },
+    {
+      "id": "spot-eviction-rate-per-run",
+      "metric": "spot_eviction_rate_per_run",
+      "operator": "<=",
+      "threshold": 0.1,
+      "severity": "hard"
+    },
+    {
+      "id": "spot-guarantee-success-rate",
+      "metric": "spot_guarantee_success_rate",
+      "operator": ">=",
+      "threshold": 0.9,
+      "severity": "hard"
+    },
+    {
+      "id": "allocation-fifo-nondegradation",
+      "metric": "allocation_rate_mean",
+      "operator": ">=",
+      "threshold": {
+        "kind": "baseline_relative",
+        "baseline_metric": "allocation_rate_mean",
+        "multiplier": 1.0
+      },
+      "severity": "hard"
+    },
+    {
+      "id": "allocation-soft-target",
+      "metric": "allocation_rate_mean",
+      "operator": ">=",
+      "threshold": 0.8,
+      "severity": "soft"
+    }
+  ],
+  "ranking": {
+    "allocation_metric": "allocation_rate_mean",
+    "allocation_tie_band": 0.01,
+    "second_metric": "spot_jct_p95_seconds",
+    "third_metric": "spot_eviction_rate_per_run",
+    "unresolved_tie": "human_approval"
+  }
+}

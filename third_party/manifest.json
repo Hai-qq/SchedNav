@@ -1,0 +1,30 @@
+{
+  "schema_version": "schednav.third-party-manifest/v1",
+  "dependencies": [
+    {
+      "name": "GFS",
+      "repository": "https://github.com/MachineLearningSystem/26ASPLOS-Spot",
+      "commit": "e998d5453e626a0b743b3fd5137c54c987db780b",
+      "license": "GPL-3.0-only",
+      "integration": "local subprocess plus an explicitly versioned compatibility patch",
+      "redistributed_in_schednav": false
+    },
+    {
+      "name": "Alibaba cluster-trace-v2026-spot-gpu",
+      "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-v2026-spot-gpu",
+      "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+      "license": "not found in the pinned repository tree",
+      "integration": "local read-only experiment input",
+      "redistributed_in_schednav": false
+    },
+    {
+      "name": "AgentTeams",
+      "repository": "https://github.com/agentscope-ai/AgentTeams",
+      "version": "v1.2.1",
+      "commit": "552d0fb54d697b0689dafb6a01740e1a5f507552",
+      "license": "Apache-2.0",
+      "integration": "pinned local deployment dependency plus first-party declarative resource and Worker package templates; Windows deployment uses patches/agentteams/windows-appservice-parity.patch",
+      "redistributed_in_schednav": false
+    }
+  ]
+}
