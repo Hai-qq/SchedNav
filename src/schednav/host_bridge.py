@@ -99,11 +99,30 @@ def _require_safe_id(value: Any, field: str) -> str:
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:
+    path = path.resolve()
+    root = root.resolve()
     try:
         path.relative_to(root)
         return True
     except ValueError:
+        pass
+
+    # Windows runners can expose the same temporary directory through a short
+    # 8.3 alias and a long path. Compare existing ancestors by filesystem
+    # identity so containment remains secure without relying on path spelling.
+    if not root.exists():
         return False
+    candidate = path
+    while not candidate.exists() and candidate.parent != candidate:
+        candidate = candidate.parent
+    while candidate.parent != candidate:
+        try:
+            if candidate.samefile(root):
+                return True
+        except OSError:
+            return False
+        candidate = candidate.parent
+    return False
 
 
 @dataclass(frozen=True)

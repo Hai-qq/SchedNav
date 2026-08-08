@@ -178,7 +178,7 @@ class HostBridgeTests(unittest.TestCase):
             json.dumps(
                 {
                     "schema_version": "schednav.native-run-config/v1",
-                    "trace_manifest": trace_manifest.relative_to(self.project_root).as_posix(),
+                    "trace_manifest": "datasets/local/trace.json",
                 }
             ),
             encoding="utf-8",

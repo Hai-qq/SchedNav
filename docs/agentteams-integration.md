@@ -61,7 +61,7 @@ Native run configs use:
 }
 ```
 
-The path must remain inside the project root and identify a valid content-addressed `schednav.trace/v1` manifest. Policy files must use `schednav.simulation-policy/v1` and be listed in the bridge catalog.
+The path must remain inside the project root and identify a valid content-addressed `schednav.trace/v1` manifest. Containment checks use filesystem identity for existing Windows ancestors, so long paths and 8.3 aliases cannot create false escapes. Policy files must use `schednav.simulation-policy/v1` and be listed in the bridge catalog.
 
 ## Task state
 
