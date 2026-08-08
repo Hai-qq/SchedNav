@@ -1,0 +1,53 @@
+{
+  "schema_version": "schednav.dataset-validation/v1",
+  "status": "passed",
+  "dataset": {
+    "name": "Alibaba cluster-trace-v2026-spot-gpu",
+    "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-v2026-spot-gpu",
+    "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "license": "not found in the pinned repository tree",
+    "node_info_sha256": "35ef4d6288061265f2f9a207ef3df79bb1301cb9c0646a62087449e176781895",
+    "job_info_sha256": "f921e1932ae13196e204fdb0351d6697a7a0ef2e82e00ae123ed20e873284fb2"
+  },
+  "conversion": {
+    "gpu_models": ["A100-SXM4-80GB"],
+    "max_submit_time_seconds": 86400.0,
+    "node_count": 432,
+    "job_count": 1285,
+    "hp_job_count": 1284,
+    "spot_job_count": 1,
+    "fractional_gpu_demand_preserved": true,
+    "trace_fingerprint": "333f304042fbbd30132423a297830e69baddb1f070b955b8f19b94eae97ec188"
+  },
+  "slice": {
+    "semantics": "Origin-preserving inclusive first-day A100 arrival window with drain to completion.",
+    "evaluation_start_seconds": 0.0,
+    "evaluation_end_seconds": 86390.0
+  },
+  "simulation": {
+    "engine": "schednav-sim/v1",
+    "policy": "native-fifo",
+    "replicate_1_result_fingerprint": "e21c475b17f24332efa2feaac0c87237a706848ab54a50c26902150392e32288",
+    "replicate_2_result_fingerprint": "e21c475b17f24332efa2feaac0c87237a706848ab54a50c26902150392e32288",
+    "result_fingerprints_match": true,
+    "replicate_1_metrics_fingerprint": "4129dce380a6b1a19771146656c407fec1ae73059dd959b4f279538d4726d82b",
+    "replicate_2_metrics_fingerprint": "4129dce380a6b1a19771146656c407fec1ae73059dd959b4f279538d4726d82b",
+    "metrics_fingerprints_match": true,
+    "allocation_rate_mean": 0.6400293719426974,
+    "hp_p95_jct_seconds": 4575720.95,
+    "spot_p95_jct_seconds": 2496.0
+  },
+  "validated_capabilities": [
+    "official-source ingestion with published HP/Spot labels",
+    "fractional and integral GPU demand preservation",
+    "deterministic placement and drain-to-completion",
+    "evaluation-window allocation, completion and JCT metrics",
+    "two-run result and metrics determinism"
+  ],
+  "not_validated": [
+    "representative Spot eviction behavior because the slice contains one Spot job",
+    "policy improvement because this receipt records only the FIFO baseline",
+    "cross-dataset metric ranking"
+  ],
+  "validation_fingerprint": "703bad7257353e2baeb20d277149fe28f276b5ef73db0381fcf702b09b309614"
+}

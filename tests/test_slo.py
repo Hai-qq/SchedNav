@@ -32,13 +32,17 @@ class SloAuditTests(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             metrics = {
-                "schema_version": "schednav.metrics-report/v1",
+                "schema_version": "schednav.metrics-report/v2",
                 "metrics_fingerprint": "placeholder",
                 "trace_id": "fixture-trace",
                 "policy_fingerprint": "fixture-policy",
-                "policy": {"scheduler": "spot_scheduler"},
-                "source": {"gfs_commit": "a", "gfs_patch_sha256": "b", "trace_commit": "c"},
-                "window_seconds": {"start": 1, "end": 2},
+                "policy": {"scheduler": "priority_preemptive"},
+                "source": {
+                    "dataset": "contract-fixture",
+                    "engine": {"name": "schednav-sim", "version": "1"},
+                    "trace_fingerprint": "c" * 64,
+                },
+                "window_seconds": {"evaluation_start": 1, "evaluation_end": 2},
                 "jobs": {
                     "HP": {"job_count": 1, "jct_seconds": {"p95": 90.0}},
                     "Spot": {"job_count": 1},
@@ -66,7 +70,7 @@ class SloAuditTests(unittest.TestCase):
             report = audit_slo(metrics_path, slo_path)
             self.assertTrue(report["audit_passed"])
             self.assertTrue(report["metrics_schema_supported"])
-            self.assertEqual(report["scheduler"], "spot_scheduler")
+            self.assertEqual(report["scheduler"], "priority_preemptive")
             self.assertEqual(report["soft_violation_count"], 1)
 
             metrics["spot_runs"]["available"] = False
@@ -84,10 +88,14 @@ class SloAuditTests(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             common = {
-                "schema_version": "schednav.metrics-report/v1",
-                "source": {"gfs_commit": "a", "gfs_patch_sha256": "b", "trace_commit": "c"},
+                "schema_version": "schednav.metrics-report/v2",
+                "source": {
+                    "dataset": "contract-fixture",
+                    "engine": {"name": "schednav-sim", "version": "1"},
+                    "trace_fingerprint": "c" * 64,
+                },
                 "trace_id": "fixture-trace",
-                "window_seconds": {"start": 1, "end": 2},
+                "window_seconds": {"evaluation_start": 1, "evaluation_end": 2},
                 "jobs": {
                     "HP": {"job_count": 1, "jct_seconds": {"p95": 101.0}},
                     "Spot": {"job_count": 1},
@@ -97,9 +105,13 @@ class SloAuditTests(unittest.TestCase):
                 "spot_runs": {"available": True, "consistent_with_job_csv": True},
                 "spot_guarantee": {"available": True, "consistent_with_preemption_events": True},
             }
-            metrics = {**common, "policy_fingerprint": "candidate", "policy": {"scheduler": "spot_scheduler"}}
+            metrics = {
+                **common,
+                "policy_fingerprint": "candidate",
+                "policy": {"scheduler": "priority_preemptive"},
+            }
             baseline = json.loads(json.dumps(common))
-            baseline.update({"policy_fingerprint": "fifo", "policy": {"scheduler": "fifo_spot"}})
+            baseline.update({"policy_fingerprint": "fifo", "policy": {"scheduler": "fifo"}})
             for report in (metrics, baseline):
                 report["metrics_fingerprint"] = canonical_sha256(report)
             slo = {

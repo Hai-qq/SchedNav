@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/dataset-validation.schema.json",
+  "title": "SchedNav dataset validation receipt",
+  "type": "object",
+  "required": ["schema_version", "status", "dataset", "conversion", "slice", "simulation", "validated_capabilities", "not_validated", "validation_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.dataset-validation/v1"},
+    "status": {"enum": ["passed", "failed"]},
+    "dataset": {"type": "object"},
+    "conversion": {"type": "object"},
+    "slice": {"type": "object"},
+    "simulation": {"type": "object"},
+    "validated_capabilities": {"type": "array", "items": {"type": "string"}},
+    "not_validated": {"type": "array", "items": {"type": "string"}},
+    "validation_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

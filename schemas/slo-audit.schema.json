@@ -13,7 +13,7 @@
     "metrics_fingerprint_valid": {"type": "boolean"},
     "trace_id": {"type": "string", "minLength": 1},
     "policy_fingerprint": {"type": "string", "minLength": 1},
-    "scheduler": {"enum": ["fifo_spot", "spot_scheduler"]},
+    "scheduler": {"enum": ["fifo", "priority_preemptive"]},
     "baseline": {"type": "object"},
     "evidence_checks": {"type": "object"},
     "audit_passed": {"type": "boolean"},

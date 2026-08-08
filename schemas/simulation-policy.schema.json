@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/simulation-policy.schema.json",
+  "title": "SchedNav native simulation policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "action_id", "scheduler", "spot_guarantee_seconds", "checkpoint_interval_seconds", "preemption_overhead_seconds", "placement_strategy"],
+  "properties": {
+    "schema_version": {"const": "schednav.simulation-policy/v1"},
+    "action_id": {"type": "string", "minLength": 1},
+    "scheduler": {"enum": ["fifo", "priority_preemptive"]},
+    "spot_guarantee_seconds": {"type": "integer", "minimum": 0},
+    "checkpoint_interval_seconds": {"type": "integer", "minimum": 1},
+    "preemption_overhead_seconds": {"type": "integer", "minimum": 0},
+    "placement_strategy": {"const": "deterministic_best_fit"}
+  }
+}

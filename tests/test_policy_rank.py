@@ -34,7 +34,10 @@ class PolicyRankTests(unittest.TestCase):
             metrics_paths = []
             audit_paths = []
             for index, allocation in enumerate((0.5, 0.805, 0.81)):
-                policy = {"scheduler": "spot_scheduler", "guarantee_rate": 0.8 + index * 0.05}
+                policy = {
+                    "scheduler": "priority_preemptive",
+                    "spot_guarantee_seconds": index * 1800,
+                }
                 metrics = {
                     "policy_fingerprint": canonical_sha256(policy),
                     "policy": policy,

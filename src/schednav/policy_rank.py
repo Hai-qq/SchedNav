@@ -8,6 +8,7 @@ from typing import Any
 
 from .contracts import canonical_sha256
 from .metric_catalog import get_metric_value
+from .policy_compare import ACTION_CONTROL_FIELDS
 
 
 def _load_verified(path: Path, fingerprint_key: str) -> tuple[dict[str, Any], bool]:
@@ -59,10 +60,9 @@ def rank_audited_policies(
                 "metrics_fingerprint": metrics_fingerprint,
                 "audit_fingerprint": audit.get("audit_fingerprint"),
                 "action": {
-                    "scheduler": metrics.get("policy", {}).get("scheduler"),
-                    "guarantee_hours": metrics.get("policy", {}).get("guarantee_hours"),
-                    "guarantee_rate": metrics.get("policy", {}).get("guarantee_rate"),
-                    "ckpt_interval_seconds": metrics.get("policy", {}).get("ckpt_interval_seconds"),
+                    key: metrics.get("policy", {}).get(key)
+                    for key in sorted(ACTION_CONTROL_FIELDS)
+                    if key in metrics.get("policy", {})
                 },
                 "evidence_valid": metrics_valid and audit_valid,
                 "hard_slo_passed": audit.get("audit_passed") is True,

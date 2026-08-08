@@ -1,4 +1,4 @@
-"""Deterministic SLO audit over canonical GFS metrics."""
+"""Deterministic SLO audit over canonical simulation metrics."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .contracts import canonical_sha256
-from .metric_catalog import METRIC_CATALOG, get_metric_value
+from .metric_catalog import METRIC_CATALOG, SUPPORTED_METRICS_SCHEMAS, get_metric_value
 
 
 OPERATORS: dict[str, Callable[[float, float], bool]] = {
@@ -39,7 +39,7 @@ def _baseline_compatible(metrics: dict[str, Any], baseline: dict[str, Any]) -> b
         and metrics.get("trace_id") == baseline.get("trace_id")
         and metrics.get("window_seconds") == baseline.get("window_seconds")
         and _population(metrics) == _population(baseline)
-        and baseline.get("policy", {}).get("scheduler") == "fifo_spot"
+        and baseline.get("policy", {}).get("scheduler") == "fifo"
     )
 
 
@@ -125,7 +125,7 @@ def audit_slo(
         )
 
     hard_results = [item for item in results if item["severity"] == "hard"]
-    metrics_schema_supported = metrics.get("schema_version") == "schednav.metrics-report/v1"
+    metrics_schema_supported = metrics.get("schema_version") in SUPPORTED_METRICS_SCHEMAS
     evidence_checks = {
         "preemption_ledger_consistent": metrics.get("preemption_events", {}).get("available") is True
         and metrics.get("preemption_events", {}).get("consistent_with_job_csv") is True,

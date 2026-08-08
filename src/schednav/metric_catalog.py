@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 
+SUPPORTED_METRICS_SCHEMAS = {"schednav.metrics-report/v2"}
+
+
 METRIC_CATALOG = {
     "hp_completion_rate": (("jobs", "HP", "completion_rate"), "higher_is_better"),
     "hp_jct_mean_seconds": (("jobs", "HP", "jct_seconds", "mean"), "lower_is_better"),

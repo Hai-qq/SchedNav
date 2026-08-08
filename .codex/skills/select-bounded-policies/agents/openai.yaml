@@ -1,0 +1,4 @@
+interface:
+  display_name: "Select Bounded Policies"
+  short_description: "Choose executable high-level scheduling policies"
+  default_prompt: "Use $select-bounded-policies to choose distinct policy candidates from the declared action space."

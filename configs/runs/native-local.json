@@ -1,0 +1,4 @@
+{
+  "schema_version": "schednav.native-run-config/v1",
+  "trace_manifest": "datasets/local/trace.json"
+}

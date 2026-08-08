@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/metrics-report-v2.schema.json",
+  "title": "SchedNav native metrics report",
+  "type": "object",
+  "required": ["schema_version", "run_spec_fingerprint", "policy_fingerprint", "policy", "source", "trace_id", "window_seconds", "jobs", "cluster", "preemption_events", "spot_runs", "spot_guarantee", "evidence", "definitions", "metrics_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.metrics-report/v2"},
+    "run_spec_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy": {"type": "object"},
+    "source": {"type": "object"},
+    "trace_id": {"type": "string"},
+    "window_seconds": {"type": "object"},
+    "jobs": {"type": "object", "required": ["HP", "Spot"]},
+    "cluster": {"type": "object"},
+    "preemption_events": {"type": "object"},
+    "spot_runs": {"type": "object"},
+    "spot_guarantee": {"type": "object"},
+    "evidence": {"type": "object"},
+    "definitions": {"type": "object"},
+    "metrics_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compare GPU Policies"
+  short_description: "Compare same-trace canonical scheduling metrics"
+  default_prompt: "Use $compare-gpu-policies to compare three to five simulation-backed policy results."

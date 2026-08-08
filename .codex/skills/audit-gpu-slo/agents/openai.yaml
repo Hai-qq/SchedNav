@@ -1,4 +1,4 @@
 interface:
   display_name: "Audit GPU SLO"
-  short_description: "Apply explicit SLO constraints to GFS evidence"
-  default_prompt: "Use $audit-gpu-slo to audit canonical GFS metrics against an explicit SLO spec."
+  short_description: "Apply explicit SLO constraints to simulation evidence"
+  default_prompt: "Use $audit-gpu-slo to audit canonical scheduling metrics against an explicit SLO spec."

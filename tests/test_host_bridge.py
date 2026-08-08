@@ -15,6 +15,7 @@ from schednav.host_bridge import (
     IdempotencyConflict,
     REQUEST_SCHEMA,
 )
+from schednav.native_trace import TraceJob, TraceNode, write_canonical_trace
 
 
 class HostBridgeTests(unittest.TestCase):
@@ -160,6 +161,78 @@ class HostBridgeTests(unittest.TestCase):
         finally:
             service.close()
 
+    def test_native_bridge_runs_the_first_party_simulator(self):
+        trace_manifest = write_canonical_trace(
+            self.project_root / "datasets/local",
+            trace_id="bridge-native",
+            time_origin="2026-01-01 00:00:00",
+            source={"dataset": "bridge-fixture"},
+            nodes=[TraceNode("n1", "A", 2)],
+            jobs=[
+                TraceJob("spot", 0, 10, 2, "Spot", "A"),
+                TraceJob("hp", 2, 2, 2, "HP", "A"),
+            ],
+        )
+        run_config = self.project_root / "configs/native-run.json"
+        run_config.write_text(
+            json.dumps(
+                {
+                    "schema_version": "schednav.native-run-config/v1",
+                    "trace_manifest": trace_manifest.relative_to(self.project_root).as_posix(),
+                }
+            ),
+            encoding="utf-8",
+        )
+        policy = self.project_root / "configs/native-policy.json"
+        policy.write_text(
+            json.dumps(
+                {
+                    "schema_version": "schednav.simulation-policy/v1",
+                    "action_id": "native-policy",
+                    "scheduler": "priority_preemptive",
+                    "spot_guarantee_seconds": 0,
+                    "checkpoint_interval_seconds": 2,
+                    "preemption_overhead_seconds": 0,
+                    "placement_strategy": "deterministic_best_fit",
+                }
+            ),
+            encoding="utf-8",
+        )
+        config = json.loads(self.config_path.read_text(encoding="utf-8"))
+        config["run_configs"] = {"native-window": "configs/native-run.json"}
+        config["actions"] = {"native-policy": "configs/native-policy.json"}
+        config["baseline_metrics"] = {}
+        self.config_path.write_text(json.dumps(config), encoding="utf-8")
+        catalog = BridgeCatalog.load(self.project_root, self.config_path)
+        service = BridgeService(catalog)
+        try:
+            task, _ = service.submit(
+                {
+                    "schema_version": REQUEST_SCHEMA,
+                    "operation": "simulate_policy",
+                    "arguments": {
+                        "run_config_id": "native-window",
+                        "action_id": "native-policy",
+                    },
+                },
+                "native-bridge-0001",
+            )
+            for _ in range(100):
+                completed = service.get_task(task["task_id"])
+                if completed["status"] != "queued" and completed["status"] != "running":
+                    break
+                time.sleep(0.01)
+            self.assertEqual(completed["status"], "succeeded")
+            metrics = json.loads(
+                catalog.resolve_artifact_ref(completed["artifacts"]["metrics"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(metrics["schema_version"], "schednav.metrics-report/v2")
+            self.assertEqual(metrics["source"]["engine"]["name"], "schednav-sim")
+        finally:
+            service.close()
+
     def test_mcp_lists_and_calls_bounded_tools_with_bearer_auth(self):
         service = BridgeService(
             self.catalog,
@@ -228,7 +301,7 @@ class HostBridgeTests(unittest.TestCase):
             readable.write_text(
                 json.dumps(
                     {
-                        "schema_version": "schednav.workload-summary/v1",
+                        "schema_version": "schednav.workload-summary/v2",
                         "workload_fingerprint": "a" * 64,
                     }
                 ),
@@ -248,7 +321,7 @@ class HostBridgeTests(unittest.TestCase):
             self.assertFalse(read_result["result"]["isError"])
             self.assertEqual(
                 read_result["result"]["structuredContent"]["schema_version"],
-                "schednav.workload-summary/v1",
+                "schednav.workload-summary/v2",
             )
 
             blocked = self.project_root / "artifacts/blocked.json"

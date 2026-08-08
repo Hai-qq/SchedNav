@@ -1,4 +1,0 @@
-interface:
-  display_name: "Select Bounded GFS Policies"
-  short_description: "Select policies from a finite action space"
-  default_prompt: "Use $select-bounded-gfs-policies to select executable policy candidates without inventing parameters."

@@ -1,0 +1,55 @@
+{
+  "schema_version": "schednav.dataset-validation/v1",
+  "status": "passed",
+  "dataset": {
+    "name": "Microsoft Philly GPU Trace",
+    "repository": "https://github.com/msr-fiddle/philly-traces",
+    "commit": "29a1b87fa2d9ed80b83c9e3a37f3a88d382b031d",
+    "license": "CC-BY-4.0",
+    "archive_size_bytes": 1055988361,
+    "archive_sha256": "2037ccf63a725a02be718b0e1aeee6142c90b7f62d0d849295120e9f6ba13d2c",
+    "job_log_sha256": "aedddbb94523e7ddf454284ce3f3211ce7175f16dd189e5f00195603c65472c6",
+    "machine_list_sha256": "5a3f3ad190fcf75bb44b8f7e4b1a8d76897255e35657d3038c8e43d021cba22f"
+  },
+  "conversion": {
+    "published_job_count": 117325,
+    "converted_job_count": 111846,
+    "skipped_job_count": 5479,
+    "service_class_mapping": {
+      "mode": "caller_supplied_constant",
+      "value": "HP",
+      "reason": "The source trace does not publish HP/Spot labels."
+    },
+    "full_trace_fingerprint": "d46f8c64cad12b219f6616246e39f3b08f96ec3b9a41c5455b4352d78f889d16"
+  },
+  "slice": {
+    "semantics": "Origin-preserving inclusive arrival prefix with drain to completion.",
+    "max_submit_time_seconds": 4166080.0,
+    "job_count": 1000,
+    "trace_fingerprint": "fa3664706d42ee1fc42c679fc7b05fdc320781d11fdfa1898e3aea09c91e52c5"
+  },
+  "simulation": {
+    "engine": "schednav-sim/v1",
+    "policy": "native-fifo",
+    "replicate_1_result_fingerprint": "b94366a6e396beeab83313cdc33141818f56e1804fc4c75e5ee8f1ea94b98d73",
+    "replicate_2_result_fingerprint": "b94366a6e396beeab83313cdc33141818f56e1804fc4c75e5ee8f1ea94b98d73",
+    "result_fingerprints_match": true,
+    "replicate_1_metrics_fingerprint": "f858e144b293cd6b5982c73c37a300fe5568f62c916a568a7d984e04d029687c",
+    "replicate_2_metrics_fingerprint": "f858e144b293cd6b5982c73c37a300fe5568f62c916a568a7d984e04d029687c",
+    "metrics_fingerprints_match": true
+  },
+  "validated_capabilities": [
+    "official-source ingestion",
+    "canonical provenance and content fingerprints",
+    "deterministic placement and drain-to-completion",
+    "HP completion, JCT and allocation metrics",
+    "two-run result and metrics determinism"
+  ],
+  "not_validated": [
+    "Spot eviction rate",
+    "Spot guarantee success rate",
+    "HP-vs-Spot SLO trade-offs",
+    "cross-dataset metric ranking"
+  ],
+  "validation_fingerprint": "d5abe02d77e2509b3a4f76c8744eca76426438cee4ed39c8ea3e7fcc48f2755c"
+}

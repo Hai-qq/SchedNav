@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simulate GPU Policy"
+  short_description: "Run a bounded policy in the SchedNav simulator"
+  default_prompt: "Use $simulate-gpu-policy to run a bounded GPU scheduling policy and preserve canonical evidence."

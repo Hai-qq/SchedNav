@@ -1,4 +1,0 @@
-interface:
-  display_name: "Simulate GFS Policy"
-  short_description: "Run an isolated evidence-attested GFS policy"
-  default_prompt: "Use $simulate-gfs-policy to run a bounded policy in the real GFS simulator."

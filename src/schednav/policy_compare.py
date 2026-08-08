@@ -7,19 +7,19 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import canonical_sha256
-from .metric_catalog import METRIC_CATALOG, get_metric_value
+from .metric_catalog import METRIC_CATALOG, SUPPORTED_METRICS_SCHEMAS, get_metric_value
 
 
 ACTION_CONTROL_FIELDS = {
+    "action_id",
     "scheduler",
-    "guarantee_hours",
-    "guarantee_rate",
-    "ckpt_interval_seconds",
+    "spot_guarantee_seconds",
+    "checkpoint_interval_seconds",
 }
 
 
 INTERPRETATION_CAVEATS = [
-    "A comparison may change more than one admitted action control. In particular, the upstream fifo_spot and spot_scheduler implementations differ in queue ordering, placement, and worker_num request accounting; allocation_rate_mean is therefore not an isolated measure of one scheduling heuristic.",
+    "A comparison may change more than one admitted action control. Metric deltas describe the complete declared policy profiles and do not establish a single-variable causal effect.",
     "Comparability attests the Trace window, population, run controls, evidence, and completion contract. It does not establish causal superiority or select a policy.",
 ]
 
@@ -56,7 +56,8 @@ def compare_policy_metrics(left_path: Path, right_path: Path) -> dict[str, Any]:
         key: value for key, value in right_policy.items() if key not in ACTION_CONTROL_FIELDS
     }
     criteria = {
-        "metrics_schema_supported": left.get("schema_version") == right.get("schema_version") == "schednav.metrics-report/v1",
+        "metrics_schema_supported": left.get("schema_version") == right.get("schema_version")
+        and left.get("schema_version") in SUPPORTED_METRICS_SCHEMAS,
         "metrics_fingerprints_valid": left_fingerprint_valid and right_fingerprint_valid,
         "source_match": left.get("source") == right.get("source") and bool(left.get("source")),
         "trace_id_match": left.get("trace_id") == right.get("trace_id"),

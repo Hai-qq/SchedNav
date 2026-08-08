@@ -11,7 +11,7 @@ license = {file = "LICENSE"}
 dependencies = []
 
 [project.scripts]
-schednav-reproduce = "schednav.cli:main"
+schednav = "schednav.cli:main"
 schednav-bridge = "schednav.host_bridge:main"
 
 [tool.setuptools]

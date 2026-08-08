@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/simulation-result.schema.json",
+  "title": "SchedNav simulation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "engine",
+    "trace",
+    "policy",
+    "policy_fingerprint",
+    "window_seconds",
+    "cluster",
+    "jobs",
+    "preemption_events",
+    "spot_runs",
+    "result_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.simulation-result/v1"},
+    "engine": {"type": "object", "required": ["name", "version"]},
+    "trace": {
+      "type": "object",
+      "required": ["trace_id", "trace_fingerprint", "time_origin", "source"]
+    },
+    "policy": {"type": "object"},
+    "policy_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "window_seconds": {
+      "type": "object",
+      "required": ["evaluation_start", "evaluation_end", "drain_end"]
+    },
+    "cluster": {
+      "type": "object",
+      "required": [
+        "node_count",
+        "capacity_gpus",
+        "simulation_start",
+        "simulation_end",
+        "allocated_gpu_seconds",
+        "evaluation_allocated_gpu_seconds",
+        "drain_allocated_gpu_seconds",
+        "allocation_rate_mean"
+      ]
+    },
+    "jobs": {"type": "array", "items": {"type": "object"}},
+    "preemption_events": {"type": "array", "items": {"type": "object"}},
+    "spot_runs": {"type": "array", "items": {"type": "object"}},
+    "result_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

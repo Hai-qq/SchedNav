@@ -1,24 +1,54 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Hai-qq/SchedNav/schemas/action-space.schema.json",
-  "title": "SchedNav finite action space",
+  "title": "SchedNav bounded action space",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "name", "status", "allowed", "profiles", "forbidden"],
+  "required": [
+    "schema_version",
+    "name",
+    "controlled_fields",
+    "fixed_execution_controls",
+    "profiles",
+    "forbidden"
+  ],
   "properties": {
-    "schema_version": {"const": "schednav.action-space/v1"},
-    "name": {"type": "string"},
-    "status": {"type": "string"},
-    "allowed": {
+    "schema_version": {"const": "schednav.native-action-space/v1"},
+    "name": {"type": "string", "minLength": 1},
+    "controlled_fields": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "scheduler",
+          "spot_guarantee_seconds",
+          "checkpoint_interval_seconds"
+        ]
+      }
+    },
+    "fixed_execution_controls": {
       "type": "object",
-      "required": ["scheduler", "guarantee_hours", "guarantee_rate", "ckpt_interval_seconds"]
+      "additionalProperties": false,
+      "required": ["preemption_overhead_seconds", "placement_strategy"],
+      "properties": {
+        "preemption_overhead_seconds": {"type": "integer", "minimum": 0},
+        "placement_strategy": {"const": "deterministic_best_fit"}
+      }
     },
     "profiles": {
       "type": "array",
       "minItems": 3,
       "maxItems": 5,
-      "items": {"$ref": "policy-action.schema.json"}
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
     },
-    "forbidden": {"type": "array", "items": {"type": "string"}}
+    "forbidden": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
   }
 }

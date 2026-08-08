@@ -1,0 +1,20 @@
+{
+  "schema_version": "schednav.host-bridge-config/v1",
+  "artifact_root": "artifacts",
+  "task_subdir": "agentteams-bridge/tasks",
+  "max_workers": 1,
+  "run_configs": {
+    "native-local": "configs/runs/native-local.json"
+  },
+  "action_space": "configs/action_spaces/native-v1.json",
+  "actions": {
+    "native-fifo": "configs/policies/native-fifo.json",
+    "native-preemptive-0000": "configs/policies/native-preemptive-0000.json",
+    "native-preemptive-1800": "configs/policies/native-preemptive-1800.json",
+    "native-preemptive-3600": "configs/policies/native-preemptive-3600.json"
+  },
+  "slo_specs": {
+    "schednav-demo-slo-v1": "configs/slos/schednav-demo-slo-v1.json"
+  },
+  "baseline_metrics": {}
+}

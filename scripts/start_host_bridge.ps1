@@ -11,8 +11,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
-$python = Join-Path $projectRoot ".venv-gfs\Scripts\python.exe"
-$config = Join-Path $projectRoot "configs\agentteams\host-bridge-v1.json"
+$python = Join-Path $projectRoot ".venv\Scripts\python.exe"
+$config = Join-Path $projectRoot "configs\agentteams\host-bridge-native-v1.json"
 $sourceRoot = Join-Path $projectRoot "src"
 
 if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
@@ -69,7 +69,7 @@ try {
     $env:PYTHONPATH = $sourceRoot
     & $python -m schednav.host_bridge `
         --project-root $projectRoot `
-        --config "configs/agentteams/host-bridge-v1.json" `
+        --config "configs/agentteams/host-bridge-native-v1.json" `
         --bind $BindAddress `
         --port $Port `
         --auth-gateway-url $AuthGatewayUrl

@@ -11,7 +11,7 @@
       "request human approval for expensive simulation batches and final recommendation"
     ],
     "skills": [
-      "compare-gfs-policies"
+      "compare-gpu-policies"
     ],
     "forbidden_actions": [
       "direct Job-to-node/GPU placement",
@@ -31,7 +31,7 @@
     {
       "id": "scheduling-strategist",
       "role": "Scheduling Strategist",
-      "skill": "select-bounded-gfs-policies",
+      "skill": "select-bounded-policies",
       "inputs": ["workload_summary_ref", "action_space_ref"],
       "outputs": ["policy_action_refs"],
       "forbidden_actions": ["unlisted policy values", "placement", "winner selection"]
@@ -39,9 +39,9 @@
     {
       "id": "simulation-agent",
       "role": "Simulation Agent",
-      "skill": "simulate-gfs-policy",
+      "skill": "simulate-gpu-policy",
       "inputs": ["trace_manifest_ref", "policy_action_ref"],
-      "outputs": ["run_manifest_ref", "metrics_report_ref", "gate_report_ref"],
+      "outputs": ["simulation_result_ref", "metrics_report_ref"],
       "forbidden_actions": ["shared mutable simulator state", "overwriting an existing run", "subjective policy judgment"]
     },
     {

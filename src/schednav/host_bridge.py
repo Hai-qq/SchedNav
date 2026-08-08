@@ -21,14 +21,13 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 import uuid
 
-from .action_space import materialize_policy_action
-from .contracts import RunSpec, canonical_sha256
-from .gfs_adapter import prepare_trace, run_reproduction, verify_local_inputs
-from .metrics import extract_metrics
+from .contracts import canonical_sha256
+from .native_simulator import SimulationPolicy, build_metrics_report, simulate_trace
+from .native_trace import load_canonical_trace
+from .native_workload import analyze_canonical_workload
 from .policy_portfolio import compare_policy_portfolio
 from .policy_rank import rank_audited_policies
 from .slo import audit_slo
-from .workload import analyze_workload
 
 
 CATALOG_SCHEMA = "schednav.host-bridge-config/v1"
@@ -41,15 +40,15 @@ MAX_BODY_BYTES = 64 * 1024
 MCP_PROTOCOL_VERSION = "2025-03-26"
 MAX_READ_ARTIFACT_BYTES = 512 * 1024
 READABLE_ARTIFACT_SCHEMAS = {
-    "schednav.workload-summary/v1",
-    "schednav.metrics-report/v1",
+    "schednav.metrics-report/v2",
+    "schednav.workload-summary/v2",
     "schednav.policy-comparison/v1",
     "schednav.policy-portfolio/v1",
     "schednav.slo-audit/v1",
     "schednav.policy-ranking/v1",
-    "schednav.policy-materialization/v1",
-    "schednav.run-manifest/v1",
-    "schednav.trace-manifest/v1",
+    "schednav.trace/v1",
+    "schednav.native-run/v1",
+    "schednav.simulation-result/v1",
 }
 
 
@@ -162,9 +161,10 @@ class BridgeCatalog:
         if not _is_relative_to(task_root, artifact_root):
             raise BridgeRequestError("task_subdir escapes artifact_root")
 
-        def catalog_map(raw: Any, field: str) -> dict[str, Path]:
-            if not isinstance(raw, dict) or not raw:
-                raise BridgeRequestError(f"{field} must be a non-empty object")
+        def catalog_map(raw: Any, field: str, *, allow_empty: bool = False) -> dict[str, Path]:
+            if not isinstance(raw, dict) or (not raw and not allow_empty):
+                requirement = "an object" if allow_empty else "a non-empty object"
+                raise BridgeRequestError(f"{field} must be {requirement}")
             return {
                 _require_safe_id(key, f"{field} key"): project_path(path)
                 for key, path in raw.items()
@@ -181,7 +181,9 @@ class BridgeCatalog:
             action_space=project_path(value["action_space"]),
             actions=catalog_map(value["actions"], "actions"),
             slo_specs=catalog_map(value["slo_specs"], "slo_specs"),
-            baseline_metrics=catalog_map(value["baseline_metrics"], "baseline_metrics"),
+            baseline_metrics=catalog_map(
+                value["baseline_metrics"], "baseline_metrics", allow_empty=True
+            ),
             max_workers=max_workers,
         )
 
@@ -347,17 +349,38 @@ class BridgeService:
                 raise BridgeRequestError("compare_policies requires 3-5 metrics_refs")
             return {"metrics_refs": refs}
         if operation == "audit_slo":
-            _require_exact_keys(arguments, {"metrics_ref", "slo_spec_id", "baseline_metrics_id"})
+            _require_exact_keys(
+                arguments,
+                {"metrics_ref", "slo_spec_id"},
+                {"baseline_metrics_id", "baseline_metrics_ref"},
+            )
+            baseline_keys = {
+                key for key in ("baseline_metrics_id", "baseline_metrics_ref") if key in arguments
+            }
+            if len(baseline_keys) != 1:
+                raise BridgeRequestError(
+                    "audit_slo requires exactly one baseline_metrics_id or baseline_metrics_ref"
+                )
             metrics_ref = self._validate_ref(arguments["metrics_ref"], "metrics_ref")
             slo_spec_id = _require_safe_id(arguments["slo_spec_id"], "slo_spec_id")
-            baseline_id = _require_safe_id(arguments["baseline_metrics_id"], "baseline_metrics_id")
             self.catalog.select(self.catalog.slo_specs, slo_spec_id, "slo_spec_id")
-            self.catalog.select(self.catalog.baseline_metrics, baseline_id, "baseline_metrics_id")
-            return {
+            normalized = {
                 "metrics_ref": metrics_ref,
                 "slo_spec_id": slo_spec_id,
-                "baseline_metrics_id": baseline_id,
             }
+            if "baseline_metrics_id" in arguments:
+                baseline_id = _require_safe_id(
+                    arguments["baseline_metrics_id"], "baseline_metrics_id"
+                )
+                self.catalog.select(
+                    self.catalog.baseline_metrics, baseline_id, "baseline_metrics_id"
+                )
+                normalized["baseline_metrics_id"] = baseline_id
+            else:
+                normalized["baseline_metrics_ref"] = self._validate_ref(
+                    arguments["baseline_metrics_ref"], "baseline_metrics_ref"
+                )
+            return normalized
         if operation == "rank_policies":
             _require_exact_keys(arguments, {"metrics_refs", "audit_refs", "slo_spec_id"})
             metrics_refs = self._validate_ref_list(arguments["metrics_refs"], "metrics_refs")
@@ -433,6 +456,21 @@ class BridgeService:
         _write_json_atomic(path, value)
         return self.catalog.artifact_ref(path)
 
+    def _trace_from_config(self, config_path: Path) -> tuple[Path, Any]:
+        value = _load_json_object(config_path)
+        if value.get("schema_version") != "schednav.native-run-config/v1":
+            raise BridgeRequestError(
+                "Run configs must use schema_version=schednav.native-run-config/v1"
+            )
+        _require_exact_keys(value, {"schema_version", "trace_manifest"})
+        relative = Path(str(value["trace_manifest"]))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise BridgeRequestError("trace_manifest must be a safe project-relative path")
+        trace_path = (self.catalog.project_root / relative).resolve()
+        if not _is_relative_to(trace_path, self.catalog.project_root) or not trace_path.is_file():
+            raise BridgeRequestError("trace_manifest does not identify a canonical trace")
+        return trace_path, load_canonical_trace(trace_path)
+
     def _analyze_workload(
         self,
         arguments: dict[str, Any],
@@ -442,16 +480,10 @@ class BridgeService:
         config_path = self.catalog.select(
             self.catalog.run_configs, arguments["run_config_id"], "run_config_id"
         )
-        spec = RunSpec.load(config_path)
-        inputs = verify_local_inputs(spec, self.catalog.project_root)
-        if len(spec.window.gpu_models) != 1:
-            raise ValueError("V1 workload bridge requires one GPU model per run config")
-        result = analyze_workload(
-            inputs["source_trace_dir"],
-            spec.window.gpu_models[0],
-            spec.window.evaluation_start,
-            spec.window.evaluation_end,
-            arguments["sample_interval_seconds"],
+        _trace_path, trace = self._trace_from_config(config_path)
+        result = analyze_canonical_workload(
+            trace,
+            sample_interval_seconds=arguments["sample_interval_seconds"],
         )
         return {"workload_summary": self._write_result(task_dir, "workload-summary.json", result)}
 
@@ -459,34 +491,38 @@ class BridgeService:
         self,
         arguments: dict[str, Any],
         task_dir: Path,
-        task_id: str,
+        _task_id: str,
     ) -> dict[str, Any]:
         base_config = self.catalog.select(
             self.catalog.run_configs, arguments["run_config_id"], "run_config_id"
         )
         action = self.catalog.select(self.catalog.actions, arguments["action_id"], "action_id")
-        run_spec_value, receipt = materialize_policy_action(
-            base_config,
-            self.catalog.action_space,
-            action,
-        )
+        trace_path, trace = self._trace_from_config(base_config)
+        action_value = _load_json_object(action)
+        if action_value.get("schema_version") != "schednav.simulation-policy/v1":
+            raise BridgeRequestError(
+                "Policies must use schema_version=schednav.simulation-policy/v1"
+            )
+        policy = SimulationPolicy.from_dict(action_value)
+        simulation_result = simulate_trace(trace, policy)
+        metrics = build_metrics_report(simulation_result)
+        run_spec = {
+            "schema_version": "schednav.native-run/v1",
+            "trace_manifest": trace_path.relative_to(self.catalog.project_root).as_posix(),
+            "trace_fingerprint": trace.fingerprint,
+            "policy": action_value,
+            "policy_fingerprint": policy.fingerprint,
+        }
+        run_spec["run_fingerprint"] = canonical_sha256(run_spec)
         run_spec_path = task_dir / "run-spec.json"
-        receipt_path = task_dir / "materialization-receipt.json"
-        _write_json_atomic(run_spec_path, run_spec_value)
-        _write_json_atomic(receipt_path, receipt)
-        spec = RunSpec.load(run_spec_path)
-        verify_local_inputs(spec, self.catalog.project_root)
-        prepared_dir, _ = prepare_trace(spec, self.catalog.project_root)
-        replicate_id = f"bridge-{task_id[:12]}"
-        run_dir, _ = run_reproduction(spec, self.catalog.project_root, replicate_id)
-        metrics = extract_metrics(spec, run_dir / "run_manifest.json")
+        result_path = task_dir / "simulation-result.json"
         metrics_path = task_dir / "metrics.json"
+        _write_json_atomic(run_spec_path, run_spec)
+        _write_json_atomic(result_path, simulation_result)
         _write_json_atomic(metrics_path, metrics)
         return {
             "run_spec": self.catalog.artifact_ref(run_spec_path),
-            "materialization_receipt": self.catalog.artifact_ref(receipt_path),
-            "trace_manifest": self.catalog.artifact_ref(prepared_dir / "trace_manifest.json"),
-            "run_manifest": self.catalog.artifact_ref(run_dir / "run_manifest.json"),
+            "simulation_result": self.catalog.artifact_ref(result_path),
             "metrics": self.catalog.artifact_ref(metrics_path),
         }
 
@@ -513,10 +549,14 @@ class BridgeService:
         slo_path = self.catalog.select(
             self.catalog.slo_specs, arguments["slo_spec_id"], "slo_spec_id"
         )
-        baseline_path = self.catalog.select(
-            self.catalog.baseline_metrics,
-            arguments["baseline_metrics_id"],
-            "baseline_metrics_id",
+        baseline_path = (
+            self.catalog.select(
+                self.catalog.baseline_metrics,
+                arguments["baseline_metrics_id"],
+                "baseline_metrics_id",
+            )
+            if "baseline_metrics_id" in arguments
+            else self.catalog.resolve_artifact_ref(arguments["baseline_metrics_ref"])
         )
         result = audit_slo(metrics_path, slo_path, baseline_path)
         return {"slo_audit": self._write_result(task_dir, "slo-audit.json", result)}
@@ -647,7 +687,7 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
             },
             {
                 "name": "simulate_policy",
-                "description": "Materialize and execute one cataloged policy in an isolated GFS process.",
+                "description": "Materialize and execute one cataloged policy in the deterministic simulator.",
                 "inputSchema": {
                     "type": "object",
                     "additionalProperties": False,
@@ -687,14 +727,18 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     "required": [
                         "idempotency_key",
                         "metrics_ref",
-                        "slo_spec_id",
-                        "baseline_metrics_id",
+                        "slo_spec_id"
+                    ],
+                    "oneOf": [
+                        {"required": ["baseline_metrics_id"]},
+                        {"required": ["baseline_metrics_ref"]}
                     ],
                     "properties": {
                         **common,
                         "metrics_ref": {"type": "string"},
                         "slo_spec_id": {"type": "string"},
                         "baseline_metrics_id": {"type": "string"},
+                        "baseline_metrics_ref": {"type": "string"},
                     },
                 },
             },
@@ -926,7 +970,7 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", default=".")
-    parser.add_argument("--config", default="configs/agentteams/host-bridge-v1.json")
+    parser.add_argument("--config", default="configs/agentteams/host-bridge-native-v1.json")
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=18765)
     parser.add_argument(

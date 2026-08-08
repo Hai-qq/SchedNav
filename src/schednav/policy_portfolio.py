@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import canonical_sha256
-from .metric_catalog import METRIC_CATALOG, get_metric_value
+from .metric_catalog import METRIC_CATALOG, SUPPORTED_METRICS_SCHEMAS, get_metric_value
 from .policy_compare import ACTION_CONTROL_FIELDS, compare_policy_metrics
 
 
@@ -52,9 +52,10 @@ def compare_policy_portfolio(metrics_paths: list[Path]) -> dict[str, Any]:
     actions = [_action(report) for report in reports]
     criteria = {
         "candidate_count_between_3_and_5": True,
-        "metrics_schema_supported": all(
-            report.get("schema_version") == "schednav.metrics-report/v1" for report in reports
-        ),
+        "metrics_schema_supported": len(
+            {report.get("schema_version") for report in reports}
+        ) == 1
+        and reports[0].get("schema_version") in SUPPORTED_METRICS_SCHEMAS,
         "metrics_fingerprints_valid": all(valid for _, valid in loaded),
         "source_match": len({canonical_sha256(report.get("source")) for report in reports}) == 1
         and bool(reports[0].get("source")),

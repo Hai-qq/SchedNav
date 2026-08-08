@@ -9,23 +9,25 @@ from schednav.policy_compare import compare_policy_metrics
 
 def _metrics(scheduler: str, hp_jct: float) -> dict:
     policy = {
+        "schema_version": "schednav.simulation-policy/v1",
+        "action_id": f"policy-{scheduler}",
         "scheduler": scheduler,
-        "guarantee_hours": [1],
-        "guarantee_rate": 0.9,
-        "ckpt_interval_seconds": 3600,
-        "seed": 42,
+        "spot_guarantee_seconds": 3600,
+        "checkpoint_interval_seconds": 3600,
+        "preemption_overhead_seconds": 80,
+        "placement_strategy": "deterministic_best_fit",
     }
     report = {
-        "schema_version": "schednav.metrics-report/v1",
+        "schema_version": "schednav.metrics-report/v2",
         "policy_fingerprint": canonical_sha256(policy),
         "policy": policy,
         "source": {
-            "gfs_commit": "a" * 40,
-            "gfs_patch_sha256": "b" * 64,
-            "trace_commit": "c" * 40,
+            "dataset": "contract-fixture",
+            "engine": {"name": "schednav-sim", "version": "1"},
+            "trace_fingerprint": "c" * 64,
         },
         "trace_id": "trace",
-        "window_seconds": {"start": 1, "end": 2},
+        "window_seconds": {"evaluation_start": 1, "evaluation_end": 2},
         "jobs": {
             "HP": {
                 "job_count": 1,
@@ -72,8 +74,8 @@ class PolicyCompareTests(unittest.TestCase):
             root = Path(temp_dir)
             left = root / "left.json"
             right = root / "right.json"
-            left.write_text(json.dumps(_metrics("fifo_spot", 20.0)), encoding="utf-8")
-            right.write_text(json.dumps(_metrics("spot_scheduler", 15.0)), encoding="utf-8")
+            left.write_text(json.dumps(_metrics("fifo", 20.0)), encoding="utf-8")
+            right.write_text(json.dumps(_metrics("priority_preemptive", 15.0)), encoding="utf-8")
             report = compare_policy_metrics(left, right)
             self.assertTrue(report["comparable"])
             self.assertEqual(report["metric_deltas"]["hp_jct_mean_seconds"]["right_minus_left"], -5.0)
@@ -83,9 +85,9 @@ class PolicyCompareTests(unittest.TestCase):
     def test_compares_distinct_actions_with_the_same_scheduler(self):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            left = _metrics("spot_scheduler", 20.0)
-            right = _metrics("spot_scheduler", 18.0)
-            right["policy"]["guarantee_rate"] = 0.95
+            left = _metrics("priority_preemptive", 20.0)
+            right = _metrics("priority_preemptive", 18.0)
+            right["policy"]["spot_guarantee_seconds"] = 1800
             right["policy_fingerprint"] = canonical_sha256(right["policy"])
             right.pop("metrics_fingerprint")
             right["metrics_fingerprint"] = canonical_sha256(right)
@@ -100,7 +102,7 @@ class PolicyCompareTests(unittest.TestCase):
             self.assertTrue(report["comparable"])
             self.assertTrue(report["criteria"]["policy_actions_distinct"])
             self.assertTrue(report["criteria"]["execution_controls_match"])
-            self.assertEqual(report["right"]["action"]["guarantee_rate"], 0.95)
+            self.assertEqual(report["right"]["action"]["spot_guarantee_seconds"], 1800)
 
 
 if __name__ == "__main__":

@@ -24,12 +24,16 @@
     "action_space": {"type": "string", "minLength": 1},
     "actions": {"$ref": "#/$defs/pathMap"},
     "slo_specs": {"$ref": "#/$defs/pathMap"},
-    "baseline_metrics": {"$ref": "#/$defs/pathMap"}
+    "baseline_metrics": {"$ref": "#/$defs/optionalPathMap"}
   },
   "$defs": {
     "pathMap": {
       "type": "object",
       "minProperties": 1,
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "optionalPathMap": {
+      "type": "object",
       "additionalProperties": {"type": "string", "minLength": 1}
     }
   }

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/run-config.schema.json",
+  "title": "SchedNav run configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "trace_manifest"],
+  "properties": {
+    "schema_version": {"const": "schednav.native-run-config/v1"},
+    "trace_manifest": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:|/|.*(?:^|/)\\.\\.(?:/|$)).+$"
+    }
+  }
+}

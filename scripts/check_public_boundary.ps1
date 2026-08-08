@@ -6,17 +6,18 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $forbiddenRoots = @(
-    "26ASPLOS-Spot/",
     "AgentTeams/",
     "clusterdata/",
     "artifacts/",
     "dist/",
-    ".venv/",
-    ".venv-gfs/"
+    ".venv/"
 )
 $forbiddenExtensions = @(".csv", ".zip", ".ckpt", ".pt", ".pth", ".pem", ".key", ".pfx")
 $secretPattern = [regex]'(?i)(sk-[A-Za-z0-9_-]{20,}|Bearer\s+[A-Za-z0-9._-]{24,}|api[_-]?key\s*[:=]\s*[A-Za-z0-9._-]{16,})'
-$files = @(& git -C $projectRoot ls-files --cached --others --exclude-standard)
+$files = @(
+    & git -C $projectRoot ls-files --cached --others --exclude-standard |
+        Where-Object { Test-Path -LiteralPath (Join-Path $projectRoot $_) -PathType Leaf }
+)
 if ($LASTEXITCODE -ne 0) {
     throw "Unable to enumerate the public repository boundary."
 }
@@ -46,7 +47,6 @@ foreach ($relative in $files) {
 
 foreach ($required in @(
     "LICENSE",
-    "third_party/licenses/GFS-GPL-3.0.txt",
     "third_party/licenses/AgentTeams-Apache-2.0.txt",
     "third_party/manifest.json"
 )) {

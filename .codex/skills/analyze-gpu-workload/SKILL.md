@@ -1,39 +1,27 @@
 ---
 name: analyze-gpu-workload
-description: Analyze a real Alibaba GPU trace window into a fingerprinted WorkloadSummary with HP/Spot arrivals, requested GPU-hours, burstiness, active-demand pressure, and source hashes. Use for workload analysis, regime evidence, GPU demand summaries, or before generating high-level SchedNav policies. Do not use it to infer simulated placement or performance.
+description: Analyze a fingerprinted canonical GPU cluster Trace and produce a structured workload summary covering HP/Spot arrivals, GPU demand, duration, active pressure and regime signals. Use before policy selection on any supported dataset. Never infer missing service-class labels or recommend a policy without simulation evidence.
 ---
 
 # Analyze GPU Workload
 
-Produce structured evidence before proposing policy changes.
-
-## Workflow
-
-1. Require a local Trace directory, GPU model, and explicit evaluation timestamps.
-2. In an AgentTeams Worker, submit only a cataloged window through the authenticated SchedNav MCP server:
-
-```bash
-mcporter call schednav.analyze_workload --args '{"idempotency_key":"<stable-task-key>","run_config_id":"stress-gpu-series-2-2024-04-12"}'
-```
-
-3. Poll the returned opaque task ID with `schednav.get_task`; continue only after `status=succeeded`. Read the small structured result with `schednav.read_artifact` and pass its fingerprint/reference downstream rather than raw rows.
-4. For trusted local development outside AgentTeams, the equivalent direct command is:
+1. Validate the canonical Trace:
 
 ```powershell
-$env:PYTHONPATH = "src"
-.venv-gfs\Scripts\python.exe -m schednav.cli analyze-workload `
-  --trace-dir <trace-dir> --gpu-model <model> `
-  --evaluation-start "<timestamp>" --evaluation-end "<timestamp>" `
-  --output <ignored-artifact-path>
+schednav validate-trace --trace <trace.json>
 ```
 
-5. Pass the resulting `schednav.workload-summary/v1` artifact or its fingerprint to downstream workers.
+2. Analyze the selected window:
 
-## Guardrails
+```powershell
+schednav analyze-trace `
+  --trace <trace.json> `
+  --sample-interval-seconds 3600 `
+  --output <workload-summary.json>
+```
 
-- Treat sampled active demand as trace intent, not simulated allocation.
-- Keep `gpu_request * worker_num` as the demand unit.
-- Do not invent categorical pressure thresholds; use the reported regime signals.
-- Do not copy raw Trace rows into Agent context or a public repository.
-- Do not recommend a policy from workload evidence alone; require GFS simulation.
-- Never print, persist, or forward AgentTeams gateway credentials; MCP authorization is injected by the runtime.
+3. Return the Trace fingerprint, source provenance, population, demand statistics, pressure signals and workload fingerprint.
+4. Treat sampled active demand as trace-intended demand, not simulated allocation.
+5. If the source does not publish HP/Spot classes, surface the adapter's explicit mapping and restrict unsupported SLO claims.
+
+Do not pass raw Trace files into the Agent context. Do not select or rank policies from workload statistics alone.

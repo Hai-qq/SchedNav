@@ -7,32 +7,38 @@ from schednav.contracts import canonical_sha256
 from schednav.policy_portfolio import compare_policy_portfolio
 
 
-def _metrics(rate: float) -> dict:
+def _metrics(guarantee_seconds: int) -> dict:
     policy = {
-        "scheduler": "spot_scheduler",
-        "guarantee_hours": [1],
-        "guarantee_rate": rate,
-        "ckpt_interval_seconds": 3600,
-        "seed": 42,
+        "schema_version": "schednav.simulation-policy/v1",
+        "action_id": f"policy-{guarantee_seconds}",
+        "scheduler": "priority_preemptive",
+        "spot_guarantee_seconds": guarantee_seconds,
+        "checkpoint_interval_seconds": 3600,
+        "preemption_overhead_seconds": 80,
+        "placement_strategy": "deterministic_best_fit",
     }
     report = {
-        "schema_version": "schednav.metrics-report/v1",
-        "run_spec_fingerprint": canonical_sha256({"rate": rate}),
+        "schema_version": "schednav.metrics-report/v2",
+        "run_spec_fingerprint": canonical_sha256({"guarantee_seconds": guarantee_seconds}),
         "policy_fingerprint": canonical_sha256(policy),
         "policy": policy,
         "source": {
-            "gfs_commit": "a" * 40,
-            "gfs_patch_sha256": "b" * 64,
-            "trace_commit": "c" * 40,
+            "dataset": "contract-fixture",
+            "engine": {"name": "schednav-sim", "version": "1"},
+            "trace_fingerprint": "c" * 64,
         },
         "trace_id": "trace",
-        "window_seconds": {"start": 1, "end": 2},
+        "window_seconds": {"evaluation_start": 1, "evaluation_end": 2},
         "jobs": {
             job_type: {
                 "job_count": 1,
                 "completed_count": 1,
                 "completion_rate": 1.0,
-                "jct_seconds": {"mean": 10.0 + rate, "p50": 10.0, "p95": 10.0},
+                "jct_seconds": {
+                    "mean": 10.0 + guarantee_seconds / 3600,
+                    "p50": 10.0,
+                    "p95": 10.0,
+                },
                 "queue_seconds": {"mean": 0.0, "p50": 0.0, "p95": 0.0},
                 "preemption_count": 0,
                 "preempted_job_count": 0,
@@ -62,9 +68,9 @@ class PolicyPortfolioTests(unittest.TestCase):
     def test_compares_three_unique_actions_without_ranking(self):
         with TemporaryDirectory() as temp_dir:
             paths = []
-            for index, rate in enumerate((0.8, 0.9, 0.95)):
+            for index, guarantee_seconds in enumerate((0, 1800, 3600)):
                 path = Path(temp_dir) / f"metrics-{index}.json"
-                path.write_text(json.dumps(_metrics(rate)), encoding="utf-8")
+                path.write_text(json.dumps(_metrics(guarantee_seconds)), encoding="utf-8")
                 paths.append(path)
 
             report = compare_policy_portfolio(paths)

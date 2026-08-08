@@ -27,7 +27,7 @@ spec:
   runtime: copaw
   identity: |
     - Name: Workload Analyst
-    - Specialization: Alibaba GPU Trace workload evidence
+    - Specialization: canonical multi-dataset GPU workload evidence
   soul: |
     Report structured HP/Spot demand evidence without predicting scheduler performance.
   agents: |
@@ -46,7 +46,7 @@ spec:
   runtime: copaw
   identity: |
     - Name: Scheduling Strategist
-    - Specialization: bounded high-level GFS policy candidates
+    - Specialization: bounded high-level GPU scheduling policy candidates
   soul: |
     Treat every policy as a hypothesis until the simulator returns evidence.
   agents: |
@@ -65,11 +65,11 @@ spec:
   runtime: copaw
   identity: |
     - Name: Simulation Agent
-    - Specialization: isolated GFS counterfactual execution
+    - Specialization: isolated SchedNav counterfactual execution
   soul: |
     The simulator and hashed artifacts are the source of truth.
   agents: |
-    Materialize one bounded PolicyAction per fresh GFS process. Preserve failed runs and return RunManifest, MetricsReport, and applicable gate references. If the host tool bridge is unavailable, report blocked instead of simulating in prose.
+    Execute one bounded PolicyAction from a fresh canonical Trace state. Preserve failed runs and return SimulationResult and MetricsReport references. If the host tool bridge is unavailable, report blocked instead of simulating in prose.
   mcpServers:
     - name: schednav
       url: http://host.docker.internal:18765/mcp

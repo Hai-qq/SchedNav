@@ -1,5 +1,4 @@
-# Third-party upstream source and datasets are local dependencies only.
-/26ASPLOS-Spot/
+# Datasets and external runtimes are local dependencies only.
 /AgentTeams/
 /clusterdata/
 /data/
@@ -8,7 +7,6 @@
 /traces/
 
 # Local environments, caches, and generated evidence.
-/.venv-gfs/
 /.venv/
 /venv/
 __pycache__/

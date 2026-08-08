@@ -4,7 +4,7 @@
   "provenance": {
     "decision_date": "2026-08-08",
     "paper_url": "https://arxiv.org/abs/2509.11134",
-    "baseline_policy_action_id": "repository-default-fifo"
+    "baseline_policy_action_id": "native-fifo"
   },
   "constraints": [
     {

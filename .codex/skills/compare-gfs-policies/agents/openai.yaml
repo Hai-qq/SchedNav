@@ -1,4 +1,0 @@
-interface:
-  display_name: "Compare GFS Policies"
-  short_description: "Compare same-window canonical GFS metrics"
-  default_prompt: "Use $compare-gfs-policies to compare two attested GFS policy runs."

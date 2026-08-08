@@ -1,4 +1,4 @@
 interface:
   display_name: "Analyze GPU Workload"
-  short_description: "Summarize real HP and Spot trace pressure"
-  default_prompt: "Use $analyze-gpu-workload to analyze a real Alibaba GPU trace window."
+  short_description: "Summarize any canonical GPU trace window"
+  default_prompt: "Use $analyze-gpu-workload to build a fingerprinted workload summary for a canonical Trace."

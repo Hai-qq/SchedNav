@@ -47,7 +47,7 @@ class AgentTeamsBundleTests(unittest.TestCase):
             self.assertEqual(len(first_receipt["packages"]), 5)
             with zipfile.ZipFile(first / "simulation-agent.zip") as archive:
                 self.assertIn("manifest.json", archive.namelist())
-                self.assertIn("skills/simulate-gfs-policy/SKILL.md", archive.namelist())
+                self.assertIn("skills/simulate-gpu-policy/SKILL.md", archive.namelist())
                 package_metadata = json.loads(archive.read("manifest.json"))
                 self.assertEqual(package_metadata["worker"]["model"], REQUIRED_MODEL_ID)
                 self.assertEqual(package_metadata["worker"]["runtime"], "copaw")

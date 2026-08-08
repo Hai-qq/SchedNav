@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/canonical-trace.schema.json",
+  "title": "SchedNav canonical trace manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "trace_id", "time_origin", "source", "nodes_file", "jobs_file", "files", "trace_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.trace/v1"},
+    "trace_id": {"type": "string", "minLength": 1},
+    "time_origin": {"type": "string"},
+    "source": {"type": "object"},
+    "nodes_file": {"type": "string", "minLength": 1},
+    "jobs_file": {"type": "string", "minLength": 1},
+    "files": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    },
+    "trace_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

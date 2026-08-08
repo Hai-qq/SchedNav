@@ -1,0 +1,98 @@
+{
+  "cluster": {
+    "allocated_gpu_seconds": 1562784975.0,
+    "allocation_rate_mean": 0.05664368704559385,
+    "capacity_gpus": 2490,
+    "drain_allocated_gpu_seconds": 975189467.0,
+    "evaluation_allocated_gpu_seconds": 587595508.0,
+    "node_count": 552,
+    "simulation_end": 8589702.0,
+    "simulation_start": 0.0
+  },
+  "definitions": {
+    "allocation_rate_mean": "Allocated GPU-seconds divided by physical GPU-seconds inside the evaluation arrival window; drain is excluded from this utilization denominator.",
+    "spot_eviction_rate_per_run": "Spot preemption events divided by explicit Spot run starts.",
+    "spot_guarantee_success_rate": "Spot runs completing or remaining uninterrupted for the configured guarantee duration, divided by all Spot runs."
+  },
+  "evidence": {
+    "simulation_result_fingerprint": "b94366a6e396beeab83313cdc33141818f56e1804fc4c75e5ee8f1ea94b98d73"
+  },
+  "jobs": {
+    "HP": {
+      "completed_count": 1000,
+      "completion_rate": 1.0,
+      "jct_seconds": {
+        "mean": 717313.33,
+        "p50": 307.0,
+        "p95": 3616397.65
+      },
+      "job_count": 1000,
+      "preempted_job_count": 0,
+      "preempted_job_rate": 0.0,
+      "preemption_count": 0,
+      "queue_seconds": {
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0
+      }
+    },
+    "Spot": {
+      "completed_count": 0,
+      "completion_rate": null,
+      "jct_seconds": {"mean": null, "p50": null, "p95": null},
+      "job_count": 0,
+      "preempted_job_count": 0,
+      "preempted_job_rate": null,
+      "preemption_count": 0,
+      "queue_seconds": {"mean": null, "p50": null, "p95": null}
+    }
+  },
+  "metrics_fingerprint": "f858e144b293cd6b5982c73c37a300fe5568f62c916a568a7d984e04d029687c",
+  "policy": {
+    "action_id": "native-fifo",
+    "checkpoint_interval_seconds": 3600,
+    "placement_strategy": "deterministic_best_fit",
+    "preemption_overhead_seconds": 80,
+    "scheduler": "fifo",
+    "spot_guarantee_seconds": 3600
+  },
+  "policy_fingerprint": "4fc0c2c331d76dd6f39bc652697185e278181f9ffb9a57a4dbbc9306481dc1cc",
+  "preemption_events": {
+    "added_gpu_seconds_total": 0,
+    "available": true,
+    "consistent_with_job_csv": true,
+    "counted_spot_failure_count": 0,
+    "event_count": 0,
+    "events_during_drain": 0,
+    "events_during_evaluation_window": 0,
+    "eviction_rate_per_run": null,
+    "overhead_seconds_total": 0,
+    "preempted_job_count": 0,
+    "rollback_seconds_total": 0,
+    "spot_run_count": 0
+  },
+  "run_spec_fingerprint": "b94366a6e396beeab83313cdc33141818f56e1804fc4c75e5ee8f1ea94b98d73",
+  "schema_version": "schednav.metrics-report/v2",
+  "source": {
+    "dataset": "Microsoft Philly GPU Trace",
+    "engine": {"name": "schednav-sim", "version": "1"},
+    "trace_fingerprint": "fa3664706d42ee1fc42c679fc7b05fdc320781d11fdfa1898e3aea09c91e52c5"
+  },
+  "spot_guarantee": {
+    "available": true,
+    "consistent_with_preemption_events": true,
+    "event_count": 0,
+    "failed_count": 0,
+    "succeeded_count": 0,
+    "success_rate": null
+  },
+  "spot_runs": {
+    "available": true,
+    "consistent_with_job_csv": true,
+    "event_count": 0,
+    "events_during_drain": 0,
+    "events_during_evaluation_window": 0
+  },
+  "trace_id": "microsoft-philly-hp-1000",
+  "window_seconds": {"evaluation_end": 4166080.0, "evaluation_start": 0.0}
+}

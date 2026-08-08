@@ -5,26 +5,28 @@
 [![CI](https://github.com/Hai-qq/SchedNav/actions/workflows/ci.yml/badge.svg)](https://github.com/Hai-qq/SchedNav/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-SchedNav 是构建在 GPU 集群调度器之上的多智能体决策控制层。它不替代底层 scheduler，也不让大模型直接决定 Job → GPU/Node placement；Agent 只负责分析负载、提出有边界的高层策略、编排反事实仿真、审核 SLO，并根据真实仿真证据给出可审计的建议。
+SchedNav 是一个面向 GPU 集群的多智能体调度决策系统。它内置确定性的离散事件仿真引擎，让 Agent 在真实历史 Trace 上分析负载、提出有边界的高层策略、运行反事实实验、审核 SLO，并根据结构化证据给出可审计建议。
 
-当前 V1 面向历史 Trace 驱动的策略优化：使用固定的真实 Trace Window 比较多个候选策略。它不是在线调度系统，也不会把历史 Trace 中的未来信息包装成在线预测能力。
+Agent 不直接决定 Job → GPU/Node placement。具体队列推进、抢占、资源核算和节点分配全部由 `schednav-sim` 执行；LLM 只能选择仓库中声明的高层 Policy Action。
+
+当前 V1 是 historical trace-driven policy optimization，不是在线调度，也不会把 Trace 中的未来信息包装成预测能力。
 
 ## Why SchedNav
 
-传统 GPU scheduler 擅长执行具体 placement，但跨时间窗口的负载判断、策略组合、实验编排和 SLO 解释通常分散在脚本与人工流程中。SchedNav 把这些工作组织成一个受控决策闭环：
-
-- **LLM 不做细粒度 placement**：具体 GPU/Node 分配始终由 GFS 完成；
-- **策略空间有明确边界**：Agent 只能选择预先声明并可转换为 GFS 配置的 action；
-- **结论必须由 Simulator 支撑**：未经同窗反事实仿真的策略不能进入推荐；
-- **SLO 先于优化目标**：先淘汰违反硬约束的方案，再按公开的分层规则排序；
-- **关键数据结构化传递**：RunSpec、MetricsReport、SLOAudit、PolicyRanking 等都具有版本化 schema 和 fingerprint；
-- **Human-in-the-loop**：证据无法唯一决胜时保留并列，由人类明确批准，不允许 LLM 自造权重或隐藏 tie-breaker。
+- **内置第一方仿真内核**：核心调度、placement、抢占和指标账本位于 SchedNav 源码中，可直接安装与测试；
+- **多数据集入口**：所有数据先转换为统一 Trace Contract，已提供 Alibaba 与 Microsoft Philly 适配器；
+- **有限 Action Space**：Agent 不能提交 Job、Node、GPU ID 或任意代码；
+- **Simulator-in-the-loop**：候选策略必须在同一 Trace fingerprint 和窗口上真实运行；
+- **Hard-SLO-first**：先淘汰违反硬约束的策略，再按显式层级排序，不使用 LLM 自由加权分；
+- **结构化证据**：Trace、Policy、SimulationResult、MetricsReport、SLOAudit 和 Ranking 都具有版本化 schema 与 fingerprint；
+- **Human approval**：证据无法唯一决胜时保留并列，由人类明确批准。
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    T["Alibaba GPU Trace"] --> G["GFS Simulator"]
+    D["GPU Cluster Traces"] --> N["Canonical Trace Contract"]
+    N --> E["SchedNav Simulator"]
 
     subgraph AT["AgentTeams"]
         W["Workload Analyst"]
@@ -38,69 +40,71 @@ flowchart LR
         A --> M
     end
 
-    M --> B["Bounded MCP / GFS Adapter"]
-    B --> G
-    G --> E["Canonical Evidence"]
-    E --> A
+    M --> B["Bounded MCP Host Bridge"]
+    B --> E
+    E --> C["Canonical Evidence"]
+    C --> A
     M --> H["Human Approval"]
 ```
-
-端到端流程为：
 
 ```text
 Trace Window
   → Workload Analysis
   → 3–5 Bounded Policy Actions
-  → Isolated GFS Simulations
+  → Isolated Counterfactual Simulations
   → Canonical Metrics
   → Hard-SLO Audit
   → Hierarchical Ranking
   → Recommendation / Human Approval
 ```
 
-## Core components
+## Built-in simulator
+
+`schednav-sim` 当前支持：
+
+- 异构节点与 GPU model affinity；
+- 整卡或 fractional GPU demand；
+- FIFO 与 HP-first preemptive policy；
+- Spot 保障边界、checkpoint rollback 和抢占 overhead；
+- deterministic best-fit 多节点 allocation；
+- drain-to-completion；
+- Job、Spot run、guarantee 和 preemption 事件账本；
+- allocation、JCT、queue、eviction 和 guarantee metrics。
+
+placement 策略固定在引擎内部，不属于 Agent Action Space。完整语义和限制见 [SchedNav Simulator](docs/native-simulator.md)。
+
+## Dataset support
+
+所有数据源都转换为：
+
+```text
+trace.json     # 来源、版本、过滤条件、文件 hash、trace fingerprint
+nodes.csv      # node_id, gpu_model, gpu_count
+jobs.csv       # job_id, submit, duration, GPU demand, HP/Spot, gpu_model
+```
+
+当前适配器：
+
+| Dataset | Command | Notes |
+|---|---|---|
+| Alibaba Spot GPU Trace | `schednav import-alibaba` | 保留原始 HP/Spot 标签，支持 GPU model 与 arrival cutoff。 |
+| Microsoft Philly GPU Trace | `schednav import-philly` | 官方数据没有 HP/Spot 标签，调用者必须显式声明映射并写入 provenance。 |
+| 其他公开或私有 Trace | Canonical adapter contract | 只需生成统一的三文件合同，无需修改仿真器。 |
+
+原始数据和逐 Job 转换结果均保留在仓库外。详见 [Trace Contract](docs/trace-contract.md) 与 [Dataset Support](docs/datasets.md)。
+
+## Core agents
 
 | Component | Responsibility |
 |---|---|
-| Workload Analyst | 汇总 HP/Spot 到达、GPU demand、carry-in 与 workload regime，不生成 placement。 |
-| Scheduling Strategist | 从白名单 action space 中生成 3–5 个可执行高层策略。 |
-| Simulation Agent | 将候选 action materialize 为 GFS RunSpec，并隔离运行 counterfactual simulation。 |
-| SLO Auditor | 从 canonical MetricsReport 审核完成率、JCT、排队、eviction、保障率和 allocation rate。 |
+| Workload Analyst | 汇总 HP/Spot 到达、GPU demand、carry-in 与 workload regime。 |
+| Scheduling Strategist | 从有限 Action Space 中生成 3–5 个可执行策略。 |
+| Simulation Agent | 在隔离状态下执行同窗 counterfactual simulation。 |
+| SLO Auditor | 审核完成率、JCT、排队、eviction、保障率和 allocation rate。 |
 | Manager | 拆解任务、传递结构化 artifact、汇总证据并管理 human approval。 |
-| Host bridge | 以受限 MCP 接口连接 AgentTeams 与本机 GFS；不向 Agent 暴露任意 shell。 |
-
-## Repository layout
-
-下面逐项说明 GitHub 根目录中的全部受版本控制内容：
-
-| Path | Purpose |
-|---|---|
-| `.codex/` | 五个可复用 SchedNav Skills：负载分析、策略选择、仿真、策略比较和 SLO 审计。 |
-| `.github/` | GitHub Actions 工作流；当前在 Windows/Python 3.11 上运行公开边界检查和第一方合同测试。 |
-| `configs/` | 可执行配置，包括 Trace Window、GFS baseline、候选 action、action space、SLO 和 AgentTeams identity/bridge 配置。 |
-| `docs/` | 架构与运行文档，包括 GFS 源码审计、复现合同、策略评估合同、SLO 定义和 AgentTeams 集成。 |
-| `evidence/` | 可公开的最小结构化 Demo 证据：MetricsReport、SLO audit、portfolio、ranking 和 workload summary；不含原始或逐 Job Trace。 |
-| `integrations/` | AgentTeams 五角色 package manifest 与资源模板。 |
-| `patches/` | 对固定版本 GFS 和 AgentTeams 的最小 compatibility patch，以及对应应用说明。 |
-| `schemas/` | RunSpec、MetricsReport、PolicyAction、SLOAudit、PolicyRanking 等 JSON Schema。 |
-| `scripts/` | GFS 环境准备、AgentTeams package 构建、host bridge 启动/安全演示和公开仓库边界检查脚本。 |
-| `src/` | SchedNav Python 源码：adapter、action materialization、metrics、comparison、ranking、SLO 和 MCP host bridge。 |
-| `tests/` | 不依赖原始 GFS/Trace 的第一方单元与合同测试。 |
-| `third_party/` | 固定的上游版本清单及 GFS/AgentTeams 许可证文本；不包含上游源码树。 |
-| `.gitattributes` | 统一 Git 文本文件与跨平台换行规则。 |
-| `.gitignore` | 阻止上游源码、Trace、虚拟环境、凭据、运行产物和缓存进入仓库。 |
-| `AGENTS.md` | 面向 AI coding agent 和贡献流程的项目约束；不是运行时代码。 |
-| `LICENSE` | SchedNav 第一方代码的 MIT License。 |
-| `pyproject.toml` | Python 包元数据、构建配置和 `schednav-reproduce` / `schednav-bridge` 命令入口。 |
-| `README.md` | 项目首页与快速导航，即当前文件。 |
-| `requirements-local.txt` | 运行固定 GFS simulator 所需的 Python 3.11 依赖版本；第一方合同测试本身不依赖这些重型组件。 |
-| `THIRD_PARTY_NOTICES.md` | 第三方来源、版本、许可证和 MIT 不适用范围的人工可读说明。 |
-
-本地 clone 后还会出现 `.git/`，它只是 Git 内部元数据，不属于仓库内容。构建产生的 `build/`、`dist/`、`*.egg-info/`、`__pycache__/` 等目录均被忽略。
+| Host bridge | 暴露白名单操作，不向 Agent 提供任意 shell 或 placement 接口。 |
 
 ## Quick start
-
-第一方合同测试不需要下载 GFS 或 Alibaba Trace：
 
 ```powershell
 git clone https://github.com/Hai-qq/SchedNav.git
@@ -111,61 +115,81 @@ $env:PYTHONPATH = (Resolve-Path .\src).Path
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-检查当前工作树是否满足公开边界：
+转换一个本地 Trace：
 
 ```powershell
-.\scripts\check_public_boundary.ps1
+schednav import-alibaba `
+  --node-info C:\datasets\gpu-trace\node_info_df.csv `
+  --job-info C:\datasets\gpu-trace\job_info_df.csv `
+  --output-dir C:\datasets\schednav\a100-day1 `
+  --gpu-model A100-SXM4-80GB `
+  --max-submit-time-seconds 86400
 ```
 
-## Run with GFS
-
-真实 simulation 需要单独获取固定版本的 GFS 和 Alibaba GPU Trace，并应用版本化 compatibility patch：
+运行内置 simulator：
 
 ```powershell
-.\scripts\setup_gfs_runtime.ps1
-$env:PYTHONPATH = (Resolve-Path .\src).Path
-.\.venv-gfs\Scripts\python.exe -m schednav.cli validate `
-  --config configs\baselines\stress-gpu-series-2-2024-04-12.json
+schednav simulate `
+  --trace C:\datasets\schednav\a100-day1\trace.json `
+  --policy configs\policies\native-fifo.json `
+  --result C:\datasets\schednav\fifo-result.json `
+  --metrics C:\datasets\schednav\fifo-metrics.json
 ```
 
-完整 checkout、sparse Trace 获取和 patch 步骤见 [Getting Started](docs/getting-started.md)，确定性 gate 与 MetricsReport 生成命令见 [Reproduction Contract](docs/reproduction-contract.md)。
+同一个 Trace 可分别运行 `configs/policies/` 中的 4 个有限策略，再交给 compare、SLO audit 与 ranking 命令处理。
+
+## Multi-dataset validation
+
+第一方内核已在两个独立来源的真实 GPU Trace 上运行。[Alibaba A100 validation receipt](evidence/native-v1/alibaba-a100-day1-validation.json) 记录了带原始 HP/Spot 标签的一天窗口；[Philly validation receipt](evidence/native-v1/philly-validation.json) 记录了官方数据 hash、111,846 个有效转换任务、前 1,000 个任务的 origin-preserving slice，以及两次 FIFO 运行完全相同的 result/metrics fingerprint。
+
+该 Philly 验证只覆盖 ingestion、placement、completion、JCT、allocation 和 determinism。由于源数据没有 HP/Spot 标签，Spot eviction、guarantee 和 HP-vs-Spot SLO 明确保持未验证。
 
 ## AgentTeams integration
 
-构建锁定为 `deepseek-v4-flash` 的 1 Manager + 4 Worker package：
+SchedNav 映射为 1 个 Manager + 4 个 Worker，并通过受限 MCP bridge 调用负载分析、仿真、比较、审计与排名操作。模型 ID 固定为 `deepseek-v4-flash`。
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\src).Path
-.\.venv-gfs\Scripts\python.exe .\scripts\build_agentteams_bundle.py --project-root .
+python .\scripts\build_agentteams_bundle.py --project-root .
 ```
 
-角色、上下文传递、MCP 权限和 human approval 映射见 [AgentTeams Integration](docs/agentteams-integration.md)。AgentTeams 本身是独立部署依赖，不包含在本仓库中。
+角色、上下文传递、权限和 human approval 映射见 [AgentTeams Integration](docs/agentteams-integration.md)。
 
-## Evidence
+## Repository layout
 
-[`evidence/demo-v1/`](evidence/demo-v1/) 保存一个真实 Trace Window 的最小、可公开证据。当前结果显示：FIFO 与三个 GFS quantile 都通过已声明的硬 SLO；三个 GFS quantile 在 allocation rate、Spot p95 JCT 和 eviction rate 上并列，因此结果保持 `tie_requires_human_approval`，不宣称 0.80、0.90 或 0.95 中任何一个更优。
+| Path | Purpose |
+|---|---|
+| `.codex/` | 可复用的负载分析、策略、仿真、比较和 SLO Skills。 |
+| `.github/` | GitHub Actions 边界检查和测试。 |
+| `configs/` | 有限策略、Action Space、SLO 和 AgentTeams 配置。 |
+| `docs/` | Trace、仿真器、策略合同、SLO 与集成文档。 |
+| `evidence/` | 可公开的最小结构化实验汇总，不包含原始 Trace。 |
+| `integrations/` | AgentTeams 角色 package 与资源模板。 |
+| `patches/` | 仍需单独保留许可证的外部兼容材料。 |
+| `schemas/` | Trace、Policy、Metrics、SLO 和 Ranking JSON Schema。 |
+| `scripts/` | 环境、AgentTeams bundle、host bridge 与公开边界工具。 |
+| `src/` | SchedNav 第一方 Python 源码与内置 simulator。 |
+| `tests/` | 第一方单元、确定性、安全和合同测试。 |
+| `third_party/` | 固定外部版本、来源和许可证；不包含上游源码树或数据。 |
+| `.gitattributes` | 跨平台文本与换行规则。 |
+| `.gitignore` | 排除数据、凭据、运行结果、虚拟环境和缓存。 |
+| `AGENTS.md` | 开发边界和 AI coding agent 约束。 |
+| `LICENSE` | SchedNav 第一方代码与文档的 MIT License。 |
+| `pyproject.toml` | Python 包、构建与命令行入口。 |
+| `README.md` | 项目首页。 |
+| `THIRD_PARTY_NOTICES.md` | 外部来源、许可证和 MIT 适用边界。 |
 
-所有结果都来自固定 GFS/Trace 版本和同窗 simulation。原始 Trace、逐 Job CSV、日志与 checkpoint 不进入仓库。
+`.git/` 是本地 Git 元数据；`build/`、`dist/`、`*.egg-info/` 和 `__pycache__/` 是被忽略的生成目录。
 
-## Scope and limitations
+## Scope
 
-- V1 是 historical trace-driven policy optimization，不是 online scheduling；
-- GFS 保留全部细粒度 placement 权限；
-- policy action 必须经过白名单校验并转换为可执行 RunSpec；
-- 排名采用 hard-SLO-first 的分层规则，不使用 LLM 自由加权综合分；
-- 当前完整月度 `spot_scheduler` baseline 仍受上游 per-second queue 扫描开销限制；
-- 公开 evidence 是最小结构化结果，不替代获取原始 Trace 后的独立复现。
-
-## Documentation
-
-- [Getting Started](docs/getting-started.md)
-- [GFS Baseline Audit](docs/gfs-baseline-audit.md)
-- [Reproduction Contract](docs/reproduction-contract.md)
-- [Policy Evaluation Contract](docs/policy-evaluation-contract.md)
-- [SchedNav Demo SLO v1](docs/schednav-demo-slo-v1.md)
-- [AgentTeams Integration](docs/agentteams-integration.md)
-- [Third-party Notices](THIRD_PARTY_NOTICES.md)
+- V1 是历史 Trace 上的反事实策略优化，不是 online scheduling；
+- 不引入 RL；
+- 不让 LLM 决定细粒度 placement；
+- 不跨不同 Trace 直接比较绝对指标；
+- 不把缺失的数据标签或 SLO 指标补造成实验事实；
+- 性能结论必须来自同窗、同人口、同执行控制的实际 simulation。
 
 ## License
 
-SchedNav 第一方代码采用 [MIT License](LICENSE)。GFS compatibility patch、AgentTeams compatibility patch 和第三方许可证文本继续分别受其上游 GPL-3.0-only、Apache-2.0 等条款约束；根目录 MIT 不会重新许可这些第三方材料。
+SchedNav 第一方代码与文档采用 [MIT License](LICENSE)。数据集、AgentTeams 以及仍保留的兼容材料遵循各自许可证；根目录 MIT 不会重新许可第三方内容。详见 [Third-party Notices](THIRD_PARTY_NOTICES.md)。
