@@ -1,0 +1,191 @@
+{
+  "agentteams_bridge": {
+    "controller_id": "tenant-predictive-spot-v1",
+    "forecast": {
+      "output_matches_cli": true,
+      "request_fingerprint": "18bf316f6a8eb8ef20a1ea6debd8acc0ae263aed18034a6076b47945b2193504",
+      "status": "succeeded",
+      "task_id": "f994e65b1db6463b9de801f2e3889fde"
+    },
+    "profile": "configs/agentteams/host-bridge-predictive-v1.json",
+    "run_config_id": "tenant-predictive-local",
+    "simulation": {
+      "output_matches_cli": true,
+      "request_fingerprint": "2d0e1c5a3e3e2fa8d028d06cb664bedeba5f902d13a8ac7e67fc365782151175",
+      "status": "succeeded",
+      "task_id": "dca77dbd7aaf4882b951292487f89b79"
+    }
+  },
+  "closed_loop_replay": {
+    "action_id": "native-preemptive-g3600-b09-d0000",
+    "control_fingerprint": "f8ffa15ea956ed276a621c7de40afc917b2ea4babd424ee6a2239164dd4dc709",
+    "demand_sample_count": 61920,
+    "deterministic_repeat": true,
+    "eta_final_by_resource_pool": {
+      "GPU-series-2": 1.25
+    },
+    "feedback_events_by_resource_pool": {
+      "GPU-series-2": {
+        "event_count": 401,
+        "failure_weight": 0.0,
+        "success_weight": 717.0,
+        "total_weight": 717.0,
+        "weight_by_event_kind": {
+          "guarantee_duration_completed": 605.0,
+          "job_completed": 112.0
+        }
+      }
+    },
+    "forecast_evaluation": {
+      "guarantee_quantile_coverage": 1.0,
+      "mae_gpus": 168.617845,
+      "mean_error_gpus": -71.092353,
+      "pinball_loss": 19.982377,
+      "scored_point_count": 1032,
+      "wape": 0.271952365
+    },
+    "metrics": {
+      "allocation_rate_mean": 0.7529754964528848,
+      "hp_completion_rate": 1.0,
+      "hp_p95_jct_seconds": 44971.1,
+      "hp_p95_queue_seconds": 0.0,
+      "hp_preempted_job_count": 0,
+      "spot_completion_rate": 1.0,
+      "spot_eviction_rate_per_run": 0.0,
+      "spot_guarantee_success_rate": 1.0,
+      "spot_p95_jct_seconds": 28788.15
+    },
+    "metrics_fingerprint": "3a497bbf41a335611d7c2298f1731515ffb2a6ce3325e48c6aada67d614417fa",
+    "model_fingerprint": "672e6586ca986a3ea4db69f3f9592064012321f011ea0b9520a8d68eb27c5bb5",
+    "policy_fingerprint": "1492bfc6b0d159e08994bf6e74f641fa8a319e94e04d57fdf1834355eb9fe128",
+    "quota_maximum_gpus": 216,
+    "quota_minimum_gpus": 124,
+    "result_fingerprint": "bc4cbadeef59ffbf9d4ba07539210996c805e0797212bd667c5b6b701ec5908e",
+    "update_count": 288
+  },
+  "controller": {
+    "cadence_seconds": {
+      "demand_sample": 60,
+      "quota_update": 300,
+      "retrain": 86400
+    },
+    "controller_fingerprint": "dcb9f65dc15185842ec38f6df0cd6e6db9910d28a9efb617f35a37c86fa8b809",
+    "controller_id": "tenant-predictive-spot-v1",
+    "forecast_horizon_hours": 4,
+    "guarantee_probability": 0.9,
+    "lookback_hours": 672,
+    "model": "tenant-linear-gaussian-v1",
+    "tenant_and_resource_pool_scoped": true
+  },
+  "cutoff_forecast": {
+    "cutoff_time_seconds": 3628800.0,
+    "deterministic_repeat": true,
+    "future_demand_used": false,
+    "model_fingerprint": "8b88c899272d833c2a53e05e3c09202afe0649fc48f0f92e33813a9098c69466",
+    "observation_bundle_fingerprint": "824b258178f51bb8ef3941d329fc7f3dce6c1d10543f343cc3658d228586bf19",
+    "points": [
+      {
+        "guarantee_quantile_gpus": 787.724143,
+        "horizon_step": 1,
+        "mu_gpus": 527.657347,
+        "resource_pool": "GPU-series-2",
+        "sigma_gpus": 202.931199,
+        "target_time_seconds": 3632400.0
+      },
+      {
+        "guarantee_quantile_gpus": 788.38876,
+        "horizon_step": 2,
+        "mu_gpus": 521.924388,
+        "resource_pool": "GPU-series-2",
+        "sigma_gpus": 207.923254,
+        "target_time_seconds": 3636000.0
+      },
+      {
+        "guarantee_quantile_gpus": 772.783933,
+        "horizon_step": 3,
+        "mu_gpus": 513.977481,
+        "resource_pool": "GPU-series-2",
+        "sigma_gpus": 201.947747,
+        "target_time_seconds": 3639600.0
+      },
+      {
+        "guarantee_quantile_gpus": 774.095382,
+        "horizon_step": 4,
+        "mu_gpus": 503.478458,
+        "resource_pool": "GPU-series-2",
+        "sigma_gpus": 211.163507,
+        "target_time_seconds": 3643200.0
+      }
+    ],
+    "quota_by_guarantee_hour": {
+      "1": 189,
+      "2": 188,
+      "4": 188
+    },
+    "series_count": 4,
+    "training": {
+      "best_validation_gaussian_nll": 5.196190173,
+      "epochs_completed": 4,
+      "history_sample_count": 60481,
+      "series_count": 4,
+      "train_window_count": 1969,
+      "trained_at_seconds": 3628800.0,
+      "training_generation": 1,
+      "validation_window_count": 1969
+    }
+  },
+  "dataset": {
+    "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "job_info_sha256": "f921e1932ae13196e204fdb0351d6697a7a0ef2e82e00ae123ed20e873284fb2",
+    "name": "Alibaba cluster-trace-v2026-spot-gpu",
+    "node_info_sha256": "35ef4d6288061265f2f9a207ef3df79bb1301cb9c0646a62087449e176781895",
+    "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-v2026-spot-gpu"
+  },
+  "fifo_baseline": {
+    "allocation_rate_mean": 0.7639973206657105,
+    "hp_p95_jct_seconds": 44971.1,
+    "metrics_fingerprint": "22aa181ede04f70a85e80b6298220fbc94bd5e185d734c917f4d1cde1104f9be"
+  },
+  "interpretation": {
+    "claim_scope": "single-window implementation evidence",
+    "result": "The tenant-aware forecasting and quota feedback loop is executable, cutoff-safe and deterministic on this real window. It is rejected by the declared SLO because allocation is below the compatible FIFO baseline."
+  },
+  "limitations": [
+    "This is one historical shadow-replay window, not a production online deployment.",
+    "The one-shot cutoff command reconstructs occupancy from submit time and duration; the closed-loop replay uses actual simulator queue and allocation state.",
+    "The result is negative performance evidence and must not be presented as superiority over FIFO.",
+    "Raw source rows, canonical per-job files, model checkpoints and per-job simulation results are not redistributed."
+  ],
+  "receipt_fingerprint": "08641cbf1e51fb789304f17e8642fb4c55de6e7e846226660c694d8b406af4a4",
+  "schema_version": "schednav.predictive-evidence/v1",
+  "slo_audit": {
+    "audit_fingerprint": "4cc3a3a42478aa4a31286f2df6872084ff808e691ed1fae2f35c28c3ee7b6e46",
+    "audit_passed": false,
+    "failed_hard_constraints": [
+      "allocation-fifo-nondegradation"
+    ],
+    "hard_constraint_count": 8,
+    "hard_pass_count": 7,
+    "slo_fingerprint": "231df931685f03f7e100c5b032d68bdf2ca25a2c42cd68502cc2a0e79bccf2e5"
+  },
+  "status": "hard_slo_rejected",
+  "trace": {
+    "capacity_gpus": 976,
+    "evaluation_population": {
+      "HP": 94,
+      "Spot": 84
+    },
+    "evaluation_window_seconds": {
+      "end": 3715199.0,
+      "start": 3628800.0
+    },
+    "node_count": 122,
+    "replayed_arrival_count": 5876,
+    "schema_version": "schednav.trace/v2",
+    "tenant_count": 6,
+    "tenant_mapping": "organization -> tenant_id",
+    "trace_fingerprint": "972429db185f0ad820e3e135922e9d4e93e9dfbd1b9edfc93659136685e742f8",
+    "trace_id": "alibaba-gpu-series-2-tenant-2024-04-12",
+    "warmup_spot_included": false
+  }
+}

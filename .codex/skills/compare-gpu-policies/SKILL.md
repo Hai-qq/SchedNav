@@ -24,3 +24,5 @@ Do not compare absolute metrics across unrelated datasets or windows.
 For multi-window evidence, compare and audit policies independently inside each window. Aggregate only declared counts and distributions; do not rank raw metrics across windows or create a global weighted score.
 
 For adaptive controller evidence, report both holdout quality and candidate-policy evaluation count. Treat the all-catalog oracle as an offline upper bound and never attribute gains solely to the LLM when controllers use different simulation budgets.
+
+For predictive runs, report the controller fingerprint and forecast diagnostics separately from policy metrics. Never compare two candidates as the same experiment when their controller profiles differ.

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/predictive-evidence.schema.json",
+  "title": "SchedNav tenant-predictive public evidence receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "dataset",
+    "trace",
+    "controller",
+    "cutoff_forecast",
+    "closed_loop_replay",
+    "fifo_baseline",
+    "slo_audit",
+    "agentteams_bridge",
+    "interpretation",
+    "limitations",
+    "receipt_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.predictive-evidence/v1"},
+    "status": {"enum": ["hard_slo_passed", "hard_slo_rejected"]},
+    "dataset": {"type": "object"},
+    "trace": {
+      "type": "object",
+      "required": ["schema_version", "trace_id", "trace_fingerprint", "tenant_count"],
+      "properties": {
+        "schema_version": {"const": "schednav.trace/v2"},
+        "trace_id": {"type": "string", "minLength": 1},
+        "trace_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "tenant_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "controller": {
+      "type": "object",
+      "required": ["controller_id", "controller_fingerprint", "model", "tenant_and_resource_pool_scoped"],
+      "properties": {
+        "controller_id": {"const": "tenant-predictive-spot-v1"},
+        "controller_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "model": {"const": "tenant-linear-gaussian-v1"},
+        "tenant_and_resource_pool_scoped": {"const": true}
+      }
+    },
+    "cutoff_forecast": {
+      "type": "object",
+      "required": ["observation_bundle_fingerprint", "model_fingerprint", "future_demand_used", "deterministic_repeat"],
+      "properties": {
+        "observation_bundle_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "model_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "future_demand_used": {"const": false},
+        "deterministic_repeat": {"const": true}
+      }
+    },
+    "closed_loop_replay": {
+      "type": "object",
+      "required": ["result_fingerprint", "metrics_fingerprint", "control_fingerprint", "model_fingerprint", "deterministic_repeat", "feedback_events_by_resource_pool", "metrics"],
+      "properties": {
+        "result_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "metrics_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "control_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "model_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "deterministic_repeat": {"const": true},
+        "feedback_events_by_resource_pool": {"type": "object", "minProperties": 1},
+        "metrics": {"type": "object"}
+      }
+    },
+    "fifo_baseline": {"type": "object"},
+    "slo_audit": {
+      "type": "object",
+      "required": ["audit_fingerprint", "audit_passed", "hard_constraint_count", "hard_pass_count", "failed_hard_constraints"],
+      "properties": {
+        "audit_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "audit_passed": {"type": "boolean"},
+        "hard_constraint_count": {"const": 8},
+        "hard_pass_count": {"type": "integer", "minimum": 0, "maximum": 8},
+        "failed_hard_constraints": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "agentteams_bridge": {
+      "type": "object",
+      "required": ["profile", "run_config_id", "controller_id", "forecast", "simulation"],
+      "properties": {
+        "profile": {"const": "configs/agentteams/host-bridge-predictive-v1.json"},
+        "run_config_id": {"const": "tenant-predictive-local"},
+        "controller_id": {"const": "tenant-predictive-spot-v1"},
+        "forecast": {"type": "object"},
+        "simulation": {"type": "object"}
+      }
+    },
+    "interpretation": {"type": "object"},
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "receipt_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

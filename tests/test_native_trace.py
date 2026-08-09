@@ -45,6 +45,19 @@ class NativeTraceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "hashes"):
                 load_canonical_trace(manifest)
 
+    def test_trace_v1_cannot_silently_drop_a_tenant_id(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(ValueError, "cannot discard tenant_id"):
+                write_canonical_trace(
+                    Path(temporary),
+                    trace_id="invalid-v1-tenant",
+                    time_origin="2026-01-01 00:00:00",
+                    source={"dataset": "unit-fixture"},
+                    nodes=[TraceNode("n1", "A", 2)],
+                    jobs=[TraceJob("hp", 0, 60, 1, "HP", "A", "tenant-a")],
+                    schema_version="schednav.trace/v1",
+                )
+
     def test_slices_an_origin_preserving_prefix_with_parent_provenance(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -241,6 +254,7 @@ class NativeTraceTests(unittest.TestCase):
                 writer.writerow(
                     [
                         "job_name",
+                        "organization",
                         "gpu_model",
                         "gpu_request",
                         "worker_num",
@@ -249,9 +263,9 @@ class NativeTraceTests(unittest.TestCase):
                         "job_type",
                     ]
                 )
-                writer.writerow(["warmup", "GPU-series-2", 1, 1, 0, 20, "Spot"])
-                writer.writerow(["evaluated", "GPU-series-2", 2, 1, 10, 2, "HP"])
-                writer.writerow(["post-window", "GPU-series-2", 1, 1, 21, 2, "HP"])
+                writer.writerow(["warmup", "tenant-a", "GPU-series-2", 1, 1, 0, 20, "Spot"])
+                writer.writerow(["evaluated", "tenant-b", "GPU-series-2", 2, 1, 10, 2, "HP"])
+                writer.writerow(["post-window", "tenant-b", "GPU-series-2", 1, 1, 21, 2, "HP"])
 
             trace = load_canonical_trace(
                 import_alibaba_trace(
@@ -265,6 +279,8 @@ class NativeTraceTests(unittest.TestCase):
             )
 
             self.assertEqual([job.job_id for job in trace.jobs], ["warmup", "evaluated"])
+            self.assertEqual(trace.schema_version, "schednav.trace/v2")
+            self.assertEqual([job.tenant_id for job in trace.jobs], ["tenant-a", "tenant-b"])
             self.assertEqual(trace.evaluation_start_seconds, 10)
             self.assertEqual(trace.evaluation_end_seconds, 20)
             self.assertEqual(trace.source["filter"]["max_submit_time_seconds"], 20)
@@ -282,6 +298,20 @@ class NativeTraceTests(unittest.TestCase):
             )
             self.assertEqual([job.job_id for job in bounded.jobs], ["evaluated"])
             self.assertEqual(bounded.source["filter"]["warmup_start_seconds"], 5)
+
+            hp_only_warmup = load_canonical_trace(
+                import_alibaba_trace(
+                    node_path,
+                    job_path,
+                    root / "hp-only-warmup",
+                    gpu_models={"GPU-series-2"},
+                    evaluation_start_seconds=10,
+                    evaluation_end_seconds=20,
+                    include_warmup_spot=False,
+                )
+            )
+            self.assertEqual([job.job_id for job in hp_only_warmup.jobs], ["evaluated"])
+            self.assertFalse(hp_only_warmup.source["filter"]["include_warmup_spot"])
 
     def test_slices_evaluation_window_from_an_imported_canonical_trace(self):
         with tempfile.TemporaryDirectory() as temporary:

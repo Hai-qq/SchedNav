@@ -47,6 +47,7 @@
     "jobs": {"type": "array", "items": {"type": "object"}},
     "preemption_events": {"type": "array", "items": {"type": "object"}},
     "spot_runs": {"type": "array", "items": {"type": "object"}},
+    "predictive_control": {"type": "object"},
     "result_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
   }
 }

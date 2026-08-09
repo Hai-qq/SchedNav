@@ -21,6 +21,8 @@ Allocation rate is integrated only inside the declared evaluation arrival window
 
 In the V1 simulator, the Spot guarantee duration is enforced as a hard non-preemption boundary. The guarantee-success metric therefore audits whether that boundary was honored; it is not presented as a forecast-accuracy metric. Longer guarantees can still affect HP queue and JCT, which remain hard SLOs.
 
+The tenant predictive controller also maintains a separate node-weighted feedback ledger with one success per completed guarantee period or job completion and one failure per preemption. That ledger adjusts quota coefficient \(\eta\); it does not replace or redefine the formal run-based SLO metric above.
+
 The relative JCT threshold is:
 
 \[

@@ -1,15 +1,26 @@
 {
   "schema_version": "schednav.host-bridge-config/v1",
   "artifact_root": "artifacts",
-  "task_subdir": "agentteams-bridge/tasks",
+  "task_subdir": "agentteams-predictive-bridge/tasks",
   "max_workers": 1,
+  "operation_allowlist": [
+    "forecast_demand",
+    "simulate_predictive_policy",
+    "compare_policies",
+    "audit_slo",
+    "rank_policies"
+  ],
   "run_configs": {
     "native-local": "configs/runs/native-local.json",
     "tenant-predictive-local": "configs/runs/tenant-predictive-local.json"
   },
   "run_sets": {
-    "native-local": ["native-local"],
-    "tenant-predictive-local": ["tenant-predictive-local"]
+    "native-local": [
+      "native-local"
+    ],
+    "tenant-predictive-local": [
+      "tenant-predictive-local"
+    ]
   },
   "action_space": "configs/action_spaces/native-multiwindow-v3.json",
   "controllers": {

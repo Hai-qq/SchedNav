@@ -1,0 +1,4 @@
+{
+  "schema_version": "schednav.native-run-config/v1",
+  "trace_manifest": "datasets/local/tenant-predictive/alibaba-gpu-series-2-2024-04-12/trace.json"
+}

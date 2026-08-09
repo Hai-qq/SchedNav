@@ -17,6 +17,7 @@
     "preemption_events": {"type": "object"},
     "spot_runs": {"type": "object"},
     "spot_guarantee": {"type": "object"},
+    "predictive_control": {"type": "object"},
     "evidence": {"type": "object"},
     "definitions": {"type": "object"},
     "metrics_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}

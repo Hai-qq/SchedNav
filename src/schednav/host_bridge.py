@@ -11,6 +11,7 @@ import hmac
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -22,6 +23,12 @@ from urllib.request import ProxyHandler, Request, build_opener
 import uuid
 
 from .contracts import canonical_sha256
+from .controller_factory import (
+    ControllerConfig,
+    build_controller_observation_bundle,
+    create_predictive_controller,
+    load_controller_config,
+)
 from .multiwindow import aggregate_multiwindow_records
 from .native_simulator import SimulationPolicy, build_metrics_report, simulate_trace
 from .native_trace import load_canonical_trace
@@ -48,6 +55,7 @@ READABLE_ARTIFACT_SCHEMAS = {
     "schednav.slo-audit/v1",
     "schednav.policy-ranking/v1",
     "schednav.trace/v1",
+    "schednav.trace/v2",
     "schednav.native-run/v1",
     "schednav.simulation-result/v1",
     "schednav.run-set-workloads/v1",
@@ -57,6 +65,24 @@ READABLE_ARTIFACT_SCHEMAS = {
     "schednav.adaptive-study-design/v1",
     "schednav.controller-selections/v1",
     "schednav.adaptive-benchmark/v1",
+    "schednav.predictive-observation-bundle/v1",
+    "schednav.observation-snapshot/v1",
+    "schednav.demand-forecast/v1",
+    "schednav.spot-quota-plan/v1",
+    "schednav.predictive-control-report/v1",
+    "schednav.predictive-run/v1",
+}
+TASK_OPERATIONS = {
+    "analyze_workload",
+    "forecast_demand",
+    "simulate_policy",
+    "simulate_predictive_policy",
+    "compare_policies",
+    "audit_slo",
+    "rank_policies",
+    "analyze_run_set",
+    "simulate_run_set",
+    "audit_run_set",
 }
 
 
@@ -142,8 +168,10 @@ class BridgeCatalog:
     run_sets: dict[str, tuple[str, ...]]
     action_space: Path
     actions: dict[str, Path]
+    controllers: dict[str, Path]
     slo_specs: dict[str, Path]
     baseline_metrics: dict[str, Path]
+    operation_allowlist: tuple[str, ...] | None
     max_workers: int
 
     @classmethod
@@ -166,7 +194,7 @@ class BridgeCatalog:
                 "slo_specs",
                 "baseline_metrics",
             },
-            {"run_sets"},
+            {"run_sets", "controllers", "operation_allowlist"},
         )
         if value["schema_version"] != CATALOG_SCHEMA:
             raise BridgeRequestError(f"Expected schema_version={CATALOG_SCHEMA}")
@@ -203,6 +231,22 @@ class BridgeCatalog:
         if max_workers != 1:
             raise BridgeRequestError("V1 host bridge requires max_workers=1")
         run_configs = catalog_map(value["run_configs"], "run_configs")
+        raw_allowlist = value.get("operation_allowlist")
+        operation_allowlist: tuple[str, ...] | None = None
+        if raw_allowlist is not None:
+            if not isinstance(raw_allowlist, list) or not raw_allowlist:
+                raise BridgeRequestError("operation_allowlist must be a non-empty list")
+            operation_allowlist = tuple(
+                _require_safe_id(item, "operation_allowlist item")
+                for item in raw_allowlist
+            )
+            if len(set(operation_allowlist)) != len(operation_allowlist):
+                raise BridgeRequestError("operation_allowlist cannot contain duplicates")
+            unknown = set(operation_allowlist) - TASK_OPERATIONS
+            if unknown:
+                raise BridgeRequestError(
+                    f"operation_allowlist contains unsupported operations: {sorted(unknown)}"
+                )
         raw_run_sets = value.get("run_sets", {})
         if not isinstance(raw_run_sets, dict):
             raise BridgeRequestError("run_sets must be an object")
@@ -227,10 +271,14 @@ class BridgeCatalog:
             run_sets=run_sets,
             action_space=project_path(value["action_space"]),
             actions=catalog_map(value["actions"], "actions"),
+            controllers=catalog_map(
+                value.get("controllers", {}), "controllers", allow_empty=True
+            ),
             slo_specs=catalog_map(value["slo_specs"], "slo_specs"),
             baseline_metrics=catalog_map(
                 value["baseline_metrics"], "baseline_metrics", allow_empty=True
             ),
+            operation_allowlist=operation_allowlist,
             max_workers=max_workers,
         )
 
@@ -280,9 +328,11 @@ class BridgeService:
             max_workers=catalog.max_workers,
             thread_name_prefix="schednav-bridge",
         )
-        self._handlers = handlers or {
+        available_handlers = handlers or {
             "analyze_workload": self._analyze_workload,
+            "forecast_demand": self._forecast_demand,
             "simulate_policy": self._simulate_policy,
+            "simulate_predictive_policy": self._simulate_predictive_policy,
             "compare_policies": self._compare_policies,
             "audit_slo": self._audit_slo,
             "rank_policies": self._rank_policies,
@@ -290,6 +340,17 @@ class BridgeService:
             "simulate_run_set": self._simulate_run_set,
             "audit_run_set": self._audit_run_set,
         }
+        if catalog.operation_allowlist is not None:
+            missing = set(catalog.operation_allowlist) - set(available_handlers)
+            if missing:
+                raise BridgeRequestError(
+                    f"Configured operations have no handler: {sorted(missing)}"
+                )
+            self._handlers = {
+                name: available_handlers[name] for name in catalog.operation_allowlist
+            }
+        else:
+            self._handlers = available_handlers
 
     def close(self) -> None:
         self._executor.shutdown(wait=True, cancel_futures=False)
@@ -385,6 +446,22 @@ class BridgeService:
             if sample < 60 or sample > 86400:
                 raise BridgeRequestError("sample_interval_seconds must be between 60 and 86400")
             return {"run_config_id": run_config_id, "sample_interval_seconds": sample}
+        if operation == "forecast_demand":
+            _require_exact_keys(
+                arguments, {"run_config_id", "controller_id", "cutoff_seconds"}
+            )
+            run_config_id = _require_safe_id(arguments["run_config_id"], "run_config_id")
+            controller_id = _require_safe_id(arguments["controller_id"], "controller_id")
+            self.catalog.select(self.catalog.run_configs, run_config_id, "run_config_id")
+            self.catalog.select(self.catalog.controllers, controller_id, "controller_id")
+            cutoff = float(arguments["cutoff_seconds"])
+            if not math.isfinite(cutoff) or cutoff < 0:
+                raise BridgeRequestError("cutoff_seconds must be finite and non-negative")
+            return {
+                "run_config_id": run_config_id,
+                "controller_id": controller_id,
+                "cutoff_seconds": cutoff,
+            }
         if operation == "simulate_policy":
             _require_exact_keys(arguments, {"run_config_id", "action_id"})
             run_config_id = _require_safe_id(arguments["run_config_id"], "run_config_id")
@@ -392,6 +469,21 @@ class BridgeService:
             self.catalog.select(self.catalog.run_configs, run_config_id, "run_config_id")
             self.catalog.select(self.catalog.actions, action_id, "action_id")
             return {"run_config_id": run_config_id, "action_id": action_id}
+        if operation == "simulate_predictive_policy":
+            _require_exact_keys(
+                arguments, {"run_config_id", "action_id", "controller_id"}
+            )
+            run_config_id = _require_safe_id(arguments["run_config_id"], "run_config_id")
+            action_id = _require_safe_id(arguments["action_id"], "action_id")
+            controller_id = _require_safe_id(arguments["controller_id"], "controller_id")
+            self.catalog.select(self.catalog.run_configs, run_config_id, "run_config_id")
+            self.catalog.select(self.catalog.actions, action_id, "action_id")
+            self.catalog.select(self.catalog.controllers, controller_id, "controller_id")
+            return {
+                "run_config_id": run_config_id,
+                "action_id": action_id,
+                "controller_id": controller_id,
+            }
         if operation == "compare_policies":
             _require_exact_keys(arguments, {"metrics_refs"})
             refs = self._validate_ref_list(arguments["metrics_refs"], "metrics_refs")
@@ -588,6 +680,44 @@ class BridgeService:
         )
         return {"workload_summary": self._write_result(task_dir, "workload-summary.json", result)}
 
+    def _controller_config(self, controller_id: str) -> ControllerConfig:
+        path = self.catalog.select(
+            self.catalog.controllers, controller_id, "controller_id"
+        )
+        config = load_controller_config(path)
+        if config.controller_id != controller_id:
+            raise BridgeRequestError(
+                "Catalog controller ID does not match controller_id in the config"
+            )
+        return config
+
+    def _forecast_demand(
+        self,
+        arguments: dict[str, Any],
+        task_dir: Path,
+        _task_id: str,
+    ) -> dict[str, Any]:
+        base_config = self.catalog.select(
+            self.catalog.run_configs, arguments["run_config_id"], "run_config_id"
+        )
+        _trace_path, trace = self._trace_from_config(base_config)
+        cutoff = float(arguments["cutoff_seconds"])
+        maximum_observable = max(
+            job.submit_time_seconds + job.duration_seconds for job in trace.jobs
+        )
+        if cutoff > maximum_observable + 1e-9:
+            raise BridgeRequestError("cutoff_seconds exceeds the trace observation range")
+        bundle = build_controller_observation_bundle(
+            trace,
+            self._controller_config(arguments["controller_id"]),
+            cutoff,
+        )
+        return {
+            "predictive_observation": self._write_result(
+                task_dir, "predictive-observation.json", bundle
+            )
+        }
+
     def _simulate_policy(
         self,
         arguments: dict[str, Any],
@@ -625,6 +755,68 @@ class BridgeService:
             "run_spec": self.catalog.artifact_ref(run_spec_path),
             "simulation_result": self.catalog.artifact_ref(result_path),
             "metrics": self.catalog.artifact_ref(metrics_path),
+        }
+
+    def _simulate_predictive_policy(
+        self,
+        arguments: dict[str, Any],
+        task_dir: Path,
+        _task_id: str,
+    ) -> dict[str, Any]:
+        base_config = self.catalog.select(
+            self.catalog.run_configs, arguments["run_config_id"], "run_config_id"
+        )
+        action = self.catalog.select(
+            self.catalog.actions, arguments["action_id"], "action_id"
+        )
+        trace_path, trace = self._trace_from_config(base_config)
+        action_value = _load_json_object(action)
+        if action_value.get("schema_version") != "schednav.simulation-policy/v1":
+            raise BridgeRequestError(
+                "Policies must use schema_version=schednav.simulation-policy/v1"
+            )
+        policy = SimulationPolicy.from_dict(action_value)
+        controller_config = self._controller_config(arguments["controller_id"])
+        controller = create_predictive_controller(
+            controller_config,
+            trace,
+            min(job.submit_time_seconds for job in trace.jobs),
+            evidence_start_seconds=(
+                trace.evaluation_start_seconds
+                if trace.evaluation_start_seconds is not None
+                else min(job.submit_time_seconds for job in trace.jobs)
+            ),
+            evidence_end_seconds=(
+                trace.evaluation_end_seconds
+                if trace.evaluation_end_seconds is not None
+                else max(job.submit_time_seconds for job in trace.jobs)
+            ),
+        )
+        simulation_result = simulate_trace(trace, policy, controller)
+        metrics = build_metrics_report(simulation_result)
+        run_spec = {
+            "schema_version": "schednav.predictive-run/v1",
+            "trace_manifest": trace_path.relative_to(self.catalog.project_root).as_posix(),
+            "trace_fingerprint": trace.fingerprint,
+            "policy": action_value,
+            "policy_fingerprint": policy.fingerprint,
+            "controller": controller_config.to_dict(),
+            "controller_fingerprint": controller_config.fingerprint,
+        }
+        run_spec["run_fingerprint"] = canonical_sha256(run_spec)
+        run_spec_path = task_dir / "predictive-run-spec.json"
+        result_path = task_dir / "simulation-result.json"
+        metrics_path = task_dir / "metrics.json"
+        control_path = task_dir / "predictive-control-report.json"
+        _write_json_atomic(run_spec_path, run_spec)
+        _write_json_atomic(result_path, simulation_result)
+        _write_json_atomic(metrics_path, metrics)
+        _write_json_atomic(control_path, simulation_result["predictive_control"])
+        return {
+            "run_spec": self.catalog.artifact_ref(run_spec_path),
+            "simulation_result": self.catalog.artifact_ref(result_path),
+            "metrics": self.catalog.artifact_ref(metrics_path),
+            "predictive_control_report": self.catalog.artifact_ref(control_path),
         }
 
     def _compare_policies(
@@ -1165,6 +1357,26 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                 },
             },
             {
+                "name": "forecast_demand",
+                "description": "Build a past-only probabilistic HP demand forecast and Spot quota plan at one cutoff.",
+                "inputSchema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": [
+                        "idempotency_key",
+                        "run_config_id",
+                        "controller_id",
+                        "cutoff_seconds",
+                    ],
+                    "properties": {
+                        **common,
+                        "run_config_id": {"type": "string"},
+                        "controller_id": {"type": "string"},
+                        "cutoff_seconds": {"type": "number", "minimum": 0},
+                    },
+                },
+            },
+            {
                 "name": "simulate_policy",
                 "description": "Materialize and execute one cataloged policy in the deterministic simulator.",
                 "inputSchema": {
@@ -1175,6 +1387,26 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                         **common,
                         "run_config_id": {"type": "string"},
                         "action_id": {"type": "string"},
+                    },
+                },
+            },
+            {
+                "name": "simulate_predictive_policy",
+                "description": "Execute one cataloged policy under a cataloged past-only predictive Spot controller.",
+                "inputSchema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": [
+                        "idempotency_key",
+                        "run_config_id",
+                        "action_id",
+                        "controller_id",
+                    ],
+                    "properties": {
+                        **common,
+                        "run_config_id": {"type": "string"},
+                        "action_id": {"type": "string"},
+                        "controller_id": {"type": "string"},
                     },
                 },
             },
@@ -1373,7 +1605,18 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         elif method == "ping":
             result = {}
         elif method == "tools/list":
-            result = {"tools": self._mcp_tools()}
+            result = {
+                "tools": (
+                    self._mcp_tools()
+                    if self.server.service.catalog.operation_allowlist is None
+                    else [
+                        tool
+                        for tool in self._mcp_tools()
+                        if tool["name"] in {"get_task", "read_artifact"}
+                        or self.server.service.supports_operation(tool["name"])
+                    ]
+                )
+            }
         elif method == "tools/call":
             params = request.get("params")
             if not isinstance(params, dict) or not isinstance(params.get("name"), str):

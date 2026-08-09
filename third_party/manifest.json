@@ -33,6 +33,30 @@
       "license": "Apache-2.0",
       "integration": "pinned local deployment dependency plus first-party declarative resource and Worker package templates; Windows deployment uses patches/agentteams/windows-appservice-parity.patch",
       "redistributed_in_schednav": false
+    },
+    {
+      "name": "NumPy",
+      "repository": "https://github.com/numpy/numpy",
+      "version": ">=1.26,<3",
+      "license": "BSD-3-Clause",
+      "integration": "optional forecast numerical runtime dependency installed through the Python package manager",
+      "redistributed_in_schednav": false
+    },
+    {
+      "name": "PyTorch",
+      "repository": "https://github.com/pytorch/pytorch",
+      "version": ">=2.4,<3",
+      "license": "BSD-3-Clause",
+      "integration": "optional forecast runtime dependency installed through the Python package manager",
+      "redistributed_in_schednav": false
+    },
+    {
+      "name": "chinese-calendar",
+      "repository": "https://github.com/LKI/chinese-calendar",
+      "version": ">=1.11,<2",
+      "license": "MIT",
+      "integration": "optional China workday calendar dependency installed through the Python package manager",
+      "redistributed_in_schednav": false
     }
   ]
 }

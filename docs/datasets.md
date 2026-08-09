@@ -2,12 +2,12 @@
 
 SchedNav is dataset-neutral after ingestion. Every source is normalized into the canonical trace contract documented in [trace-contract.md](trace-contract.md).
 
-| Dataset | Adapter | Published labels | Redistribution |
-|---|---|---|---|
-| Alibaba `cluster-trace-v2026-spot-gpu` | `schednav import-alibaba` | HP / Spot | Raw and per-job converted data are not committed. |
-| Alibaba `cluster-trace-gpu-v2023` | `schednav import-alibaba-v2023` | LS / BE, mapped explicitly to HP / Spot | Raw and per-job converted data are not committed. |
-| Microsoft Philly GPU Trace | `schednav import-philly` | No HP / Spot label | CC BY 4.0 source is downloaded separately; raw and converted data are not committed. |
-| Private or additional public traces | Canonical adapter contract | Adapter-defined and provenance-recorded | Controlled by the source license and data policy. |
+| Dataset | Adapter | Canonical contract | Published labels | Redistribution |
+|---|---|---|---|---|
+| Alibaba `cluster-trace-v2026-spot-gpu` | `schednav import-alibaba` | trace/v2; `organization → tenant_id` | HP / Spot | Raw and per-job converted data are not committed. |
+| Alibaba `cluster-trace-gpu-v2023` | `schednav import-alibaba-v2023` | trace/v1 | LS / BE, mapped explicitly to HP / Spot | Raw and per-job converted data are not committed. |
+| Microsoft Philly GPU Trace | `schednav import-philly` | trace/v1 | No HP / Spot label | CC BY 4.0 source is downloaded separately; raw and converted data are not committed. |
+| Private or additional public traces | Canonical adapter contract | trace/v1 or source-backed v2 | Adapter-defined and provenance-recorded | Controlled by the source license and data policy. |
 
 ## Philly acquisition
 
@@ -56,6 +56,8 @@ The representative `GPU-series-2` window for 2024-04-12 uses 122 nodes and 976 G
 
 Four bounded policies were each simulated twice from the same canonical Trace fingerprint. All repeated result and metrics fingerprints match; all four pass the eight hard constraints in SchedNav Demo SLO v1. The three preemptive policies meet the 80% allocation soft target, but the declared hierarchy leaves them tied and requires human approval. The aggregate [policy-evaluation receipt](../evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json) contains the exact metrics, fingerprints and ranking without raw or per-job data.
 
+This receipt and the native-v1/v2/v3 multi-window receipts predate the tenant column and retain their historical Trace fingerprints. Re-importing the same source with the current v2026 adapter produces trace/v2 and therefore requires a new same-trace FIFO baseline; old and new absolute metrics are not mixed.
+
 To reproduce the full import, double simulation, comparison, audit and ranking sequence with a separately downloaded source trace:
 
 ```powershell
@@ -63,6 +65,12 @@ To reproduce the full import, double simulation, comparison, audit and ranking s
   -DatasetDirectory C:\datasets\cluster-trace-v2026-spot-gpu `
   -OutputDirectory C:\experiments\schednav-gpu-series-2-2024-04-12
 ```
+
+## Verified tenant-predictive control run
+
+The current v2026 adapter was also used to build a trace/v2 `GPU-series-2` window with `organization → tenant_id` and pre-evaluation Spot arrivals excluded. It contains 122 nodes, 976 GPUs and 5,876 replayed arrivals; 94 HP and 84 Spot arrivals belong to the evaluated day.
+
+Two independent 28-day-lookback tenant-model trainings at cutoff `3628800` produced identical forecast artifacts. Two closed-loop replays produced identical result and metrics artifacts. The controller passed seven of eight hard SLOs but achieved 75.2975% allocation versus 76.3997% for the exact-trace FIFO baseline, so it was rejected by `allocation-fifo-nondegradation`. The compact [predictive receipt](../evidence/predictive-v1/alibaba-gpu-series-2-2024-04-12-tenant-predictive.json) records model, forecast, quota, feedback, metric and audit fingerprints without redistributing the trace or model state.
 
 ## Verified multi-window policy evaluation
 

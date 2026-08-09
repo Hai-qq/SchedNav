@@ -29,3 +29,5 @@ For a registered multi-window study, call the bridge's `analyze_run_set` with it
 For an adaptive holdout study, verify `schednav.adaptive-study-design/v1`, its fingerprint and chronological split before summarizing calibration/evaluation regimes. Use only declared workload fields; do not inspect policy metrics or change the split after simulation.
 
 Do not pass raw Trace files into the Agent context. Do not select or rank policies from workload statistics alone.
+
+For a real-time or rolling decision, analyze only state ending at the declared cutoff, then invoke `$forecast-gpu-demand`. A complete future-window workload summary is forbidden as a controller input.

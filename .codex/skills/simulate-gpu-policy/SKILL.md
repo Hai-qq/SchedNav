@@ -25,3 +25,5 @@ Keep raw Trace files and per-job results outside published source. The engine, n
 For an explicitly approved registered multi-window study, call `simulate_run_set` with the `run_set_id`, three to five registered `action_ids`, and one or two repetitions. Require identical result and metrics fingerprints across repetitions. Return the run-set simulation index reference; never paste per-job results into Agent context.
 
 For the adaptive v3 benchmark, require a finalized controller artifact bound to the frozen design fingerprint before starting any holdout simulation. The full catalog may be evaluated offline to establish the oracle bound, but that evidence must not flow backward into candidate generation.
+
+When a cataloged predictive controller is part of the run, use `$simulate-predictive-control` instead of this static whole-window path.

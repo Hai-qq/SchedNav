@@ -10,6 +10,13 @@ requires-python = ">=3.11"
 license = {file = "LICENSE"}
 dependencies = []
 
+[project.optional-dependencies]
+forecast = [
+  "chinese-calendar>=1.11,<2",
+  "numpy>=1.26,<3",
+  "torch>=2.4,<3",
+]
+
 [project.scripts]
 schednav = "schednav.cli:main"
 schednav-bridge = "schednav.host_bridge:main"

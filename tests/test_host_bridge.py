@@ -126,6 +126,19 @@ class HostBridgeTests(unittest.TestCase):
         finally:
             service.close()
 
+    def test_operation_allowlist_removes_legacy_future_visible_tools(self):
+        value = json.loads(self.config_path.read_text(encoding="utf-8"))
+        value["operation_allowlist"] = ["forecast_demand"]
+        self.config_path.write_text(json.dumps(value), encoding="utf-8")
+        catalog = BridgeCatalog.load(self.project_root, self.config_path)
+        service = BridgeService(catalog)
+        try:
+            self.assertTrue(service.supports_operation("forecast_demand"))
+            self.assertFalse(service.supports_operation("analyze_workload"))
+            self.assertFalse(service.supports_operation("simulate_policy"))
+        finally:
+            service.close()
+
     def test_simulation_rejects_unlisted_action_profile(self):
         service = BridgeService(self.catalog)
         try:
@@ -233,6 +246,142 @@ class HostBridgeTests(unittest.TestCase):
             )
             self.assertEqual(metrics["schema_version"], "schednav.metrics-report/v2")
             self.assertEqual(metrics["source"]["engine"]["name"], "schednav-sim")
+        finally:
+            service.close()
+
+    def test_predictive_tools_emit_cutoff_forecast_and_control_evidence(self):
+        write_canonical_trace(
+            self.project_root / "datasets/local",
+            trace_id="bridge-predictive",
+            time_origin="2026-01-01 00:00:00",
+            source={"dataset": "bridge-predictive-fixture"},
+            nodes=[TraceNode("n1", "A", 4)],
+            jobs=[
+                TraceJob("spot", 0, 1200, 2, "Spot", "A"),
+                TraceJob("hp", 300, 300, 4, "HP", "A"),
+            ],
+            evaluation_start_seconds=0,
+            evaluation_end_seconds=1200,
+        )
+        run_config = self.project_root / "configs/predictive-run.json"
+        run_config.write_text(
+            json.dumps(
+                {
+                    "schema_version": "schednav.native-run-config/v1",
+                    "trace_manifest": "datasets/local/trace.json",
+                }
+            ),
+            encoding="utf-8",
+        )
+        policy = self.project_root / "configs/predictive-policy.json"
+        policy.write_text(
+            json.dumps(
+                {
+                    "schema_version": "schednav.simulation-policy/v1",
+                    "action_id": "predictive-policy",
+                    "scheduler": "priority_preemptive",
+                    "spot_guarantee_seconds": 0,
+                    "checkpoint_interval_seconds": 300,
+                    "preemption_overhead_seconds": 0,
+                    "placement_strategy": "deterministic_best_fit",
+                }
+            ),
+            encoding="utf-8",
+        )
+        controller = self.project_root / "configs/predictive-controller.json"
+        controller.write_text(
+            json.dumps(
+                {
+                    "schema_version": "schednav.predictive-controller/v1",
+                    "controller_id": "predictive-controller",
+                    "model": "seasonal-gaussian-v1",
+                    "observation_interval_seconds": 300,
+                    "aggregation_interval_seconds": 3600,
+                    "lookback_hours": 168,
+                    "forecast_horizon_hours": 4,
+                    "retrain_interval_seconds": 86400,
+                    "guarantee_probability": 0.9,
+                    "guarantee_horizons_hours": [1, 2, 4],
+                    "minimum_history_hours": 1,
+                    "minimum_sigma_gpus": 0.0,
+                    "initial_eta": 1.0,
+                    "minimum_eta": 0.25,
+                    "maximum_eta": 1.25,
+                    "feedback_window_seconds": 14400,
+                    "starvation_increase_after_seconds": 3600,
+                    "high_eviction_ratio": 1.5,
+                    "low_eviction_ratio": 0.5,
+                    "eta_increase_step": 0.1,
+                }
+            ),
+            encoding="utf-8",
+        )
+        config = json.loads(self.config_path.read_text(encoding="utf-8"))
+        config["run_configs"] = {"predictive-window": "configs/predictive-run.json"}
+        config["run_sets"] = {"predictive-set": ["predictive-window"]}
+        config["actions"] = {"predictive-policy": "configs/predictive-policy.json"}
+        config["controllers"] = {
+            "predictive-controller": "configs/predictive-controller.json"
+        }
+        config["baseline_metrics"] = {}
+        self.config_path.write_text(json.dumps(config), encoding="utf-8")
+        catalog = BridgeCatalog.load(self.project_root, self.config_path)
+        service = BridgeService(catalog)
+
+        def completed(request, key):
+            task, _ = service.submit(request, key)
+            for _ in range(1000):
+                current = service.get_task(task["task_id"])
+                if current["status"] not in {"queued", "running"}:
+                    return current
+                time.sleep(0.01)
+            self.fail("Bridge task did not finish")
+
+        try:
+            forecast = completed(
+                {
+                    "schema_version": REQUEST_SCHEMA,
+                    "operation": "forecast_demand",
+                    "arguments": {
+                        "run_config_id": "predictive-window",
+                        "controller_id": "predictive-controller",
+                        "cutoff_seconds": 300,
+                    },
+                },
+                "predictive-forecast-0001",
+            )
+            self.assertEqual(forecast["status"], "succeeded")
+            bundle = json.loads(
+                catalog.resolve_artifact_ref(
+                    forecast["artifacts"]["predictive_observation"]
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                bundle["schema_version"],
+                "schednav.predictive-observation-bundle/v1",
+            )
+            simulated = completed(
+                {
+                    "schema_version": REQUEST_SCHEMA,
+                    "operation": "simulate_predictive_policy",
+                    "arguments": {
+                        "run_config_id": "predictive-window",
+                        "action_id": "predictive-policy",
+                        "controller_id": "predictive-controller",
+                    },
+                },
+                "predictive-simulate-0001",
+            )
+            self.assertEqual(simulated["status"], "succeeded")
+            metrics = json.loads(
+                catalog.resolve_artifact_ref(simulated["artifacts"]["metrics"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                metrics["predictive_control"]["controller_id"],
+                "predictive-controller",
+            )
         finally:
             service.close()
 
@@ -430,7 +579,9 @@ class HostBridgeTests(unittest.TestCase):
                 names,
                 {
                     "analyze_workload",
+                    "forecast_demand",
                     "simulate_policy",
+                    "simulate_predictive_policy",
                     "compare_policies",
                     "audit_slo",
                     "rank_policies",

@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "trace_id", "time_origin", "source", "nodes_file", "jobs_file", "files", "trace_fingerprint"],
   "properties": {
-    "schema_version": {"const": "schednav.trace/v1"},
+    "schema_version": {"enum": ["schednav.trace/v1", "schednav.trace/v2"]},
     "trace_id": {"type": "string", "minLength": 1},
     "time_origin": {"type": "string"},
     "source": {"type": "object"},

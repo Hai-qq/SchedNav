@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simulate Predictive Control"
+  short_description: "Run a bounded policy with past-only Spot quota control"
+  default_prompt: "Use $simulate-predictive-control to execute one cataloged policy under a cataloged predictive controller and preserve all canonical evidence."

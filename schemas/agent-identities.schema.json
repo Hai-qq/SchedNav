@@ -31,6 +31,7 @@
           "id": {"enum": ["workload-analyst", "scheduling-strategist", "simulation-agent", "slo-auditor"]},
           "role": {"type": "string", "minLength": 1},
           "skill": {"type": "string", "minLength": 1},
+          "additional_skills": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
           "inputs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
           "outputs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
           "forbidden_actions": {"type": "array", "minItems": 1, "items": {"type": "string"}}

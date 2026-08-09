@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/predictive-run.schema.json",
+  "title": "SchedNav predictive simulation run receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "trace_manifest",
+    "trace_fingerprint",
+    "policy",
+    "policy_fingerprint",
+    "controller",
+    "controller_fingerprint",
+    "run_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.predictive-run/v1"},
+    "trace_manifest": {"type": "string", "minLength": 1},
+    "trace_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "policy": {"type": "object"},
+    "policy_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "controller": {"type": "object"},
+    "controller_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "run_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

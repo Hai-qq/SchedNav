@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/predictive-observation-bundle.schema.json",
+  "title": "SchedNav leakage-safe predictive observation bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "trace_id",
+    "cutoff_time_seconds",
+    "controller_id",
+    "controller_fingerprint",
+    "observed_prefix_fingerprint",
+    "observation_snapshot",
+    "demand_forecast",
+    "spot_quota_plan",
+    "information_boundary",
+    "observation_bundle_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.predictive-observation-bundle/v1"},
+    "trace_id": {"type": "string", "minLength": 1},
+    "cutoff_time_seconds": {"type": "number", "minimum": 0},
+    "controller_id": {"type": "string", "minLength": 1},
+    "controller_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "observed_prefix_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "observation_snapshot": {
+      "type": "object",
+      "required": ["schema_version", "cutoff_time_seconds", "current_state", "information_boundary", "snapshot_fingerprint"],
+      "properties": {
+        "schema_version": {"const": "schednav.observation-snapshot/v1"},
+        "cutoff_time_seconds": {"type": "number", "minimum": 0},
+        "current_state": {"type": "object"},
+        "information_boundary": {"type": "object"},
+        "snapshot_fingerprint": {"$ref": "#/$defs/fingerprint"}
+      }
+    },
+    "demand_forecast": {
+      "type": "object",
+      "required": ["schema_version", "cutoff_time_seconds", "model", "points", "information_boundary", "forecast_fingerprint"],
+      "properties": {
+        "schema_version": {"const": "schednav.demand-forecast/v1"},
+        "cutoff_time_seconds": {"type": "number", "minimum": 0},
+        "model": {"type": "object"},
+        "points": {"type": "array", "items": {"type": "object"}},
+        "information_boundary": {"type": "object"},
+        "forecast_fingerprint": {"$ref": "#/$defs/fingerprint"}
+      }
+    },
+    "spot_quota_plan": {
+      "type": "object",
+      "required": ["schema_version", "cutoff_time_seconds", "eta", "spot_quota_gpus_by_guarantee_hour", "quota_plan_fingerprint"],
+      "properties": {
+        "schema_version": {"const": "schednav.spot-quota-plan/v1"},
+        "cutoff_time_seconds": {"type": "number", "minimum": 0},
+        "eta": {"type": "number", "exclusiveMinimum": 0},
+        "spot_quota_gpus_by_guarantee_hour": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "quota_plan_fingerprint": {"$ref": "#/$defs/fingerprint"}
+      }
+    },
+    "information_boundary": {
+      "type": "object",
+      "required": ["actual_future_demand_used_for_prediction", "jobs_with_submit_time_after_cutoff_excluded", "full_trace_fingerprint_exposed"],
+      "properties": {
+        "actual_future_demand_used_for_prediction": {"const": false},
+        "jobs_with_submit_time_after_cutoff_excluded": {"const": true},
+        "full_trace_fingerprint_exposed": {"const": false}
+      }
+    },
+    "observation_bundle_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forecast GPU Demand"
+  short_description: "Build a past-only probabilistic GPU demand forecast"
+  default_prompt: "Use $forecast-gpu-demand at an explicit cutoff and return the fingerprinted forecast and Spot quota plan without changing numeric evidence."

@@ -20,8 +20,37 @@
     "artifact_root": {"type": "string", "minLength": 1},
     "task_subdir": {"type": "string", "minLength": 1},
     "max_workers": {"const": 1},
+    "operation_allowlist": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "analyze_workload",
+          "forecast_demand",
+          "simulate_policy",
+          "simulate_predictive_policy",
+          "compare_policies",
+          "audit_slo",
+          "rank_policies",
+          "analyze_run_set",
+          "simulate_run_set",
+          "audit_run_set"
+        ]
+      }
+    },
     "run_configs": {"$ref": "#/$defs/pathMap"},
+    "run_sets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {"type": "string", "minLength": 1}
+      }
+    },
     "action_space": {"type": "string", "minLength": 1},
+    "controllers": {"$ref": "#/$defs/optionalPathMap"},
     "actions": {"$ref": "#/$defs/pathMap"},
     "slo_specs": {"$ref": "#/$defs/pathMap"},
     "baseline_metrics": {"$ref": "#/$defs/optionalPathMap"}

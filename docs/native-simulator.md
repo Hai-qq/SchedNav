@@ -41,9 +41,21 @@ Default-valued optional fields are omitted from canonical serialization, preserv
 
 The current v3 multi-window action space fixes execution controls and provides five curated profiles with a 3,600-second Spot guarantee: FIFO, an unbudgeted preemptive reference, two 9% eviction-budget profiles with 0/900-second HP delays, and one 9%-budget loss-aware victim profile. The v2 action space remains historical reproduction evidence. Arbitrary cross-products and direct placement fields are not Agent actions.
 
+## Predictive control mode
+
+`simulate-predictive` attaches one registered stateful controller to the same event engine. Controller updates become deterministic simulator events. The aggregate profile receives current outstanding HP demand, queued Spot demand and running Spot allocation. The tenant profile additionally receives scheduler-observed running HP GPUs per tenant/resource pool, per-pool idle and running Spot inventory, per-pool backlog and maximum queue wait. Neither profile receives jobs whose submit events have not occurred.
+
+`tenant-predictive-spot-v1` observes every minute, forms hourly maxima at five-minute-aligned training strides, uses a 28-day input and seven-day validation boundary, retrains the probabilistic tenant model daily, forecasts four hours and reserves the P90 HP-demand quantile independently per resource pool. It admits Spot work under the minimum predicted free capacity across the requested guarantee horizon, bounded by current idle plus running Spot inventory. Each completed guarantee period and job completion is a node-weighted feedback success; a preemption is a feedback failure. Those observed events adjust a bounded per-pool quota coefficient every five minutes. Running jobs are not evicted merely because a later prediction lowers the quota.
+
+The tenant profile requires trace/v2, source-backed tenant IDs and concrete GPU resource pools. This is validated before training or replay so an aggregate trace cannot silently masquerade as tenant-aware evidence. The smaller `predictive-spot-v1` profile remains available as a dependency-free aggregate baseline.
+
+Predictive runs add `schednav.predictive-control-report/v1` evidence to the ordinary simulation result and a compact summary to the metrics report. The report stores per-cutoff decisions only inside the declared evaluation window, records the total minute observations, daily training state/model fingerprint, per-pool feedback totals, quota and \(\eta\) ranges. Forecast targets are scored only after their observation time. Static simulation remains byte-compatible: when no controller is attached, no predictive field is serialized and existing policy/result fingerprints retain their original semantics.
+
+The exact estimator, quota equation, leakage boundary, AgentTeams mapping and commands are documented in [Predictive Spot Control](predictive-control.md).
+
 ## Determinism
 
-Ordering is stable by arrival/enqueue order and job ID. Placement is stable by available capacity and node ID. Results, metrics, traces and policies all carry canonical SHA-256 fingerprints. Repeating the same trace and policy produces the same `simulation-result/v1` fingerprint.
+Ordering is stable by arrival/enqueue order and job ID. Placement is stable by available capacity and node ID. Results, metrics, traces, policies, controllers and trained tenant-model states carry SHA-256 fingerprints. The trainable profile fixes its CPU seed, deterministic data order and daily warm-start schedule. Repeating the same trace, policy and controller produces the same forecast, result and metrics content.
 
 The implementation keeps the queue in that declared order and caches free capacity by GPU model to avoid repeated full scans. These are execution optimizations only: placement, preemption, accounting and fingerprint semantics remain unchanged and are covered by deterministic regression tests.
 
@@ -52,7 +64,8 @@ The implementation keeps the queue in that declared order and caches free capaci
 - no topology, NVLink or network-bandwidth model;
 - no CPU/memory admission model;
 - no runtime uncertainty or failures;
-- no online forecast/MPC loop yet;
+- no live Kubernetes/Slurm state adapter or actuator; predictive control currently runs as cutoff-safe offline replay/shadow evaluation;
+- no outer rolling-horizon policy switching or simulator-state handoff between policy profiles yet;
 - one resource dimension (GPU capacity) is scheduled;
 - `spot_guarantee_seconds` is a hard non-preemption boundary in V1, so the guarantee ledger audits enforcement rather than forecast accuracy; the HP queue/JCT trade-off remains measurable;
 - Philly's published schema cannot support HP-vs-Spot SLO auditing without an external, justified class mapping.

@@ -11,6 +11,34 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class PublicEvidenceTests(unittest.TestCase):
+    def test_tenant_predictive_receipt_is_deterministic_and_preserves_rejection(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "predictive-v1"
+            / "alibaba-gpu-series-2-2024-04-12-tenant-predictive.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("receipt_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(receipt["trace"]["schema_version"], "schednav.trace/v2")
+        self.assertTrue(receipt["cutoff_forecast"]["deterministic_repeat"])
+        self.assertTrue(receipt["closed_loop_replay"]["deterministic_repeat"])
+        self.assertFalse(receipt["cutoff_forecast"]["future_demand_used"])
+        self.assertEqual(receipt["slo_audit"]["hard_pass_count"], 7)
+        self.assertEqual(
+            receipt["slo_audit"]["failed_hard_constraints"],
+            ["allocation-fifo-nondegradation"],
+        )
+        self.assertEqual(receipt["status"], "hard_slo_rejected")
+        self.assertTrue(
+            receipt["agentteams_bridge"]["forecast"]["output_matches_cli"]
+        )
+        self.assertTrue(
+            receipt["agentteams_bridge"]["simulation"]["output_matches_cli"]
+        )
+
     def test_representative_policy_receipt_is_content_addressed_and_approval_pending(self):
         path = (
             PROJECT_ROOT

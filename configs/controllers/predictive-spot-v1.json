@@ -1,0 +1,26 @@
+{
+  "schema_version": "schednav.predictive-controller/v1",
+  "controller_id": "predictive-spot-v1",
+  "model": "seasonal-gaussian-v1",
+  "observation_interval_seconds": 300,
+  "aggregation_interval_seconds": 3600,
+  "lookback_hours": 672,
+  "forecast_horizon_hours": 4,
+  "retrain_interval_seconds": 86400,
+  "guarantee_probability": 0.9,
+  "guarantee_horizons_hours": [
+    1,
+    2,
+    4
+  ],
+  "minimum_history_hours": 24,
+  "minimum_sigma_gpus": 1.0,
+  "initial_eta": 1.0,
+  "minimum_eta": 0.25,
+  "maximum_eta": 1.25,
+  "feedback_window_seconds": 14400,
+  "starvation_increase_after_seconds": 3600,
+  "high_eviction_ratio": 1.5,
+  "low_eviction_ratio": 0.5,
+  "eta_increase_step": 0.1
+}

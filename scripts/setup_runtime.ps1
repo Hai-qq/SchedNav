@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$PythonCommand = "py"
+    [string]$PythonCommand = "py",
+    [switch]$Forecast
 )
 
 Set-StrictMode -Version Latest
@@ -21,7 +22,8 @@ if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) {
 if ($LASTEXITCODE -ne 0) {
     throw "SchedNav requires Python 3.11."
 }
-& $venvPython -m pip install --disable-pip-version-check -e $projectRoot
+$installTarget = if ($Forecast) { "$projectRoot[forecast]" } else { $projectRoot }
+& $venvPython -m pip install --disable-pip-version-check -e $installTarget
 if ($LASTEXITCODE -ne 0) {
     throw "Unable to install SchedNav in editable mode."
 }
@@ -30,4 +32,5 @@ if ($LASTEXITCODE -ne 0) {
     status = "ready"
     python = $venvPython
     project_root = $projectRoot
+    forecast_enabled = [bool]$Forecast
 } | ConvertTo-Json -Compress

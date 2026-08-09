@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import canonical_sha256
+from .controller_factory import (
+    PredictiveController,
+    create_predictive_controller,
+    load_controller_config,
+)
 from .native_trace import CanonicalTrace, TraceJob, load_canonical_trace
 
 
@@ -134,6 +139,7 @@ class _JobState:
     preemptions: int = 0
     run_count: int = 0
     run_start: float | None = None
+    feedback_checkpoint_time: float | None = None
     allocation: dict[str, float] | None = None
 
 
@@ -186,7 +192,11 @@ def _shares_eligible_model(job: TraceJob, state: _JobState, nodes: dict[str, dic
     )
 
 
-def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str, Any]:
+def simulate_trace(
+    trace: CanonicalTrace,
+    policy: SimulationPolicy,
+    predictive_controller: PredictiveController | None = None,
+) -> dict[str, Any]:
     """Run one deterministic, drain-to-completion counterfactual simulation."""
     policy.validate()
     nodes = {
@@ -214,6 +224,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
     completed: set[str] = set()
     preemption_events: list[dict[str, Any]] = []
     spot_runs: list[dict[str, Any]] = []
+    outstanding_hp_requested_gpus = 0.0
     next_enqueue_order = len(arrivals)
     simulation_start = min(job.submit_time_seconds for job in arrivals)
     evaluation_start = (
@@ -226,6 +237,11 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         if trace.evaluation_end_seconds is not None
         else max(job.submit_time_seconds for job in arrivals)
     )
+    if predictive_controller is not None:
+        predictive_controller.bind_evidence_window(evaluation_start, evaluation_end)
+        predictive_controller.quota_for_guarantee_seconds(
+            policy.spot_guarantee_seconds
+        )
     evaluation_spot_ids = {
         job.job_id
         for job in arrivals
@@ -272,6 +288,40 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             return (priority, state.enqueue_order, state.job.job_id)
         return (state.enqueue_order, state.job.job_id)
 
+    def record_controller_feedback(
+        state: _JobState,
+        event_time: float,
+        *,
+        evicted: bool,
+        event_kind: str,
+    ) -> None:
+        if predictive_controller is None or state.job.service_class != "Spot":
+            return
+        allocation = state.allocation or {}
+        allocations_by_pool: dict[str, list[str]] = {}
+        for node_id, count in allocation.items():
+            if count > 0:
+                pool = str(nodes[node_id]["gpu_model"])
+                allocations_by_pool.setdefault(pool, []).append(node_id)
+        if getattr(predictive_controller, "resource_pool_scoped", False):
+            for pool, node_ids in allocations_by_pool.items():
+                predictive_controller.observe_spot_run_end(
+                    event_time,
+                    evicted=evicted,
+                    resource_pool=pool,
+                    event_weight=float(len(node_ids)),
+                    guarantee_seconds=policy.spot_guarantee_seconds,
+                    event_kind=event_kind,
+                )
+        else:
+            predictive_controller.observe_spot_run_end(
+                event_time,
+                evicted=evicted,
+                event_weight=float(max(1, len(allocation))),
+                guarantee_seconds=policy.spot_guarantee_seconds,
+                event_kind=event_kind,
+            )
+
     def close_spot_run(state: _JobState, end_time: float, outcome: str) -> None:
         if state.job.service_class != "Spot" or state.run_start is None:
             return
@@ -289,6 +339,30 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                 "guarantee_succeeded": success,
             }
         )
+        record_controller_feedback(
+            state,
+            end_time,
+            evicted=outcome == "preempted",
+            event_kind="preempted" if outcome == "preempted" else "job_completed",
+        )
+
+    def running_spot_gpus() -> float:
+        return sum(
+            sum((states[job_id].allocation or {}).values())
+            for job_id in running
+            if states[job_id].job.service_class == "Spot"
+        )
+
+    def running_spot_gpus_by_pool() -> dict[str, float]:
+        result: dict[str, float] = {}
+        for job_id in running:
+            state = states[job_id]
+            if state.job.service_class != "Spot":
+                continue
+            for node_id, count in (state.allocation or {}).items():
+                pool = str(nodes[node_id]["gpu_model"])
+                result[pool] = result.get(pool, 0.0) + float(count)
+        return result
 
     def start_jobs() -> bool:
         nonlocal queued_hp_count
@@ -299,6 +373,28 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             if total_free <= EPSILON:
                 break
             state = states[job_id]
+            if (
+                predictive_controller is not None
+                and state.job.service_class == "Spot"
+                and not (
+                    getattr(predictive_controller, "control_window_only", False)
+                    and (now < evaluation_start - EPSILON or now > evaluation_end + EPSILON)
+                )
+                and not predictive_controller.allows_spot(
+                    state.job.gpu_count,
+                    (
+                        running_spot_gpus_by_pool().get(state.job.gpu_model, 0.0)
+                        if getattr(
+                            predictive_controller, "resource_pool_scoped", False
+                        )
+                        and state.job.gpu_model != "*"
+                        else running_spot_gpus()
+                    ),
+                    policy.spot_guarantee_seconds,
+                    resource_pool=state.job.gpu_model,
+                )
+            ):
+                continue
             if eligible_free(state.job) < state.job.gpu_count:
                 continue
             allocation = _allocate(state.job, nodes)
@@ -308,6 +404,9 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             state.queue_seconds += now - state.queued_since
             state.first_start = now if state.first_start is None else state.first_start
             state.run_start = now
+            state.feedback_checkpoint_time = (
+                now if state.job.service_class == "Spot" else None
+            )
             state.run_count += 1
             state.allocation = allocation
             running.add(job_id)
@@ -432,6 +531,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                 release(victim.allocation)
                 victim.allocation = None
                 victim.run_start = None
+                victim.feedback_checkpoint_time = None
                 victim.preemptions += 1
                 victim.queued_since = now
                 victim.enqueue_order = next_enqueue_order
@@ -444,8 +544,63 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
 
     while len(completed) < len(states):
         while arrival_index < len(arrivals) and arrivals[arrival_index].submit_time_seconds <= now + EPSILON:
-            enqueue(arrivals[arrival_index].job_id)
+            arriving = arrivals[arrival_index]
+            enqueue(arriving.job_id)
+            if arriving.service_class == "HP":
+                outstanding_hp_requested_gpus += arriving.gpu_count
             arrival_index += 1
+        if predictive_controller is not None and predictive_controller.is_update_due(now):
+            hp_running_by_series: dict[str, float] = {}
+            demand_series_metadata: dict[str, dict[str, str]] = {}
+            for job_id in running:
+                state = states[job_id]
+                if state.job.service_class != "HP":
+                    continue
+                tenant = state.job.tenant_id or "__aggregate__"
+                series = json.dumps(
+                    [state.job.gpu_model, tenant],
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                hp_running_by_series[series] = (
+                    hp_running_by_series.get(series, 0.0) + state.job.gpu_count
+                )
+                demand_series_metadata[series] = {
+                    "pool": state.job.gpu_model,
+                    "cluster": "cluster",
+                    "tenant": tenant,
+                }
+            spot_backlog_by_pool: dict[str, float] = {}
+            maximum_spot_wait_by_pool: dict[str, float] = {}
+            for job_id in queue:
+                state = states[job_id]
+                if state.job.service_class != "Spot":
+                    continue
+                pool = state.job.gpu_model
+                spot_backlog_by_pool[pool] = (
+                    spot_backlog_by_pool.get(pool, 0.0) + state.job.gpu_count
+                )
+                maximum_spot_wait_by_pool[pool] = max(
+                    maximum_spot_wait_by_pool.get(pool, 0.0),
+                    now - state.queued_since,
+                )
+            running_by_pool = running_spot_gpus_by_pool()
+            predictive_controller.update(
+                now,
+                hp_outstanding_requested_gpus=outstanding_hp_requested_gpus,
+                spot_backlog_gpus=sum(
+                    states[job_id].job.gpu_count
+                    for job_id in queue
+                    if states[job_id].job.service_class == "Spot"
+                ),
+                running_spot_gpus=running_spot_gpus(),
+                hp_running_requested_gpus_by_series=hp_running_by_series,
+                demand_series_metadata=demand_series_metadata,
+                spot_backlog_gpus_by_pool=spot_backlog_by_pool,
+                running_spot_gpus_by_pool=running_by_pool,
+                idle_gpus_by_pool=dict(free_by_model),
+                maximum_spot_queue_wait_seconds_by_pool=maximum_spot_wait_by_pool,
+            )
         start_jobs()
         if preempt_for_hp():
             start_jobs()
@@ -469,6 +624,26 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                 and states[job_id].run_start is not None
                 and float(states[job_id].run_start) + policy.spot_guarantee_seconds > now + EPSILON
             )
+        if predictive_controller is not None:
+            event_times.append(predictive_controller.next_update_time)
+            if (
+                getattr(
+                    predictive_controller,
+                    "periodic_guarantee_feedback",
+                    False,
+                )
+                and policy.spot_guarantee_seconds > 0
+            ):
+                event_times.extend(
+                    float(states[job_id].feedback_checkpoint_time)
+                    + policy.spot_guarantee_seconds
+                    for job_id in running
+                    if states[job_id].job.service_class == "Spot"
+                    and states[job_id].feedback_checkpoint_time is not None
+                    and float(states[job_id].feedback_checkpoint_time)
+                    + policy.spot_guarantee_seconds
+                    > now + EPSILON
+                )
         future = [value for value in event_times if value > now + EPSILON]
         if not future:
             pending = sorted(set(queue) | running)
@@ -491,6 +666,35 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             states[job_id].remaining = max(0.0, states[job_id].remaining - delta)
         now = next_time
 
+        if (
+            predictive_controller is not None
+            and getattr(
+                predictive_controller,
+                "periodic_guarantee_feedback",
+                False,
+            )
+            and policy.spot_guarantee_seconds > 0
+        ):
+            for job_id in sorted(running):
+                state = states[job_id]
+                if (
+                    state.job.service_class != "Spot"
+                    or state.feedback_checkpoint_time is None
+                ):
+                    continue
+                while (
+                    state.feedback_checkpoint_time
+                    + policy.spot_guarantee_seconds
+                    <= now + EPSILON
+                ):
+                    state.feedback_checkpoint_time += policy.spot_guarantee_seconds
+                    record_controller_feedback(
+                        state,
+                        state.feedback_checkpoint_time,
+                        evicted=False,
+                        event_kind="guarantee_duration_completed",
+                    )
+
         ending = sorted(
             [job_id for job_id in running if states[job_id].remaining <= EPSILON]
         )
@@ -500,7 +704,12 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             release(state.allocation)
             state.allocation = None
             state.run_start = None
+            state.feedback_checkpoint_time = None
             state.completion = now
+            if state.job.service_class == "HP":
+                outstanding_hp_requested_gpus = max(
+                    0.0, outstanding_hp_requested_gpus - state.job.gpu_count
+                )
             running.remove(job_id)
             completed.add(job_id)
 
@@ -551,6 +760,11 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                 "duration_seconds": state.job.duration_seconds,
                 "gpu_count": state.job.gpu_count,
                 "gpu_model": state.job.gpu_model,
+                **(
+                    {"tenant_id": state.job.tenant_id}
+                    if state.job.tenant_id is not None
+                    else {}
+                ),
                 "queue_seconds": state.queue_seconds,
                 "jct_seconds": float(state.completion) - state.job.submit_time_seconds,
                 "preemption_count": state.preemptions,
@@ -566,6 +780,8 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         "preemption_events": preemption_events,
         "spot_runs": spot_runs,
     }
+    if predictive_controller is not None:
+        result["predictive_control"] = predictive_controller.finalize()
     result["result_fingerprint"] = canonical_sha256(result)
     return result
 
@@ -700,10 +916,52 @@ def build_metrics_report(result: dict[str, Any]) -> dict[str, Any]:
             "spot_guarantee_success_rate": "Runs of evaluation-window Spot arrivals completing or remaining uninterrupted for the configured guarantee duration, divided by all their runs, including drain.",
         },
     }
+    if "predictive_control" in result:
+        control = result["predictive_control"]
+        report["predictive_control"] = {
+            "available": True,
+            "controller_id": control["controller_id"],
+            "controller_fingerprint": control["controller_fingerprint"],
+            "control_fingerprint": control["control_fingerprint"],
+            "information_boundary": control["information_boundary"],
+            "update_count": control["update_count"],
+            "total_runtime_update_count": control["total_runtime_update_count"],
+            "evidence_window_seconds": control["evidence_window_seconds"],
+            "eta": control["eta"],
+            "spot_quota_gpus": control["spot_quota_gpus"],
+            "forecast_evaluation": control["forecast_evaluation"],
+        }
     report["metrics_fingerprint"] = canonical_sha256(report)
     return report
 
 
 def run_native_simulation(trace_path: Path, policy_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     result = simulate_trace(load_canonical_trace(trace_path), SimulationPolicy.load(policy_path))
+    return result, build_metrics_report(result)
+
+
+def run_predictive_simulation(
+    trace_path: Path,
+    policy_path: Path,
+    controller_path: Path,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    trace = load_canonical_trace(trace_path)
+    policy = SimulationPolicy.load(policy_path)
+    controller_config = load_controller_config(controller_path)
+    controller = create_predictive_controller(
+        controller_config,
+        trace,
+        min(job.submit_time_seconds for job in trace.jobs),
+        evidence_start_seconds=(
+            trace.evaluation_start_seconds
+            if trace.evaluation_start_seconds is not None
+            else min(job.submit_time_seconds for job in trace.jobs)
+        ),
+        evidence_end_seconds=(
+            trace.evaluation_end_seconds
+            if trace.evaluation_end_seconds is not None
+            else max(job.submit_time_seconds for job in trace.jobs)
+        ),
+    )
+    result = simulate_trace(trace, policy, controller)
     return result, build_metrics_report(result)

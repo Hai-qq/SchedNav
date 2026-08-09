@@ -6,6 +6,7 @@
     "responsibilities": [
       "create and track finite evaluation tasks",
       "pass schema artifacts by reference",
+      "enforce observation cutoffs before predictive candidate selection",
       "compare completed policy evidence",
       "apply only the SLO-declared hierarchical ranking and preserve unresolved ties",
       "request human approval for expensive simulation batches and final recommendation"
@@ -16,6 +17,7 @@
     "forbidden_actions": [
       "direct Job-to-node/GPU placement",
       "inventing SLO thresholds",
+      "claiming a shadow replay is a live policy switch",
       "recommending before all selected simulations and audits complete"
     ]
   },
@@ -25,24 +27,44 @@
       "role": "Workload Analyst",
       "skill": "analyze-gpu-workload",
       "inputs": ["trace_window_ref"],
-      "outputs": ["workload_summary_ref"],
-      "forbidden_actions": ["policy recommendation", "simulated performance claims"]
+      "outputs": ["workload_summary_ref", "predictive_observation_ref"],
+      "additional_skills": ["forecast-gpu-demand"],
+      "forbidden_actions": [
+        "policy recommendation",
+        "simulated performance claims",
+        "reading workload records after the declared cutoff",
+        "using the tenant predictor without trace/v2 tenant and resource-pool fields",
+        "inventing numeric forecasts"
+      ]
     },
     {
       "id": "scheduling-strategist",
       "role": "Scheduling Strategist",
       "skill": "select-bounded-policies",
-      "inputs": ["workload_summary_ref", "action_space_ref"],
+      "inputs": [
+        "workload_summary_ref",
+        "predictive_observation_ref",
+        "action_space_ref"
+      ],
       "outputs": ["policy_action_refs"],
-      "forbidden_actions": ["unlisted policy values", "placement", "winner selection"]
+      "forbidden_actions": ["unlisted policy values", "placement", "winner selection", "claiming shadow candidates are already activated"]
     },
     {
       "id": "simulation-agent",
       "role": "Simulation Agent",
       "skill": "simulate-gpu-policy",
-      "inputs": ["trace_manifest_ref", "policy_action_ref"],
-      "outputs": ["simulation_result_ref", "metrics_report_ref"],
-      "forbidden_actions": ["shared mutable simulator state", "overwriting an existing run", "subjective policy judgment"]
+      "inputs": [
+        "trace_manifest_ref",
+        "policy_action_ref",
+        "predictive_controller_ref"
+      ],
+      "outputs": [
+        "simulation_result_ref",
+        "metrics_report_ref",
+        "predictive_control_report_ref"
+      ],
+      "additional_skills": ["simulate-predictive-control"],
+      "forbidden_actions": ["shared mutable simulator state", "overwriting an existing run", "subjective policy judgment", "changing model outputs or quota feedback", "claiming fixed-policy replay performs a cutoff state handoff"]
     },
     {
       "id": "slo-auditor",

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/predictive-control-report.schema.json",
+  "title": "SchedNav predictive control evidence report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "controller_id",
+    "controller",
+    "controller_fingerprint",
+    "information_boundary",
+    "evidence_window_seconds",
+    "update_count",
+    "total_runtime_update_count",
+    "first_cutoff_time_seconds",
+    "last_cutoff_time_seconds",
+    "decisions",
+    "forecast_evaluation",
+    "eta",
+    "spot_quota_gpus",
+    "control_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.predictive-control-report/v1"},
+    "controller_id": {"type": "string", "minLength": 1},
+    "controller": {"type": "object"},
+    "controller_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "information_boundary": {"type": "object"},
+    "evidence_window_seconds": {"type": "object", "required": ["start", "end"]},
+    "update_count": {"type": "integer", "minimum": 0},
+    "total_runtime_update_count": {"type": "integer", "minimum": 0},
+    "demand_sample_count": {"type": "integer", "minimum": 0},
+    "first_cutoff_time_seconds": {"type": ["number", "null"]},
+    "last_cutoff_time_seconds": {"type": ["number", "null"]},
+    "decisions": {"type": "array", "items": {"type": "object"}},
+    "forecast_evaluation": {"type": "object"},
+    "eta": {"type": "object"},
+    "spot_quota_gpus": {"type": "object"},
+    "feedback_events": {"type": "object"},
+    "model": {"type": "object"},
+    "control_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

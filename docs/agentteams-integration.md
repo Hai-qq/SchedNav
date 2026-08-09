@@ -16,15 +16,17 @@ The Manager owns task decomposition, status, artifact references, declared ranki
 
 | Agent | Skill | Input | Output |
 |---|---|---|---|
-| Workload Analyst | `analyze-gpu-workload` | canonical Trace reference | WorkloadSummary reference |
-| Scheduling Strategist | `select-bounded-policies` | workload + action space | 3–5 Policy references |
-| Simulation Agent | `simulate-gpu-policy` | Trace + Policy | SimulationResult + MetricsReport references |
+| Workload Analyst | `analyze-gpu-workload`, `forecast-gpu-demand` | canonical Trace reference; in rolling mode, cutoff + controller ID | WorkloadSummary or PredictiveObservationBundle reference |
+| Scheduling Strategist | `select-bounded-policies` | workload/predictive bundle + action space | 3–5 Policy references |
+| Simulation Agent | `simulate-gpu-policy`, `simulate-predictive-control` | Trace + Policy; in rolling mode, registered controller | SimulationResult + MetricsReport + PredictiveControlReport references |
 | SLO Auditor | `audit-gpu-slo` | metrics + SLO + FIFO baseline | SLOAudit reference |
 | Manager | `compare-gpu-policies` | metrics + audits | Portfolio + Ranking + approval request |
 
 For a registered multi-window batch, the same roles exchange `run_set_id` and compact artifact references: the analyst calls `analyze_run_set`, the simulator calls `simulate_run_set`, and the auditor calls `audit_run_set`. Every window remains an independent SLO and ranking decision.
 
 For the adaptive v3 holdout, candidate selection is a separate pre-simulation project. Workload Analyst verifies a frozen `schednav.adaptive-study-design/v1`; Scheduling Strategist emits `schednav.controller-selections/v1` covering each declared holdout window with 3–5 catalog actions and FIFO. Only after Manager validation does the deterministic experiment run. This ordering prevents evaluation metrics from leaking into Agent candidate generation.
+
+For predictive control, the Manager declares a cutoff and cataloged controller. Workload Analyst calls `forecast_demand`, then passes only the resulting `schednav.predictive-observation-bundle/v1` reference to Scheduling Strategist. The bundle excludes later arrivals and the full trace fingerprint. Simulation Agent calls `simulate_predictive_policy`; SLO Auditor sees completed metrics only after the replay finishes. The current operation evaluates a fixed policy/controller pair from trace origin and does not perform a live policy switch at the forecast cutoff. `configs/agentteams/host-bridge-predictive-v1.json` registers both the dependency-free aggregate controller and `tenant-predictive-spot-v1`, plus a `tenant-predictive-local` trace/v2 run. Its operation allowlist does not expose `analyze_workload`, static `simulate_policy` or run-set operations to that project. The host Python environment must install `.[forecast]` before selecting the tenant controller. A true outer rolling decision still requires a common pre-cutoff scheduler-state snapshot and deterministic state handoff for every candidate.
 
 ## Model contract
 
@@ -49,7 +51,9 @@ Raw Trace files, per-job results, checkpoints and large logs are never inserted 
 The MCP host bridge exposes only:
 
 - `analyze_workload`;
+- `forecast_demand`;
 - `simulate_policy`;
+- `simulate_predictive_policy`;
 - `compare_policies`;
 - `audit_slo`;
 - `rank_policies`;
@@ -61,6 +65,8 @@ The MCP host bridge exposes only:
 
 It rejects unknown actions, unknown run sets, batches outside 3–5 actions or 1–2 repetitions, unknown SLOs, unexpected arguments, unsafe paths, invalid artifact schemas and missing/invalid bearer identity. There is no shell, arbitrary Python or placement endpoint. Execution uses one host lane to avoid shared mutable simulator state. Delegated identity validation uses a protected AgentTeams gateway route, bypasses ambient desktop proxies for the loopback check, and rejects explicit 401/403 responses.
 
+The default bridge exposes every registered deterministic operation. A config may narrow task submission and MCP `tools/list` through `operation_allowlist`; this is the required profile for rolling predictive projects. `get_task` and schema-approved `read_artifact` remain read-only control-plane operations.
+
 Native run configs use:
 
 ```json
@@ -70,7 +76,7 @@ Native run configs use:
 }
 ```
 
-The path must remain inside the project root and identify a valid content-addressed `schednav.trace/v1` manifest. Containment checks use filesystem identity for existing Windows ancestors, so long paths and 8.3 aliases cannot create false escapes. Policy files must use `schednav.simulation-policy/v1` and be listed in the bridge catalog.
+The path must remain inside the project root and identify a valid content-addressed `schednav.trace/v1` or `schednav.trace/v2` manifest. The tenant controller additionally requires non-empty tenant IDs and concrete resource pools. Containment checks use filesystem identity for existing Windows ancestors, so long paths and 8.3 aliases cannot create false escapes. Policy files must use `schednav.simulation-policy/v1` and be listed in the bridge catalog.
 
 A completed local multi-window experiment can be staged as one registered run set without publishing its per-job data:
 
@@ -142,6 +148,20 @@ Project `proj-20260809-080145` completed the pre-simulation controller stage as 
 
 On the 45-window holdout, the AgentTeams candidate sets cover at least one action on 41/41 feasible formal catalog frontiers using 185 candidate evaluations, compared with 39/41 using 135 evaluations for the fixed three-candidate workload rule and 41/41 using 225 evaluations for exhaustive catalog search. Exact frontier-set matches and raw maximum-allocation candidate coverage are reported separately. The latter precedes the formal allocation-band, Spot-JCT and eviction hierarchy. The comparison therefore reports both decision quality and simulation cost. Full evidence is in [Adaptive Holdout Evaluation](adaptive-holdout-evaluation.md); raw AgentTeams rooms, task workspaces and logs remain local.
 
+## Verified predictive shadow workflow
+
+Project `proj-20260809-110524` exercised the predictive-only bridge with every role on `deepseek-v4-flash` and finished as `completed / no_eligible_policy`:
+
+1. Workload Analyst completed `task-20260809-110601`. Bridge task `5670792d293f4ae2a2b956e340b23c5b` generated the cutoff observation at `3628800`; its bundle fingerprint is `29122b91e1e26e9ce32ba7e61f8d346e9655d954183aeed268c44e8bd9568efd`. The artifact records that later arrivals were excluded, future demand was not used and the maximum observed time equals the cutoff.
+2. Scheduling Strategist completed `task-20260809-110602`, preserving exactly `native-preemptive-g3600-b09-d0000`, `native-preemptive-g3600-b09-d0900` and `native-preemptive-g3600-b09-loss-aware` as shadow hypotheses. It did not run simulation or inspect realized metrics.
+3. Simulation Agent completed `task-20260809-110603`. Predictive bridge tasks `bd2c5294964543749f081e1acb24d85c`, `6bb63c259d7c457cb010b3017b54cd3d` and `0c5c0054ef504947b5ad66c9416dbe81` each ran once and produced metrics fingerprints `308d3cf9b208376e1038714e3a3b17cd1c3c32c6c081c11e9bc0bd6b50c26438`, `af70e3b0056655ce845e234b46e30a5ae84f2e369f3b875dc096da6d09f32e5d` and `f6a81d967290eedb5b338775b1ee003a2b6385aa1c5bcfb41c18b73ac45d833d`. All three reports measured P90 coverage of `0.941860465`.
+4. SLO Auditor completed `task-20260809-110604` using the ordinary FIFO artifact with metrics fingerprint `1d86d5adba05e269e775c943fc87322867ee7ebb879ae9ba66a00ef89f174d97`, not a quota-limited predictive FIFO. Every candidate passed seven of eight hard constraints and failed only `allocation-fifo-nondegradation`: allocation rates `0.735174`, `0.737623` and `0.736233` were below the FIFO value `0.790511`.
+5. Manager called `compare_policies` and `rank_policies`. Portfolio fingerprint `da1e12551f480985c2a45c85584c0c8a92e6a1e1b97ffcde6db4644f664e0779` and ranking fingerprint `87787bfc719f859ce1f7393ca23fe94e59feb536529d26afdd15ce6076027b7e` preserve the result: `selection_status=no_eligible_policy` and an empty selected-policy set.
+
+This run verifies the real Manager/Worker handoff, cutoff-safe artifact boundary, deterministic replay, audit and hard-SLO-first rejection path. It does not show performance superiority, a production scheduler adapter or a live policy switch at the cutoff. Full task workspaces, rooms and large replay artifacts remain local runtime evidence and are not committed to the public repository.
+
+That project used the lightweight aggregate controller. The subsequent tenant-aware increment keeps the same AgentTeams roles, Skills and bridge operations; no new agent framework or free-form model action was introduced. Bounded bridge tasks `f994e65b1db6463b9de801f2e3889fde` (`forecast_demand`) and `dca77dbd7aaf4882b951292487f89b79` (`simulate_predictive_policy`) both succeeded with `tenant-predictive-local + tenant-predictive-spot-v1`; their forecast and metrics fingerprints exactly match the direct deterministic runs. The checked-in [tenant-predictive receipt](../evidence/predictive-v1/alibaba-gpu-series-2-2024-04-12-tenant-predictive.json) records this bridge proof together with two deterministic forecasts and two deterministic closed-loop replays. It passes seven of eight hard SLOs and is rejected for allocation non-degradation. This is execution evidence for the new deterministic worker tool path, not a claim that a second live AgentTeams room has already produced a better policy.
+
 ## Bundle build
 
 ```powershell
@@ -149,7 +169,7 @@ $env:PYTHONPATH = (Resolve-Path .\src).Path
 python .\scripts\build_agentteams_bundle.py --project-root .
 ```
 
-The builder reads `integrations/agentteams/package-manifest.json`, packages the five validated Skills and renders all role resources with `deepseek-v4-flash`. Generated bundles stay under ignored `dist/agentteams/`.
+The builder reads `integrations/agentteams/package-manifest.json`, packages the seven validated Skills and renders all role resources with `deepseek-v4-flash`. Generated bundles stay under ignored `dist/agentteams/`.
 
 ## Security verification
 

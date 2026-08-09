@@ -12,4 +12,6 @@ description: Select three to five distinct executable GPU scheduling policies fr
 5. For a chronological holdout study, bind the candidate set to the frozen design fingerprint, cover every evaluation window exactly once and inspect no evaluation metrics before the artifact is finalized.
 6. Mark each candidate `unverified` until same-trace simulation evidence exists.
 
+For predictive control, require a valid `schednav.predictive-observation-bundle/v1`. Use its cutoff-bounded state and forecast distribution to choose catalog actions for shadow evaluation; do not use later workload, forecast-scoring fields or realized policy metrics, and do not claim the current replay operation switches a live policy at that cutoff.
+
 Reject requests containing Job, Node, GPU IDs, placement, arbitrary code or unlisted policy cross-products. Workload evidence can justify candidate diversity but cannot establish policy quality.

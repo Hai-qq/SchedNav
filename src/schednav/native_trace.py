@@ -13,7 +13,10 @@ from typing import Any, Iterator
 from .contracts import canonical_sha256
 
 
-TRACE_SCHEMA = "schednav.trace/v1"
+TRACE_SCHEMA_V1 = "schednav.trace/v1"
+TRACE_SCHEMA_V2 = "schednav.trace/v2"
+TRACE_SCHEMA = TRACE_SCHEMA_V1
+TRACE_SCHEMAS = {TRACE_SCHEMA_V1, TRACE_SCHEMA_V2}
 SERVICE_CLASSES = {"HP", "Spot"}
 
 
@@ -75,6 +78,7 @@ class TraceJob:
     gpu_count: float
     service_class: str
     gpu_model: str
+    tenant_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +91,7 @@ class CanonicalTrace:
     fingerprint: str
     evaluation_start_seconds: float | None = None
     evaluation_end_seconds: float | None = None
+    schema_version: str = TRACE_SCHEMA_V1
 
     @property
     def capacity_gpus(self) -> int:
@@ -112,8 +117,9 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
         raise ValueError(
             f"Trace manifest fields must contain {sorted(required)} and only allow {sorted(optional)}"
         )
-    if manifest["schema_version"] != TRACE_SCHEMA:
-        raise ValueError(f"Expected schema_version={TRACE_SCHEMA}")
+    schema_version = str(manifest["schema_version"])
+    if schema_version not in TRACE_SCHEMAS:
+        raise ValueError(f"Expected schema_version in {sorted(TRACE_SCHEMAS)}")
     datetime.fromisoformat(str(manifest["time_origin"]))
     trace_id = str(manifest["trace_id"])
     if not trace_id or not isinstance(manifest["source"], dict):
@@ -162,12 +168,19 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
             "service_class",
             "gpu_model",
         ]
+        if schema_version == TRACE_SCHEMA_V2:
+            expected_header.append("tenant_id")
         if reader.fieldnames != expected_header:
             raise ValueError("jobs.csv has an unsupported header")
         for row in reader:
             job_id = row["job_id"].strip()
             service_class = row["service_class"].strip()
             gpu_model = row["gpu_model"].strip()
+            tenant_id = (
+                row["tenant_id"].strip()
+                if schema_version == TRACE_SCHEMA_V2
+                else None
+            )
             gpu_count = _positive_float(row["gpu_count"], "gpu_count")
             duration = float(row["duration_seconds"])
             if not job_id or job_id in job_ids:
@@ -176,6 +189,8 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
                 raise ValueError(f"Unsupported service_class: {service_class}")
             if not gpu_model:
                 raise ValueError("gpu_model cannot be empty")
+            if schema_version == TRACE_SCHEMA_V2 and not tenant_id:
+                raise ValueError("tenant_id cannot be empty in schednav.trace/v2")
             eligible_capacity = total_capacity if gpu_model == "*" else capacities.get(gpu_model, 0)
             if gpu_count > eligible_capacity:
                 raise ValueError(f"Job {job_id} requests more eligible GPUs than the cluster owns")
@@ -192,6 +207,7 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
                     gpu_count=gpu_count,
                     service_class=service_class,
                     gpu_model=gpu_model,
+                    tenant_id=tenant_id,
                 )
             )
     if not jobs:
@@ -231,6 +247,7 @@ def load_canonical_trace(manifest_path: Path) -> CanonicalTrace:
         fingerprint=str(manifest["trace_fingerprint"]),
         evaluation_start_seconds=evaluation_start,
         evaluation_end_seconds=evaluation_end,
+        schema_version=schema_version,
     )
 
 
@@ -244,12 +261,29 @@ def write_canonical_trace(
     jobs: list[TraceJob],
     evaluation_start_seconds: float | None = None,
     evaluation_end_seconds: float | None = None,
+    schema_version: str | None = None,
 ) -> Path:
     """Write canonical CSV files and a content-addressed manifest."""
     output_dir = output_dir.resolve()
     datetime.fromisoformat(time_origin)
     if not trace_id or not nodes or not jobs:
         raise ValueError("trace_id, nodes, and jobs are required")
+    if schema_version is None:
+        schema_version = (
+            TRACE_SCHEMA_V2
+            if any(job.tenant_id is not None for job in jobs)
+            else TRACE_SCHEMA_V1
+        )
+    if schema_version not in TRACE_SCHEMAS:
+        raise ValueError(f"schema_version must be one of {sorted(TRACE_SCHEMAS)}")
+    if schema_version == TRACE_SCHEMA_V2 and any(
+        not job.tenant_id for job in jobs
+    ):
+        raise ValueError("Every schednav.trace/v2 job requires tenant_id")
+    if schema_version == TRACE_SCHEMA_V1 and any(
+        job.tenant_id is not None for job in jobs
+    ):
+        raise ValueError("schednav.trace/v1 cannot discard tenant_id; use trace/v2")
     if (evaluation_start_seconds is None) != (evaluation_end_seconds is None):
         raise ValueError("Evaluation window start and end must be supplied together")
     if evaluation_start_seconds is not None and evaluation_end_seconds is not None:
@@ -265,29 +299,31 @@ def write_canonical_trace(
             writer.writerow([node.node_id, node.gpu_model, node.gpu_count])
     with job_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(
-            [
-                "job_id",
-                "submit_time_seconds",
-                "duration_seconds",
-                "gpu_count",
-                "service_class",
-                "gpu_model",
-            ]
-        )
+        header = [
+            "job_id",
+            "submit_time_seconds",
+            "duration_seconds",
+            "gpu_count",
+            "service_class",
+            "gpu_model",
+        ]
+        if schema_version == TRACE_SCHEMA_V2:
+            header.append("tenant_id")
+        writer.writerow(header)
         for job in sorted(jobs, key=lambda item: (item.submit_time_seconds, item.job_id)):
-            writer.writerow(
-                [
-                    job.job_id,
-                    job.submit_time_seconds,
-                    job.duration_seconds,
-                    job.gpu_count,
-                    job.service_class,
-                    job.gpu_model,
-                ]
-            )
+            row = [
+                job.job_id,
+                job.submit_time_seconds,
+                job.duration_seconds,
+                job.gpu_count,
+                job.service_class,
+                job.gpu_model,
+            ]
+            if schema_version == TRACE_SCHEMA_V2:
+                row.append(job.tenant_id)
+            writer.writerow(row)
     manifest: dict[str, Any] = {
-        "schema_version": TRACE_SCHEMA,
+        "schema_version": schema_version,
         "trace_id": trace_id,
         "time_origin": time_origin,
         "source": source,
@@ -368,6 +404,7 @@ def slice_canonical_trace(
             and trace.evaluation_end_seconds is not None
             else None
         ),
+        schema_version=trace.schema_version,
     )
 
 
@@ -427,6 +464,7 @@ def slice_evaluation_window(
         jobs=jobs,
         evaluation_start_seconds=evaluation_start_seconds,
         evaluation_end_seconds=evaluation_end_seconds,
+        schema_version=trace.schema_version,
     )
 
 
@@ -609,6 +647,7 @@ def import_alibaba_trace(
     evaluation_start_seconds: float | None = None,
     evaluation_end_seconds: float | None = None,
     warmup_start_seconds: float | None = None,
+    include_warmup_spot: bool = True,
 ) -> Path:
     """Convert Alibaba's published node/job tables into the canonical contract."""
     node_info_path = node_info_path.resolve()
@@ -657,6 +696,7 @@ def import_alibaba_trace(
         reader = csv.DictReader(handle)
         required = {
             "job_name",
+            "organization",
             "gpu_model",
             "gpu_request",
             "worker_num",
@@ -673,6 +713,13 @@ def import_alibaba_trace(
                 continue
             if warmup_start_seconds is not None and float(row["submit_time"]) < warmup_start_seconds:
                 continue
+            if (
+                not include_warmup_spot
+                and evaluation_start_seconds is not None
+                and str(row["job_type"]).strip() == "Spot"
+                and float(row["submit_time"]) < evaluation_start_seconds
+            ):
+                continue
             job_id = str(row["job_name"]).strip()
             if not job_id or job_id in seen:
                 raise ValueError(f"Alibaba job_name must be unique; invalid row {index}")
@@ -686,6 +733,7 @@ def import_alibaba_trace(
                     gpu_count=_positive_float(requested, "total GPU request"),
                     service_class=str(row["job_type"]).strip(),
                     gpu_model=str(row["gpu_model"]).strip(),
+                    tenant_id=str(row["organization"]).strip(),
                 )
             )
     source = {
@@ -701,6 +749,7 @@ def import_alibaba_trace(
             "evaluation_start_seconds": evaluation_start_seconds,
             "evaluation_end_seconds": evaluation_end_seconds,
             "warmup_start_seconds": warmup_start_seconds,
+            "include_warmup_spot": include_warmup_spot,
             "semantics": (
                 "Selected arrivals from the declared warm-up start through the inclusive evaluation end are replayed; only arrivals inside the explicit evaluation window contribute job SLO metrics, while allocation is integrated over that window."
                 if warmup_start_seconds is not None
@@ -708,6 +757,7 @@ def import_alibaba_trace(
                 if evaluation_start_seconds is not None
                 else "All selected arrivals from the source origin through the inclusive cutoff; jobs drain to completion."
             ),
+            "tenant_mapping": "organization -> tenant_id",
         },
     }
     return write_canonical_trace(
@@ -719,6 +769,7 @@ def import_alibaba_trace(
         jobs=jobs,
         evaluation_start_seconds=evaluation_start_seconds,
         evaluation_end_seconds=evaluation_end_seconds,
+        schema_version=TRACE_SCHEMA_V2,
     )
 
 

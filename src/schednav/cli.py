@@ -7,7 +7,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .native_simulator import run_native_simulation
+from .controller_factory import (
+    build_controller_observation_bundle,
+    load_controller_config,
+)
+from .native_simulator import run_native_simulation, run_predictive_simulation
 from .native_trace import (
     import_alibaba_gpu_v2023_trace,
     import_alibaba_trace,
@@ -69,6 +73,11 @@ def main() -> int:
         type=float,
         help="optional bounded carry-in start; requires an evaluation window",
     )
+    alibaba_parser.add_argument(
+        "--exclude-warmup-spot",
+        action="store_true",
+        help="retain HP history but exclude pre-evaluation Spot arrivals",
+    )
 
     alibaba_v2023_parser = subparsers.add_parser(
         "import-alibaba-v2023",
@@ -111,6 +120,25 @@ def main() -> int:
     simulate_parser.add_argument("--result", required=True)
     simulate_parser.add_argument("--metrics", required=True)
 
+    forecast_parser = subparsers.add_parser(
+        "forecast-demand",
+        help="build a past-only probabilistic HP demand forecast at one cutoff",
+    )
+    forecast_parser.add_argument("--trace", required=True)
+    forecast_parser.add_argument("--controller", required=True)
+    forecast_parser.add_argument("--cutoff-seconds", type=float, required=True)
+    forecast_parser.add_argument("--output", required=True)
+
+    predictive_parser = subparsers.add_parser(
+        "simulate-predictive",
+        help="run one policy with the deterministic predictive Spot quota controller",
+    )
+    predictive_parser.add_argument("--trace", required=True)
+    predictive_parser.add_argument("--policy", required=True)
+    predictive_parser.add_argument("--controller", required=True)
+    predictive_parser.add_argument("--result", required=True)
+    predictive_parser.add_argument("--metrics", required=True)
+
     compare_parser = subparsers.add_parser(
         "compare-policies", help="compare two canonical metrics reports without selecting a winner"
     )
@@ -148,6 +176,7 @@ def main() -> int:
         trace = load_canonical_trace(_path(args.trace))
         result = {
             "valid": True,
+            "schema_version": trace.schema_version,
             "trace_id": trace.trace_id,
             "trace_fingerprint": trace.fingerprint,
             "node_count": len(trace.nodes),
@@ -181,6 +210,7 @@ def main() -> int:
             evaluation_start_seconds=args.evaluation_start_seconds,
             evaluation_end_seconds=args.evaluation_end_seconds,
             warmup_start_seconds=args.warmup_start_seconds,
+            include_warmup_spot=not args.exclude_warmup_spot,
         )
         trace = load_canonical_trace(manifest)
         result = {
@@ -240,6 +270,32 @@ def main() -> int:
             "metrics": str(metrics_path),
             "result_fingerprint": simulation_result["result_fingerprint"],
             "metrics_fingerprint": metrics["metrics_fingerprint"],
+        }
+    elif args.command == "forecast-demand":
+        result = build_controller_observation_bundle(
+            load_canonical_trace(_path(args.trace)),
+            load_controller_config(_path(args.controller)),
+            args.cutoff_seconds,
+        )
+        _write_json(_path(args.output), result)
+    elif args.command == "simulate-predictive":
+        simulation_result, metrics = run_predictive_simulation(
+            _path(args.trace),
+            _path(args.policy),
+            _path(args.controller),
+        )
+        result_path = _path(args.result)
+        metrics_path = _path(args.metrics)
+        _write_json(result_path, simulation_result)
+        _write_json(metrics_path, metrics)
+        result = {
+            "result": str(result_path),
+            "metrics": str(metrics_path),
+            "result_fingerprint": simulation_result["result_fingerprint"],
+            "metrics_fingerprint": metrics["metrics_fingerprint"],
+            "controller_fingerprint": metrics["predictive_control"][
+                "controller_fingerprint"
+            ],
         }
     elif args.command == "compare-policies":
         result = compare_policy_metrics(_path(args.left), _path(args.right))

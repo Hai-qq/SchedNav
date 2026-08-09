@@ -48,9 +48,14 @@ class AgentTeamsBundleTests(unittest.TestCase):
             with zipfile.ZipFile(first / "simulation-agent.zip") as archive:
                 self.assertIn("manifest.json", archive.namelist())
                 self.assertIn("skills/simulate-gpu-policy/SKILL.md", archive.namelist())
+                self.assertIn(
+                    "skills/simulate-predictive-control/SKILL.md", archive.namelist()
+                )
                 package_metadata = json.loads(archive.read("manifest.json"))
                 self.assertEqual(package_metadata["worker"]["model"], REQUIRED_MODEL_ID)
                 self.assertEqual(package_metadata["worker"]["runtime"], "copaw")
+            with zipfile.ZipFile(first / "workload-analyst.zip") as archive:
+                self.assertIn("skills/forecast-gpu-demand/SKILL.md", archive.namelist())
             rendered = first / "schednav-resources.yaml"
             render_resources(
                 PROJECT_ROOT / "integrations" / "agentteams" / "schednav-resources.yaml.example",
@@ -78,6 +83,60 @@ class AgentTeamsBundleTests(unittest.TestCase):
                     rendered,
                     "deepseek-v4-pro",
                 )
+
+    def test_predictive_bridge_registers_the_tenant_controller_and_v2_run(self):
+        bridge = json.loads(
+            (
+                PROJECT_ROOT
+                / "configs"
+                / "agentteams"
+                / "host-bridge-predictive-v1.json"
+            ).read_text(encoding="utf-8")
+        )
+        run_config = json.loads(
+            (
+                PROJECT_ROOT
+                / "configs"
+                / "runs"
+                / "tenant-predictive-local.json"
+            ).read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(
+            bridge["controllers"]["tenant-predictive-spot-v1"],
+            "configs/controllers/tenant-predictive-spot-v1.json",
+        )
+        self.assertEqual(
+            bridge["run_configs"]["tenant-predictive-local"],
+            "configs/runs/tenant-predictive-local.json",
+        )
+        self.assertEqual(
+            bridge["run_sets"]["tenant-predictive-local"],
+            ["tenant-predictive-local"],
+        )
+        self.assertEqual(
+            set(bridge["operation_allowlist"]),
+            {
+                "forecast_demand",
+                "simulate_predictive_policy",
+                "compare_policies",
+                "audit_slo",
+                "rank_policies",
+            },
+        )
+        self.assertIn("tenant-predictive", run_config["trace_manifest"])
+        native_bridge = json.loads(
+            (
+                PROJECT_ROOT
+                / "configs"
+                / "agentteams"
+                / "host-bridge-native-v1.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            native_bridge["run_configs"]["tenant-predictive-local"],
+            "configs/runs/tenant-predictive-local.json",
+        )
 
 
 if __name__ == "__main__":
