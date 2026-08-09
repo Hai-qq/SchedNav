@@ -5,6 +5,7 @@ SchedNav is dataset-neutral after ingestion. Every source is normalized into the
 | Dataset | Adapter | Published labels | Redistribution |
 |---|---|---|---|
 | Alibaba `cluster-trace-v2026-spot-gpu` | `schednav import-alibaba` | HP / Spot | Raw and per-job converted data are not committed. |
+| Alibaba `cluster-trace-gpu-v2023` | `schednav import-alibaba-v2023` | LS / BE, mapped explicitly to HP / Spot | Raw and per-job converted data are not committed. |
 | Microsoft Philly GPU Trace | `schednav import-philly` | No HP / Spot label | CC BY 4.0 source is downloaded separately; raw and converted data are not committed. |
 | Private or additional public traces | Canonical adapter contract | Adapter-defined and provenance-recorded | Controlled by the source license and data policy. |
 
@@ -36,6 +37,19 @@ The public aggregate receipt is [philly-validation.json](../evidence/native-v1/p
 
 An origin-preserving A100 first-day slice contains 432 nodes and 1,285 jobs, including 1,284 HP jobs, one Spot job and fractional GPU demand. Two current-engine FIFO runs produced identical result and metrics fingerprints. The aggregate [Alibaba validation receipt](../evidence/native-v1/alibaba-a100-day1-validation.json) records the source hashes, filters, population, evaluation-window allocation and limitations; no raw or per-job data is included.
 
+## Verified Alibaba v2023 QoS run
+
+The v2023 adapter produced 6,100 source-labeled GPU occupancy intervals on 1,213 nodes and 6,212 GPUs: 3,590 `LS → HP` and 2,510 `BE → Spot`. It preserves fractional GPU demand and records 1,829 `Failed`, 4,124 `Running`, and 147 `Succeeded` source phases without reinterpreting them as application success.
+
+Five bounded v2 actions completed the same full canonical trace and passed the available eight-item SLO audit, but all metrics tied. Peak active requested-GPU pressure is only 0.7072% and allocation is 0.1919%, so the trace never exercises contention or preemption. This result is intentionally published as [compatibility evidence](../evidence/native-v2/alibaba-gpu-v2023-qos-full.json), not as an optimization gain.
+
+```powershell
+schednav import-alibaba-v2023 `
+  --node-info C:\datasets\cluster-trace-gpu-v2023\openb_node_list_gpu_node.csv `
+  --pod-info C:\datasets\cluster-trace-gpu-v2023\openb_pod_list_default.csv `
+  --output-dir C:\datasets\schednav\alibaba-gpu-v2023-qos
+```
+
 ## Verified mixed HP/Spot policy evaluation
 
 The representative `GPU-series-2` window for 2024-04-12 uses 122 nodes and 976 GPUs. SchedNav replays 6,501 arrivals from the source origin for carry-in state, then evaluates only the 94 HP and 84 Spot arrivals in seconds `3,628,800..3,715,199`. The peak sampled requested pressure is 1.167008.
@@ -52,11 +66,11 @@ To reproduce the full import, double simulation, comparison, audit and ranking s
 
 ## Verified multi-window policy evaluation
 
-The broader `GPU-series-2` study first scanned complete origin-aligned days and retained the 112 windows containing at least 20 HP and 20 Spot jobs. Before any policy simulation, it selected 12 windows by three balanced peak-pressure strata and four balanced Spot-request-share strata per pressure group. Each selected day uses a fixed 30-day warm-up and evaluates four bounded actions twice, for 96 deterministic runs.
+The broader `GPU-series-2` study first scanned complete origin-aligned days and retained the 112 windows containing at least 20 HP and 20 Spot jobs. Before any policy simulation, it selected 12 windows by three balanced peak-pressure strata and four balanced Spot-request-share strata per pressure group. Each selected day uses a fixed 30-day warm-up and evaluates five bounded actions twice, for 120 deterministic runs.
 
-Across the 12 windows, the result is five unique selections, six unresolved ties and one `no_eligible_policy` outcome. Of the 11 windows with at least one hard-SLO-compliant policy, the best eligible frontier improves allocation over FIFO in five and matches FIFO in six; none regress because FIFO non-degradation is itself a hard gate. The mean uplift is 0.31 percentage points and the maximum is 1.99 percentage points. This is evidence for safe regime-dependent selection, not a claim that one preemptive profile always wins.
+Across the 12 windows, the v2 result is two unique FIFO selections, nine unresolved ties and one `no_eligible_policy` outcome. Of the 11 windows with at least one hard-SLO-compliant policy, the best eligible frontier improves allocation over FIFO in seven and matches FIFO in four; none regress because FIFO non-degradation is itself a hard gate. The mean uplift is 0.335 percentage points and the maximum is 1.99 percentage points. This is evidence for safe regime-dependent selection, not a claim that one preemptive profile always wins.
 
-The compact [multi-window receipt](../evidence/native-v1/alibaba-gpu-series-2-multiwindow-30d-v1.json) contains selection metadata, policy aggregates, every window decision and content fingerprints without raw or per-job data. See [multiwindow-evaluation.md](multiwindow-evaluation.md) for methodology, limitations and reproduction.
+The compact [v2 multi-window receipt](../evidence/native-v2/alibaba-gpu-series-2-multiwindow-30d-v2.json) contains selection metadata, policy aggregates, every window decision and content fingerprints without raw or per-job data. See [multiwindow-evaluation.md](multiwindow-evaluation.md) for methodology, v1 comparison, limitations and reproduction.
 
 ## Evaluation rule
 

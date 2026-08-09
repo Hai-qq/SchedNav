@@ -1,0 +1,183 @@
+{
+  "experiment": {
+    "all_candidates_passed_hard_slo": true,
+    "candidate_count": 5,
+    "candidates": {
+      "native-fifo": {
+        "action": {
+          "action_id": "native-fifo",
+          "checkpoint_interval_seconds": 3600,
+          "scheduler": "fifo",
+          "spot_guarantee_seconds": 3600
+        },
+        "allocation_rate_mean": 0.0019188472666394037,
+        "audit_fingerprint": "e4473bf3701ce86f63dd33853c3d6fcadb96122431d12e6e81f991e024bd881c",
+        "hard_slo_passed": true,
+        "hp_jct_p95_seconds": 13728.1,
+        "hp_queue_p95_seconds": 0.0,
+        "metrics_fingerprint": "8c4021e4a53c369a1f49392c9815598251faaebe534ef1a1c229ee94f7f32617",
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_guarantee_success_rate": 1.0,
+        "spot_jct_p95_seconds": 17219.25
+      },
+      "native-preemptive-0000": {
+        "action": {
+          "action_id": "native-preemptive-0000",
+          "checkpoint_interval_seconds": 3600,
+          "scheduler": "priority_preemptive",
+          "spot_guarantee_seconds": 0
+        },
+        "allocation_rate_mean": 0.0019188472666394037,
+        "audit_fingerprint": "e2e8074d6ce991144a4179ae5318236519013dc28675c1b4d5dd3d0807f0a600",
+        "hard_slo_passed": true,
+        "hp_jct_p95_seconds": 13728.1,
+        "hp_queue_p95_seconds": 0.0,
+        "metrics_fingerprint": "128d54d81e54bccffdcd8631ab3261460bf396436e4a8a52524403eddc691941",
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_guarantee_success_rate": 1.0,
+        "spot_jct_p95_seconds": 17219.25
+      },
+      "native-preemptive-budget09-d0000": {
+        "action": {
+          "action_id": "native-preemptive-budget09-d0000",
+          "checkpoint_interval_seconds": 3600,
+          "scheduler": "priority_preemptive",
+          "spot_eviction_budget_rate": 0.09,
+          "spot_guarantee_seconds": 0
+        },
+        "allocation_rate_mean": 0.0019188472666394037,
+        "audit_fingerprint": "687de69e5fabc211ddb92e96965024c1c86a3a0142386bf38cefbfa80b5e21e7",
+        "hard_slo_passed": true,
+        "hp_jct_p95_seconds": 13728.1,
+        "hp_queue_p95_seconds": 0.0,
+        "metrics_fingerprint": "89748d2c8309f780586c729b58ee2bb2300278da9bd313d5819bbcd612c46161",
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_guarantee_success_rate": 1.0,
+        "spot_jct_p95_seconds": 17219.25
+      },
+      "native-preemptive-budget09-d0900": {
+        "action": {
+          "action_id": "native-preemptive-budget09-d0900",
+          "checkpoint_interval_seconds": 3600,
+          "hp_preemption_delay_seconds": 900,
+          "scheduler": "priority_preemptive",
+          "spot_eviction_budget_rate": 0.09,
+          "spot_guarantee_seconds": 0
+        },
+        "allocation_rate_mean": 0.0019188472666394037,
+        "audit_fingerprint": "1b3bd0a1feffc9df4934f7dc8f3a69c1e853863ed7400b3558e3b1898513a0f8",
+        "hard_slo_passed": true,
+        "hp_jct_p95_seconds": 13728.1,
+        "hp_queue_p95_seconds": 0.0,
+        "metrics_fingerprint": "4ced6ed69da99226a79d5f0c1b61ba235687ba73198219ad0bb30e411479d687",
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_guarantee_success_rate": 1.0,
+        "spot_jct_p95_seconds": 17219.25
+      },
+      "native-preemptive-budget09-d1800": {
+        "action": {
+          "action_id": "native-preemptive-budget09-d1800",
+          "checkpoint_interval_seconds": 3600,
+          "hp_preemption_delay_seconds": 1800,
+          "scheduler": "priority_preemptive",
+          "spot_eviction_budget_rate": 0.09,
+          "spot_guarantee_seconds": 0
+        },
+        "allocation_rate_mean": 0.0019188472666394037,
+        "audit_fingerprint": "21110618ed76dfb0e5a91b1016c38970ae0f76b76023e0c5509ea82d526a6ee6",
+        "hard_slo_passed": true,
+        "hp_jct_p95_seconds": 13728.1,
+        "hp_queue_p95_seconds": 0.0,
+        "metrics_fingerprint": "a21db71580602524f63e9b0541f7e0bb77a960c2399e6c5ce0aa0174ddfdcbb8",
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_guarantee_success_rate": 1.0,
+        "spot_jct_p95_seconds": 17219.25
+      }
+    },
+    "portfolio_comparable": true,
+    "portfolio_fingerprint": "71cb2c0b220e39f5297861eb754f9e19b3346efc8594b709c6240e0f76c90a1d"
+  },
+  "interpretation": {
+    "claim_scope": "compatibility_only",
+    "result": "All five policies tie because this trace is far below cluster capacity; the run validates ingestion, fractional GPU demand, class mapping, simulation, SLO audit, and tie preservation, not an optimization gain."
+  },
+  "limitations": [
+    "Source LS and BE QoS are mapped explicitly to HP and Spot; this is a source-semantic mapping, not a claim that the labels are identical to another dataset's service classes.",
+    "Durations are observed scheduled-to-deletion occupancy intervals. Failed and still-running source phases are not reinterpreted as successful application completion.",
+    "Peak active requested-GPU pressure is below one percent, so this trace does not exercise contention or preemption and cannot demonstrate a scheduling advantage.",
+    "Raw source rows and canonical per-job files are not redistributed."
+  ],
+  "ranking": {
+    "ranking_fingerprint": "cc69c35d6929bcc6cb60a09b70237006982792958c129b35f30fe84395a1c7dc",
+    "remaining_action_ids": [
+      "native-fifo",
+      "native-preemptive-0000",
+      "native-preemptive-budget09-d0000",
+      "native-preemptive-budget09-d0900",
+      "native-preemptive-budget09-d1800"
+    ],
+    "selection_status": "tie_requires_human_approval"
+  },
+  "receipt_fingerprint": "ad181a2ac2612a9914ac5af9bca47072a9840d8912e460ad51205950c0740d00",
+  "schema_version": "schednav.trace-evidence/v1",
+  "study": {
+    "capacity_gpus": 6212,
+    "purpose": "cross-trace adapter and deterministic policy-evaluation compatibility",
+    "source": {
+      "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+      "dataset": "Alibaba cluster-trace-gpu-v2023",
+      "duration_semantics": "Observed scheduled_time-to-deletion_time occupancy interval; source phase is preserved only in aggregate provenance and is not asserted to be successful completion.",
+      "included_source_phase_counts": {
+        "Failed": 1829,
+        "Running": 4124,
+        "Succeeded": 147
+      },
+      "included_source_phases": [
+        "Failed",
+        "Running",
+        "Succeeded"
+      ],
+      "license": "Source repository terms apply; raw data is not redistributed by SchedNav.",
+      "node_info_sha256": "2beca64b4d3dfa342036a34b56a495c6cef9225db836c81f541282cb1df320b5",
+      "pod_info_sha256": "1ee7ed79c27a3b0861cda8ddba86a004c6aba904caafa329a76ae93ca63834a8",
+      "redistribution": "Raw and derived per-job data are not redistributed by SchedNav.",
+      "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-gpu-v2023",
+      "service_class_mapping": {
+        "BE": "Spot",
+        "LS": "HP",
+        "basis": "Source-published Latency Sensitive and Best Effort QoS labels."
+      },
+      "skipped_rows": {
+        "excluded_phase": 895,
+        "missing_or_invalid_interval": 0,
+        "no_gpu": 1050,
+        "unsupported_qos": 107
+      },
+      "source_clock": {
+        "canonical_time_origin": "1970-01-01 00:00:00",
+        "kind": "relative_seconds",
+        "normalized_origin_seconds": 0.0
+      }
+    },
+    "trace_fingerprint": "aed217b6fb646146725bed4a2c649a1e41f8024b9037f6438752a3e721d31d0b",
+    "trace_id": "alibaba-gpu-v2023-qos",
+    "window_seconds": {
+      "end": 12901761.0,
+      "start": 0.0
+    }
+  },
+  "workload": {
+    "population": {
+      "HP": 3590,
+      "Spot": 2510
+    },
+    "regime_signals": {
+      "combined_peak_active_pressure": 0.007072,
+      "dominant_arrival_type": "HP",
+      "hp_peak_active_pressure": 0.006871,
+      "spot_peak_active_pressure": 0.000913,
+      "spot_requested_gpu_share": 0.32538
+    },
+    "workload_fingerprint": "9e649dfb7ba7093704026498727455705808eeb32707d845e247aa8f53dd9332"
+  }
+}

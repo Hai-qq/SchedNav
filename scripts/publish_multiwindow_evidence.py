@@ -98,6 +98,19 @@ def build_receipt(experiment_root: Path) -> dict[str, Any]:
             }
         )
 
+    limitations = [
+        "This is historical, offline counterfactual evaluation, not online scheduling.",
+        "Each selected day uses a fixed 30-day warm-up, so jobs submitted earlier than the warm-up boundary are not reconstructed.",
+    ]
+    for excluded in manifest["action_space"].get("excluded_profiles", []):
+        limitations.append(
+            f"{excluded['action_id']} was excluded by the declared action-space gate: "
+            f"{excluded['reason']}"
+        )
+    limitations.append(
+        "A no_eligible_policy result is preserved rather than forcing a recommendation."
+    )
+
     receipt: dict[str, Any] = {
         "schema_version": "schednav.multiwindow-evidence/v1",
         "study": {
@@ -135,12 +148,7 @@ def build_receipt(experiment_root: Path) -> dict[str, Any]:
             "universal_winner_declared": False,
         },
         "windows": windows,
-        "limitations": [
-            "This is historical, offline counterfactual evaluation, not online scheduling.",
-            "Each selected day uses a fixed 30-day warm-up, so jobs submitted earlier than the warm-up boundary are not reconstructed.",
-            "native-preemptive-1800 was excluded by the declared 600-second evaluation-resource gate; this is not an SLO failure result.",
-            "A no_eligible_policy result is preserved rather than forcing a recommendation.",
-        ],
+        "limitations": limitations,
         "source_evidence": {
             "selection_fingerprint": selection["selection_fingerprint"],
             "multiwindow_fingerprint": summary["multiwindow_fingerprint"],

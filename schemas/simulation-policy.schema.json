@@ -12,6 +12,8 @@
     "spot_guarantee_seconds": {"type": "integer", "minimum": 0},
     "checkpoint_interval_seconds": {"type": "integer", "minimum": 1},
     "preemption_overhead_seconds": {"type": "integer", "minimum": 0},
-    "placement_strategy": {"const": "deterministic_best_fit"}
+    "placement_strategy": {"const": "deterministic_best_fit"},
+    "hp_preemption_delay_seconds": {"type": "integer", "minimum": 0},
+    "spot_eviction_budget_rate": {"type": "number", "minimum": 0, "maximum": 1}
   }
 }

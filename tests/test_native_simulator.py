@@ -28,6 +28,15 @@ def _policy(scheduler: str, guarantee: int = 0) -> SimulationPolicy:
     )
 
 
+def _guarded_policy(*, delay: int = 0, budget: float = 0.1) -> SimulationPolicy:
+    value = _policy("priority_preemptive").to_dict()
+    value["schema_version"] = "schednav.simulation-policy/v1"
+    value["action_id"] = f"guarded-{delay}-{budget}"
+    value["hp_preemption_delay_seconds"] = delay
+    value["spot_eviction_budget_rate"] = budget
+    return SimulationPolicy.from_dict(value)
+
+
 class NativeSimulatorTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -82,6 +91,59 @@ class NativeSimulatorTests(unittest.TestCase):
         self.assertEqual(event["time_seconds"], 5)
         self.assertEqual(event["rollback_seconds"], 1)
         self.assertEqual(jobs["hp"]["queue_seconds"], 3)
+
+    def test_hp_preemption_delay_waits_before_eviction(self):
+        result = simulate_trace(self.trace, _guarded_policy(delay=3, budget=1.0))
+        event = result["preemption_events"][0]
+        jobs = {job["job_id"]: job for job in result["jobs"]}
+        self.assertEqual(event["time_seconds"], 5)
+        self.assertEqual(jobs["hp"]["queue_seconds"], 3)
+
+    def test_eviction_budget_blocks_a_projected_rate_above_the_cap(self):
+        blocked = simulate_trace(self.trace, _guarded_policy(budget=0.49))
+        allowed = simulate_trace(self.trace, _guarded_policy(budget=0.50))
+        blocked_jobs = {job["job_id"]: job for job in blocked["jobs"]}
+        self.assertEqual(blocked["preemption_events"], [])
+        self.assertEqual(blocked_jobs["hp"]["queue_seconds"], 8)
+        self.assertEqual(len(allowed["preemption_events"]), 1)
+
+    def test_warmup_runs_cannot_dilute_the_evaluation_eviction_budget(self):
+        root = Path(self.temporary.name)
+        warmup = [
+            TraceJob(f"warmup-{index}", index * 2, 2, 2, "Spot", "A")
+            for index in range(10)
+        ]
+        trace = load_canonical_trace(
+            write_canonical_trace(
+                root / "budget-window",
+                trace_id="budget-window",
+                time_origin="2026-01-01 00:00:00",
+                source={"dataset": "unit-fixture"},
+                nodes=[TraceNode("n1", "A", 2)],
+                jobs=[
+                    *warmup,
+                    TraceJob("evaluated-spot", 20, 10, 2, "Spot", "A"),
+                    TraceJob("evaluated-hp", 22, 2, 2, "HP", "A"),
+                ],
+                evaluation_start_seconds=20,
+                evaluation_end_seconds=22,
+            )
+        )
+
+        result = simulate_trace(trace, _guarded_policy(budget=0.1))
+        jobs = {job["job_id"]: job for job in result["jobs"]}
+
+        self.assertEqual(result["preemption_events"], [])
+        self.assertEqual(jobs["evaluated-hp"]["queue_seconds"], 8)
+
+    def test_default_optional_controls_preserve_v1_policy_evidence(self):
+        policy = _policy("priority_preemptive")
+        self.assertNotIn("hp_preemption_delay_seconds", policy.to_dict())
+        self.assertNotIn("spot_eviction_budget_rate", policy.to_dict())
+        self.assertEqual(
+            policy.fingerprint,
+            "d5d4baa5a10c6e0c22b0d88ccd474f976c3c89546492e35dbbba3910fc757880",
+        )
 
     def test_native_metrics_flow_through_portfolio_and_slo_audit(self):
         root = Path(self.temporary.name)
@@ -160,7 +222,11 @@ class NativeSimulatorTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        for filename in ("native-v1.json", "native-multiwindow-v1.json"):
+        for filename in (
+            "native-v1.json",
+            "native-multiwindow-v1.json",
+            "native-multiwindow-v2.json",
+        ):
             action_space = json.loads(
                 (PROJECT_ROOT / "configs" / "action_spaces" / filename).read_text(
                     encoding="utf-8"
@@ -173,10 +239,17 @@ class NativeSimulatorTests(unittest.TestCase):
                 action_space["schema_version"], "schednav.native-action-space/v1"
             )
             controlled = set(action_space["controlled_fields"])
-            self.assertEqual(
-                controlled,
-                {"scheduler", "spot_guarantee_seconds", "checkpoint_interval_seconds"},
-            )
+            expected_controls = {
+                "scheduler",
+                "spot_guarantee_seconds",
+                "checkpoint_interval_seconds",
+            }
+            if filename == "native-multiwindow-v2.json":
+                expected_controls |= {
+                    "hp_preemption_delay_seconds",
+                    "spot_eviction_budget_rate",
+                }
+            self.assertEqual(controlled, expected_controls)
             fixed = action_space["fixed_execution_controls"]
             policies = []
             for relative in action_space["profiles"]:

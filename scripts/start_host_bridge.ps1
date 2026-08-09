@@ -3,7 +3,8 @@ param(
     [string]$BindAddress = "0.0.0.0",
     [ValidateRange(1, 65535)]
     [int]$Port = 18765,
-    [string]$AuthGatewayUrl = "http://127.0.0.1:18080/v1/models",
+    [string]$AuthGatewayUrl = "http://127.0.0.1:18080/v1/chat/completions",
+    [string]$Config = "configs/agentteams/host-bridge-native-v1.json",
     [switch]$CheckOnly
 )
 
@@ -12,14 +13,14 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
-$config = Join-Path $projectRoot "configs\agentteams\host-bridge-native-v1.json"
+$configPath = Join-Path $projectRoot $Config
 $sourceRoot = Join-Path $projectRoot "src"
 
 if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
     throw "SchedNav Python environment is missing: $python"
 }
-if (-not (Test-Path -LiteralPath $config -PathType Leaf)) {
-    throw "Host bridge config is missing: $config"
+if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
+    throw "Host bridge config is missing: $configPath"
 }
 if ($env:SCHEDNAV_BRIDGE_TOKEN -or $env:SCHEDNAV_BRIDGE_TOKEN_FILE) {
     throw "Direct bridge-token environment variables must be unset; this launcher requires delegated AgentTeams authentication."
@@ -56,7 +57,13 @@ try {
 }
 catch {
     $statusCode = $_.Exception.Response.StatusCode
-    if ($statusCode -in @([Net.HttpStatusCode]::Unauthorized, [Net.HttpStatusCode]::Forbidden)) {
+    if ($statusCode -in @(
+        [Net.HttpStatusCode]::BadRequest,
+        [Net.HttpStatusCode]::Unauthorized,
+        [Net.HttpStatusCode]::Forbidden,
+        [Net.HttpStatusCode]::NotFound,
+        [Net.HttpStatusCode]::MethodNotAllowed
+    )) {
         $gatewayReachable = $true
     }
 }
@@ -69,7 +76,7 @@ try {
     $env:PYTHONPATH = $sourceRoot
     & $python -m schednav.host_bridge `
         --project-root $projectRoot `
-        --config "configs/agentteams/host-bridge-native-v1.json" `
+        --config $Config `
         --bind $BindAddress `
         --port $Port `
         --auth-gateway-url $AuthGatewayUrl

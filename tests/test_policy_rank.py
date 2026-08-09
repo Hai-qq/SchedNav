@@ -37,6 +37,8 @@ class PolicyRankTests(unittest.TestCase):
                 policy = {
                     "scheduler": "priority_preemptive",
                     "spot_guarantee_seconds": index * 1800,
+                    "hp_preemption_delay_seconds": index * 900,
+                    "spot_eviction_budget_rate": 0.09,
                 }
                 metrics = {
                     "policy_fingerprint": canonical_sha256(policy),
@@ -63,6 +65,14 @@ class PolicyRankTests(unittest.TestCase):
 
             self.assertEqual(report["selection_status"], "tie_requires_human_approval")
             self.assertEqual(len(report["selected_policy_fingerprints"]), 2)
+            self.assertEqual(
+                report["candidates"][2]["action"]["hp_preemption_delay_seconds"],
+                1800,
+            )
+            self.assertEqual(
+                report["candidates"][2]["action"]["spot_eviction_budget_rate"],
+                0.09,
+            )
             self.assertNotIn("score", report)
 
 

@@ -111,7 +111,7 @@ def main() -> int:
     parser.add_argument("--output-directory", required=True)
     parser.add_argument(
         "--action-space",
-        default="configs/action_spaces/native-multiwindow-v1.json",
+        default="configs/action_spaces/native-multiwindow-v2.json",
     )
     parser.add_argument("--gpu-model", default="GPU-series-2")
     parser.add_argument("--time-origin", default="2024-03-01 00:00:00")

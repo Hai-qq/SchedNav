@@ -22,6 +22,8 @@ The Manager owns task decomposition, status, artifact references, declared ranki
 | SLO Auditor | `audit-gpu-slo` | metrics + SLO + FIFO baseline | SLOAudit reference |
 | Manager | `compare-gpu-policies` | metrics + audits | Portfolio + Ranking + approval request |
 
+For a registered multi-window batch, the same roles exchange `run_set_id` and compact artifact references: the analyst calls `analyze_run_set`, the simulator calls `simulate_run_set`, and the auditor calls `audit_run_set`. Every window remains an independent SLO and ranking decision.
+
 ## Model contract
 
 Every role is locked to `deepseek-v4-flash`. The bundle builder rejects every other model ID and disables embedding. The model generates plans and high-level hypotheses only; deterministic Python code performs simulation, comparison, SLO audit and ranking.
@@ -49,10 +51,13 @@ The MCP host bridge exposes only:
 - `compare_policies`;
 - `audit_slo`;
 - `rank_policies`;
+- `analyze_run_set`;
+- `simulate_run_set`;
+- `audit_run_set`;
 - `get_task`;
 - `read_artifact`.
 
-It rejects unknown actions, unknown SLOs, unexpected arguments, unsafe paths, invalid artifact schemas and missing/invalid bearer identity. There is no shell, arbitrary Python or placement endpoint. Execution uses one host lane to avoid shared mutable simulator state.
+It rejects unknown actions, unknown run sets, batches outside 3–5 actions or 1–2 repetitions, unknown SLOs, unexpected arguments, unsafe paths, invalid artifact schemas and missing/invalid bearer identity. There is no shell, arbitrary Python or placement endpoint. Execution uses one host lane to avoid shared mutable simulator state. Delegated identity validation uses a protected AgentTeams gateway route, bypasses ambient desktop proxies for the loopback check, and rejects explicit 401/403 responses.
 
 Native run configs use:
 
@@ -64,6 +69,20 @@ Native run configs use:
 ```
 
 The path must remain inside the project root and identify a valid content-addressed `schednav.trace/v1` manifest. Containment checks use filesystem identity for existing Windows ancestors, so long paths and 8.3 aliases cannot create false escapes. Policy files must use `schednav.simulation-policy/v1` and be listed in the bridge catalog.
+
+A completed local multi-window experiment can be staged as one registered run set without publishing its per-job data:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\prepare_agentteams_run_set.py `
+  --experiment-directory C:\experiments\schednav-multiwindow-v2 `
+  --run-set-id alibaba-v2-12d `
+  --output-config artifacts\agentteams-multiwindow-v2\bridge-config.json
+
+.\scripts\start_host_bridge.ps1 `
+  -Config artifacts\agentteams-multiwindow-v2\bridge-config.json
+```
+
+The staging command validates the experiment/action-space fingerprint, copies only canonical run inputs into ignored local storage, registers at most 12 windows, and refuses to overwrite an existing run set or bridge config.
 
 ## Task state
 
@@ -96,6 +115,18 @@ Project `proj-20260808-104144` exercised the complete topology with every role o
 5. Manager called `compare_policies` and `rank_policies`; the resulting portfolio fingerprint is `3a6bad71c54d012944434e475f0c426e2fb9e220bb7aca095f1698507ee26cdb` and ranking fingerprint is `5a8d161859458fd7c628207ecd06910e4ebaab875aed4e71e379f2457bdfb4b4`.
 
 All delegated tasks reached `completed`; the project reached `completed` with outcome `approval_pending`. The ranking returned `tie_requires_human_approval` for the three preemptive actions. AgentTeams task state, full artifacts and logs remain local runtime evidence; the public repository contains only the aggregate [policy-evaluation receipt](../evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json).
+
+## Verified multi-window run-set workflow
+
+Project `proj-20260809-065201` exercised the registered `alibaba-v2-12d` run set with every role on `deepseek-v4-flash` and finished as `completed / approval_pending`:
+
+1. Workload Analyst ran `analyze_run_set` as task `task-20260809-070000`; bridge task `7ac4c8cac3d74f8086c88c26824c7b57` produced selection fingerprint `4178a4375addeee2856c6bc327526196a8d181a72d98d45c864bf64ca9eca3e5` and 12 workload references.
+2. Scheduling Strategist completed `task-20260809-070100`, preserving exactly five registered actions. Its descriptive 9% budget typo was corrected to `spot_eviction_budget_rate=0.09`; the registered action IDs and configurations never changed.
+3. Simulation Agent completed the formal `task-20260809-070200` with a new idempotency key after the strategist stage. Bridge task `6bea73dd35544cf6abaa16fd5c5a902f` produced 120 deterministic executions and run-set simulations fingerprint `51261ebc2177ba6bf50a96a8262f59c5750b94f43578a6e097d2ab82c27a9b98`. An earlier out-of-order batch remains local as discarded audit evidence and was not consumed downstream.
+4. SLO Auditor ran `audit_run_set` as task `task-20260809-070300` against the formal simulation reference and `native-fifo` baseline. Bridge task `63353e5b58c44fdfaea9daf5f0a49825` produced audit fingerprint `e5bb6a2c344a0485428e853daf853ad83f5f120065fe5bfcc89ecedd64b7ed55` and multi-window fingerprint `38775d117d3434358b29819eb2ce5fe55eaaa0224bbf42a15acb4f0e91fe7ab5`.
+5. Manager preserved the tool outcomes: 2 unique FIFO selections, 9 ties requiring human approval, 1 no-eligible window, and an eligible frontier above/equal/below FIFO in 7/4/0 feasible windows. The final proposal is retained in the local AgentTeams artifact store; no policy was auto-approved.
+
+The AgentTeams summary matches the checked-in v2 receipt's metrics and decision counts. Its run-set fingerprints are execution-record fingerprints and therefore differ from the separately published experiment receipt fingerprints.
 
 ## Bundle build
 

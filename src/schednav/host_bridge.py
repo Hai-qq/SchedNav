@@ -18,10 +18,11 @@ from threading import RLock
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 import uuid
 
 from .contracts import canonical_sha256
+from .multiwindow import aggregate_multiwindow_records
 from .native_simulator import SimulationPolicy, build_metrics_report, simulate_trace
 from .native_trace import load_canonical_trace
 from .native_workload import analyze_canonical_workload
@@ -49,6 +50,10 @@ READABLE_ARTIFACT_SCHEMAS = {
     "schednav.trace/v1",
     "schednav.native-run/v1",
     "schednav.simulation-result/v1",
+    "schednav.run-set-workloads/v1",
+    "schednav.run-set-simulations/v1",
+    "schednav.run-set-audit/v1",
+    "schednav.multiwindow-summary/v1",
 }
 
 
@@ -131,6 +136,7 @@ class BridgeCatalog:
     artifact_root: Path
     task_root: Path
     run_configs: dict[str, Path]
+    run_sets: dict[str, tuple[str, ...]]
     action_space: Path
     actions: dict[str, Path]
     slo_specs: dict[str, Path]
@@ -157,6 +163,7 @@ class BridgeCatalog:
                 "slo_specs",
                 "baseline_metrics",
             },
+            {"run_sets"},
         )
         if value["schema_version"] != CATALOG_SCHEMA:
             raise BridgeRequestError(f"Expected schema_version={CATALOG_SCHEMA}")
@@ -192,11 +199,29 @@ class BridgeCatalog:
         max_workers = int(value["max_workers"])
         if max_workers != 1:
             raise BridgeRequestError("V1 host bridge requires max_workers=1")
+        run_configs = catalog_map(value["run_configs"], "run_configs")
+        raw_run_sets = value.get("run_sets", {})
+        if not isinstance(raw_run_sets, dict):
+            raise BridgeRequestError("run_sets must be an object")
+        run_sets: dict[str, tuple[str, ...]] = {}
+        for raw_id, raw_members in raw_run_sets.items():
+            run_set_id = _require_safe_id(raw_id, "run_sets key")
+            if not isinstance(raw_members, list) or not 1 <= len(raw_members) <= 12:
+                raise BridgeRequestError("Each run set must contain 1-12 run config IDs")
+            members = tuple(
+                _require_safe_id(member, "run_set member") for member in raw_members
+            )
+            if len(set(members)) != len(members):
+                raise BridgeRequestError("A run set cannot contain duplicate run configs")
+            if any(member not in run_configs for member in members):
+                raise BridgeRequestError("A run set references an unknown run config")
+            run_sets[run_set_id] = members
         return cls(
             project_root=project_root,
             artifact_root=artifact_root,
             task_root=task_root,
-            run_configs=catalog_map(value["run_configs"], "run_configs"),
+            run_configs=run_configs,
+            run_sets=run_sets,
             action_space=project_path(value["action_space"]),
             actions=catalog_map(value["actions"], "actions"),
             slo_specs=catalog_map(value["slo_specs"], "slo_specs"),
@@ -258,6 +283,9 @@ class BridgeService:
             "compare_policies": self._compare_policies,
             "audit_slo": self._audit_slo,
             "rank_policies": self._rank_policies,
+            "analyze_run_set": self._analyze_run_set,
+            "simulate_run_set": self._simulate_run_set,
+            "audit_run_set": self._audit_run_set,
         }
 
     def close(self) -> None:
@@ -412,6 +440,57 @@ class BridgeService:
                 "metrics_refs": metrics_refs,
                 "audit_refs": audit_refs,
                 "slo_spec_id": slo_spec_id,
+            }
+        if operation == "analyze_run_set":
+            _require_exact_keys(arguments, {"run_set_id"}, {"sample_interval_seconds"})
+            run_set_id = _require_safe_id(arguments["run_set_id"], "run_set_id")
+            if run_set_id not in self.catalog.run_sets:
+                raise BridgeRequestError("Unknown run_set_id")
+            sample = int(arguments.get("sample_interval_seconds", 3600))
+            if sample < 60 or sample > 86400:
+                raise BridgeRequestError("sample_interval_seconds must be between 60 and 86400")
+            return {"run_set_id": run_set_id, "sample_interval_seconds": sample}
+        if operation == "simulate_run_set":
+            _require_exact_keys(arguments, {"run_set_id", "action_ids"}, {"repetitions"})
+            run_set_id = _require_safe_id(arguments["run_set_id"], "run_set_id")
+            if run_set_id not in self.catalog.run_sets:
+                raise BridgeRequestError("Unknown run_set_id")
+            raw_actions = arguments["action_ids"]
+            if not isinstance(raw_actions, list) or not 3 <= len(raw_actions) <= 5:
+                raise BridgeRequestError("simulate_run_set requires 3-5 action_ids")
+            action_ids = [
+                _require_safe_id(action_id, "action_id") for action_id in raw_actions
+            ]
+            if len(set(action_ids)) != len(action_ids):
+                raise BridgeRequestError("action_ids cannot contain duplicates")
+            for action_id in action_ids:
+                self.catalog.select(self.catalog.actions, action_id, "action_id")
+            repetitions = int(arguments.get("repetitions", 2))
+            if repetitions not in {1, 2}:
+                raise BridgeRequestError("repetitions must be 1 or 2")
+            return {
+                "run_set_id": run_set_id,
+                "action_ids": action_ids,
+                "repetitions": repetitions,
+            }
+        if operation == "audit_run_set":
+            _require_exact_keys(
+                arguments,
+                {"simulations_ref", "slo_spec_id", "baseline_action_id"},
+            )
+            simulations_ref = self._validate_ref(
+                arguments["simulations_ref"], "simulations_ref"
+            )
+            slo_spec_id = _require_safe_id(arguments["slo_spec_id"], "slo_spec_id")
+            self.catalog.select(self.catalog.slo_specs, slo_spec_id, "slo_spec_id")
+            baseline_action_id = _require_safe_id(
+                arguments["baseline_action_id"], "baseline_action_id"
+            )
+            self.catalog.select(self.catalog.actions, baseline_action_id, "baseline_action_id")
+            return {
+                "simulations_ref": simulations_ref,
+                "slo_spec_id": slo_spec_id,
+                "baseline_action_id": baseline_action_id,
             }
         raise BridgeRequestError("Unsupported operation")
 
@@ -600,6 +679,372 @@ class BridgeService:
         result = rank_audited_policies(metrics_paths, audit_paths, slo_path)
         return {"ranking": self._write_result(task_dir, "policy-ranking.json", result)}
 
+    def _run_set_traces(self, run_set_id: str) -> list[tuple[str, Path, Any]]:
+        traces: list[tuple[str, Path, Any]] = []
+        for run_config_id in self.catalog.run_sets[run_set_id]:
+            config_path = self.catalog.run_configs[run_config_id]
+            trace_path, trace = self._trace_from_config(config_path)
+            traces.append((run_config_id, trace_path, trace))
+        return traces
+
+    @staticmethod
+    def _run_set_selection_fingerprint(
+        run_set_id: str, traces: list[tuple[str, Path, Any]]
+    ) -> str:
+        return canonical_sha256(
+            {
+                "run_set_id": run_set_id,
+                "windows": [
+                    {
+                        "run_config_id": run_config_id,
+                        "trace_fingerprint": trace.fingerprint,
+                    }
+                    for run_config_id, _trace_path, trace in traces
+                ],
+            }
+        )
+
+    def _analyze_run_set(
+        self,
+        arguments: dict[str, Any],
+        task_dir: Path,
+        _task_id: str,
+    ) -> dict[str, Any]:
+        run_set_id = arguments["run_set_id"]
+        traces = self._run_set_traces(run_set_id)
+        windows: list[dict[str, Any]] = []
+        for run_config_id, _trace_path, trace in traces:
+            workload = analyze_canonical_workload(
+                trace,
+                sample_interval_seconds=arguments["sample_interval_seconds"],
+            )
+            ref = self._write_result(
+                task_dir,
+                f"workload-{run_config_id}.json",
+                workload,
+            )
+            windows.append(
+                {
+                    "run_config_id": run_config_id,
+                    "trace_id": trace.trace_id,
+                    "trace_fingerprint": trace.fingerprint,
+                    "workload_ref": ref,
+                    "workload_fingerprint": workload["workload_fingerprint"],
+                    "population": {
+                        service_class: workload["population"][service_class]["job_count"]
+                        for service_class in ("HP", "Spot")
+                    },
+                    "regime_signals": workload["regime_signals"],
+                }
+            )
+        report: dict[str, Any] = {
+            "schema_version": "schednav.run-set-workloads/v1",
+            "run_set_id": run_set_id,
+            "selection_fingerprint": self._run_set_selection_fingerprint(
+                run_set_id, traces
+            ),
+            "sample_interval_seconds": arguments["sample_interval_seconds"],
+            "window_count": len(windows),
+            "windows": windows,
+        }
+        report["workload_set_fingerprint"] = canonical_sha256(report)
+        return {
+            "run_set_workloads": self._write_result(
+                task_dir, "run-set-workloads.json", report
+            )
+        }
+
+    def _simulate_run_set(
+        self,
+        arguments: dict[str, Any],
+        task_dir: Path,
+        _task_id: str,
+    ) -> dict[str, Any]:
+        run_set_id = arguments["run_set_id"]
+        traces = self._run_set_traces(run_set_id)
+        policies: list[tuple[str, SimulationPolicy, dict[str, Any]]] = []
+        for action_id in arguments["action_ids"]:
+            path = self.catalog.actions[action_id]
+            value = _load_json_object(path)
+            policy = SimulationPolicy.from_dict(value)
+            if policy.action_id != action_id:
+                raise BridgeRequestError("Catalog action ID does not match policy action_id")
+            policies.append((action_id, policy, value))
+
+        windows: list[dict[str, Any]] = []
+        for run_config_id, trace_path, trace in traces:
+            actions: dict[str, Any] = {}
+            for action_id, policy, policy_value in policies:
+                result_fingerprints: list[str] = []
+                metrics_fingerprints: list[str] = []
+                primary_result: dict[str, Any] | None = None
+                primary_metrics: dict[str, Any] | None = None
+                for _repetition in range(arguments["repetitions"]):
+                    simulation_result = simulate_trace(trace, policy)
+                    metrics = build_metrics_report(simulation_result)
+                    result_fingerprints.append(simulation_result["result_fingerprint"])
+                    metrics_fingerprints.append(metrics["metrics_fingerprint"])
+                    if primary_result is None:
+                        primary_result = simulation_result
+                        primary_metrics = metrics
+                deterministic = (
+                    len(set(result_fingerprints)) == 1
+                    and len(set(metrics_fingerprints)) == 1
+                )
+                if not deterministic or primary_result is None or primary_metrics is None:
+                    raise RuntimeError(
+                        f"Determinism check failed for {run_config_id}/{action_id}"
+                    )
+                result_path = task_dir / f"result-{run_config_id}-{action_id}.json"
+                metrics_path = task_dir / f"metrics-{run_config_id}-{action_id}.json"
+                _write_json_atomic(result_path, primary_result)
+                _write_json_atomic(metrics_path, primary_metrics)
+                actions[action_id] = {
+                    "policy": policy_value,
+                    "policy_fingerprint": policy.fingerprint,
+                    "simulation_result_ref": self.catalog.artifact_ref(result_path),
+                    "metrics_ref": self.catalog.artifact_ref(metrics_path),
+                    "result_fingerprints": result_fingerprints,
+                    "metrics_fingerprints": metrics_fingerprints,
+                    "deterministic_repetitions": deterministic,
+                }
+            windows.append(
+                {
+                    "run_config_id": run_config_id,
+                    "trace_manifest": trace_path.relative_to(
+                        self.catalog.project_root
+                    ).as_posix(),
+                    "trace_id": trace.trace_id,
+                    "trace_fingerprint": trace.fingerprint,
+                    "actions": actions,
+                }
+            )
+        index: dict[str, Any] = {
+            "schema_version": "schednav.run-set-simulations/v1",
+            "run_set_id": run_set_id,
+            "selection_fingerprint": self._run_set_selection_fingerprint(
+                run_set_id, traces
+            ),
+            "action_ids": arguments["action_ids"],
+            "repetitions": arguments["repetitions"],
+            "window_count": len(windows),
+            "simulation_count": (
+                len(windows) * len(policies) * arguments["repetitions"]
+            ),
+            "windows": windows,
+        }
+        index["run_set_simulations_fingerprint"] = canonical_sha256(index)
+        return {
+            "run_set_simulations": self._write_result(
+                task_dir, "run-set-simulations.json", index
+            )
+        }
+
+    def _audit_run_set(
+        self,
+        arguments: dict[str, Any],
+        task_dir: Path,
+        _task_id: str,
+    ) -> dict[str, Any]:
+        simulations_path = self.catalog.resolve_artifact_ref(
+            arguments["simulations_ref"]
+        )
+        index = _load_json_object(simulations_path)
+        if index.get("schema_version") != "schednav.run-set-simulations/v1":
+            raise BridgeRequestError("simulations_ref must use run-set simulations schema")
+        supplied = index.get("run_set_simulations_fingerprint")
+        if canonical_sha256(
+            {
+                key: value
+                for key, value in index.items()
+                if key != "run_set_simulations_fingerprint"
+            }
+        ) != supplied:
+            raise BridgeRequestError("simulations_ref has an invalid fingerprint")
+        baseline_action_id = arguments["baseline_action_id"]
+        if baseline_action_id not in index["action_ids"]:
+            raise BridgeRequestError("The baseline action is missing from simulations_ref")
+        slo_path = self.catalog.slo_specs[arguments["slo_spec_id"]]
+        records: list[dict[str, Any]] = []
+        windows_index: list[dict[str, Any]] = []
+
+        for window in index["windows"]:
+            run_config_id = _require_safe_id(
+                window["run_config_id"], "run_config_id"
+            )
+            trace_path, trace = self._trace_from_config(
+                self.catalog.run_configs[run_config_id]
+            )
+            workload = analyze_canonical_workload(trace, sample_interval_seconds=3600)
+            metrics_paths = {
+                action_id: self.catalog.resolve_artifact_ref(
+                    window["actions"][action_id]["metrics_ref"]
+                )
+                for action_id in index["action_ids"]
+            }
+            baseline_path = metrics_paths[baseline_action_id]
+            portfolio = compare_policy_portfolio(list(metrics_paths.values()))
+            portfolio_ref = self._write_result(
+                task_dir,
+                f"portfolio-{run_config_id}.json",
+                portfolio,
+            )
+            audits: dict[str, dict[str, Any]] = {}
+            audit_paths: dict[str, Path] = {}
+            audit_refs: dict[str, str] = {}
+            for action_id in index["action_ids"]:
+                audit = audit_slo(metrics_paths[action_id], slo_path, baseline_path)
+                audit_path = task_dir / f"audit-{run_config_id}-{action_id}.json"
+                _write_json_atomic(audit_path, audit)
+                audits[action_id] = audit
+                audit_paths[action_id] = audit_path
+                audit_refs[action_id] = self.catalog.artifact_ref(audit_path)
+            ranking = rank_audited_policies(
+                list(metrics_paths.values()),
+                [audit_paths[action_id] for action_id in index["action_ids"]],
+                slo_path,
+            )
+            ranking_ref = self._write_result(
+                task_dir,
+                f"ranking-{run_config_id}.json",
+                ranking,
+            )
+            metrics_values = {
+                action_id: _load_json_object(metrics_paths[action_id])
+                for action_id in index["action_ids"]
+            }
+            action_by_fingerprint = {
+                metrics["policy_fingerprint"]: action_id
+                for action_id, metrics in metrics_values.items()
+            }
+            policy_records: list[dict[str, Any]] = []
+            for action_id in index["action_ids"]:
+                metrics = metrics_values[action_id]
+                audit = audits[action_id]
+                soft = next(
+                    (
+                        bool(item["passed"])
+                        for item in audit["results"]
+                        if item["id"] == "allocation-soft-target"
+                    ),
+                    None,
+                )
+                action_evidence = window["actions"][action_id]
+                policy_records.append(
+                    {
+                        "action_id": action_id,
+                        "policy_fingerprint": metrics["policy_fingerprint"],
+                        "result_fingerprint": action_evidence["result_fingerprints"][0],
+                        "metrics_fingerprint": metrics["metrics_fingerprint"],
+                        "deterministic_repetitions": action_evidence[
+                            "deterministic_repetitions"
+                        ],
+                        "allocation_rate_mean": metrics["cluster"][
+                            "allocation_rate_mean"
+                        ],
+                        "hp_completion_rate": metrics["jobs"]["HP"][
+                            "completion_rate"
+                        ],
+                        "hp_preempted_job_count": metrics["jobs"]["HP"][
+                            "preempted_job_count"
+                        ],
+                        "hp_jct_p95_seconds": metrics["jobs"]["HP"]["jct_seconds"][
+                            "p95"
+                        ],
+                        "hp_queue_p95_seconds": metrics["jobs"]["HP"][
+                            "queue_seconds"
+                        ]["p95"],
+                        "spot_completion_rate": metrics["jobs"]["Spot"][
+                            "completion_rate"
+                        ],
+                        "spot_jct_p95_seconds": metrics["jobs"]["Spot"][
+                            "jct_seconds"
+                        ]["p95"],
+                        "spot_eviction_rate_per_run": metrics["preemption_events"][
+                            "eviction_rate_per_run"
+                        ],
+                        "spot_guarantee_success_rate": metrics["spot_guarantee"][
+                            "success_rate"
+                        ],
+                        "audit_fingerprint": audit["audit_fingerprint"],
+                        "hard_slo_passed": audit["audit_passed"],
+                        "allocation_soft_target_met": soft,
+                    }
+                )
+            record: dict[str, Any] = {
+                "window_id": run_config_id,
+                "date": run_config_id,
+                "stratum": {"source": "cataloged_run_set"},
+                "window_seconds": {
+                    "start": metrics_values[baseline_action_id]["window_seconds"][
+                        "evaluation_start"
+                    ],
+                    "end": metrics_values[baseline_action_id]["window_seconds"][
+                        "evaluation_end"
+                    ],
+                },
+                "trace_fingerprint": trace.fingerprint,
+                "workload_fingerprint": workload["workload_fingerprint"],
+                "population": {
+                    service_class: workload["population"][service_class]["job_count"]
+                    for service_class in ("HP", "Spot")
+                },
+                "regime_signals": workload["regime_signals"],
+                "policies": policy_records,
+                "portfolio_fingerprint": portfolio["portfolio_fingerprint"],
+                "ranking": {
+                    "selection_status": ranking["selection_status"],
+                    "selected_action_ids": [
+                        action_by_fingerprint[fingerprint]
+                        for fingerprint in ranking["selected_policy_fingerprints"]
+                    ],
+                    "ranking_fingerprint": ranking["ranking_fingerprint"],
+                },
+            }
+            record["window_record_fingerprint"] = canonical_sha256(record)
+            records.append(record)
+            windows_index.append(
+                {
+                    "run_config_id": run_config_id,
+                    "trace_manifest": trace_path.relative_to(
+                        self.catalog.project_root
+                    ).as_posix(),
+                    "portfolio_ref": portfolio_ref,
+                    "audit_refs": audit_refs,
+                    "ranking_ref": ranking_ref,
+                    "window_record_fingerprint": record[
+                        "window_record_fingerprint"
+                    ],
+                }
+            )
+        summary = aggregate_multiwindow_records(
+            records,
+            selection_fingerprint=index["selection_fingerprint"],
+            baseline_action_id=baseline_action_id,
+        )
+        summary_ref = self._write_result(
+            task_dir, "multiwindow-summary.json", summary
+        )
+        audit_index: dict[str, Any] = {
+            "schema_version": "schednav.run-set-audit/v1",
+            "run_set_id": index["run_set_id"],
+            "simulations_ref": arguments["simulations_ref"],
+            "run_set_simulations_fingerprint": supplied,
+            "slo_spec_id": arguments["slo_spec_id"],
+            "baseline_action_id": baseline_action_id,
+            "window_count": len(records),
+            "windows": windows_index,
+            "multiwindow_summary_ref": summary_ref,
+            "multiwindow_fingerprint": summary["multiwindow_fingerprint"],
+        }
+        audit_index["run_set_audit_fingerprint"] = canonical_sha256(audit_index)
+        return {
+            "run_set_audit": self._write_result(
+                task_dir, "run-set-audit.json", audit_index
+            ),
+            "multiwindow_summary": summary_ref,
+        }
+
 
 class BridgeHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
@@ -632,13 +1077,25 @@ class BridgeHTTPServer(ThreadingHTTPServer):
                 return True
         request = Request(
             self.auth_gateway_url,
-            headers={"Authorization": f"Bearer {token}"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "User-Agent": "AgentTeams/SchedNav",
+            },
             method="GET",
         )
         try:
-            with urlopen(request, timeout=3) as response:
-                valid = response.status == HTTPStatus.OK.value
-        except (HTTPError, URLError, TimeoutError):
+            # Authentication is a loopback control-plane call. Bypass ambient
+            # HTTP proxies so a desktop proxy cannot replace the gateway status.
+            with build_opener(ProxyHandler({})).open(request, timeout=3) as response:
+                valid = 200 <= response.status < 400
+        except HTTPError as exc:
+            # Protected gateways may authenticate before returning a route or
+            # method response (for example GET chat/completions -> 404).
+            valid = exc.code not in {
+                HTTPStatus.UNAUTHORIZED.value,
+                HTTPStatus.FORBIDDEN.value,
+            }
+        except (URLError, TimeoutError):
             valid = False
         if valid:
             with self._auth_lock:
@@ -788,6 +1245,69 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                             "items": {"type": "string"},
                         },
                         "slo_spec_id": {"type": "string"},
+                    },
+                },
+            },
+            {
+                "name": "analyze_run_set",
+                "description": "Analyze every cataloged window in one bounded run set.",
+                "inputSchema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["idempotency_key", "run_set_id"],
+                    "properties": {
+                        **common,
+                        "run_set_id": {"type": "string"},
+                        "sample_interval_seconds": {
+                            "type": "integer",
+                            "minimum": 60,
+                            "maximum": 86400,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "simulate_run_set",
+                "description": "Run three to five cataloged policies across every window in a bounded run set.",
+                "inputSchema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["idempotency_key", "run_set_id", "action_ids"],
+                    "properties": {
+                        **common,
+                        "run_set_id": {"type": "string"},
+                        "action_ids": {
+                            "type": "array",
+                            "minItems": 3,
+                            "maxItems": 5,
+                            "uniqueItems": True,
+                            "items": {"type": "string"},
+                        },
+                        "repetitions": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2,
+                        },
+                    },
+                },
+            },
+            {
+                "name": "audit_run_set",
+                "description": "Audit and hierarchically rank a complete run-set simulation index window by window.",
+                "inputSchema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": [
+                        "idempotency_key",
+                        "simulations_ref",
+                        "slo_spec_id",
+                        "baseline_action_id",
+                    ],
+                    "properties": {
+                        **common,
+                        "simulations_ref": {"type": "string"},
+                        "slo_spec_id": {"type": "string"},
+                        "baseline_action_id": {"type": "string"},
                     },
                 },
             },

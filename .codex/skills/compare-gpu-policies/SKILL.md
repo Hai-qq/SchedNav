@@ -20,3 +20,5 @@ schednav compare-portfolio `
 6. Pass metrics to `$audit-gpu-slo`, then apply `schednav rank-policies` only with matching audits and the declared SLO.
 
 Do not compare absolute metrics across unrelated datasets or windows.
+
+For multi-window evidence, compare and audit policies independently inside each window. Aggregate only declared counts and distributions; do not rank raw metrics across windows or create a global weighted score.

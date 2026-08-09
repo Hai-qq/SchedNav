@@ -7,6 +7,7 @@ import tempfile
 import unittest
 
 from schednav.native_trace import (
+    import_alibaba_gpu_v2023_trace,
     TraceJob,
     TraceNode,
     import_alibaba_trace,
@@ -127,6 +128,67 @@ class NativeTraceTests(unittest.TestCase):
                     machine_path,
                     root / "invalid",
                     service_class="made-up",
+                )
+
+    def test_imports_alibaba_v2023_qos_without_synthetic_class_labels(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            nodes = root / "nodes.csv"
+            pods = root / "pods.csv"
+            nodes.write_text(
+                "sn,cpu_milli,memory_mib,gpu,model\n"
+                "n0,64000,262144,2,P100\n"
+                "n1,64000,262144,0,\n",
+                encoding="utf-8",
+            )
+            pods.write_text(
+                "name,cpu_milli,memory_mib,num_gpu,gpu_milli,gpu_spec,qos,pod_phase,creation_time,deletion_time,scheduled_time\n"
+                "hp,1000,1024,1,1000,,LS,Succeeded,100,210,110\n"
+                "spot,1000,1024,1,250,,BE,Running,120,250,130\n"
+                "pending,1000,1024,1,1000,,BE,Pending,140,200,\n"
+                "other,1000,1024,1,1000,,Burstable,Succeeded,150,300,160\n",
+                encoding="utf-8",
+            )
+            trace = load_canonical_trace(
+                import_alibaba_gpu_v2023_trace(nodes, pods, root / "trace")
+            )
+
+            self.assertEqual(trace.capacity_gpus, 2)
+            jobs = {job.job_id: job for job in trace.jobs}
+            self.assertEqual(set(jobs), {"hp", "spot"})
+            self.assertEqual(jobs["hp"].service_class, "HP")
+            self.assertEqual(jobs["spot"].service_class, "Spot")
+            self.assertEqual(jobs["spot"].gpu_count, 0.25)
+            self.assertEqual(jobs["hp"].duration_seconds, 100)
+            self.assertEqual(
+                trace.source["service_class_mapping"],
+                {
+                    "LS": "HP",
+                    "BE": "Spot",
+                    "basis": "Source-published Latency Sensitive and Best Effort QoS labels.",
+                },
+            )
+            self.assertIn("occupancy interval", trace.source["duration_semantics"])
+            self.assertEqual(trace.source["skipped_rows"]["excluded_phase"], 1)
+            self.assertEqual(trace.source["skipped_rows"]["unsupported_qos"], 1)
+
+    def test_alibaba_v2023_rejects_an_empty_phase_selection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            nodes = root / "nodes.csv"
+            pods = root / "pods.csv"
+            nodes.write_text("sn,gpu,model\nn0,1,A100\n", encoding="utf-8")
+            pods.write_text(
+                "name,num_gpu,gpu_milli,qos,pod_phase,creation_time,deletion_time,scheduled_time\n"
+                "pod,1,1000,LS,Running,0,10,0\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "included_phases"):
+                import_alibaba_gpu_v2023_trace(
+                    nodes,
+                    pods,
+                    root / "trace",
+                    included_phases=set(),
                 )
 
     def test_round_trips_an_explicit_evaluation_window_with_warmup_arrivals(self):

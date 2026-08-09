@@ -10,6 +10,14 @@
       "redistributed_in_schednav": false
     },
     {
+      "name": "Alibaba cluster-trace-gpu-v2023",
+      "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-gpu-v2023",
+      "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+      "license": "not found in the pinned repository tree",
+      "integration": "optional local dataset converted through the first-party canonical trace adapter with source LS/BE QoS provenance",
+      "redistributed_in_schednav": false
+    },
+    {
       "name": "Microsoft Philly GPU Trace",
       "repository": "https://github.com/msr-fiddle/philly-traces",
       "commit": "29a1b87fa2d9ed80b83c9e3a37f3a88d382b031d",

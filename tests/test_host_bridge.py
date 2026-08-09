@@ -4,6 +4,7 @@ import json
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -39,6 +40,7 @@ class HostBridgeTests(unittest.TestCase):
             "task_subdir": "agentteams-bridge/tasks",
             "max_workers": 1,
             "run_configs": {"window-a": "configs/run.json"},
+            "run_sets": {"fixture-set": ["window-a"]},
             "action_space": "configs/action-space.json",
             "actions": {"policy-a": "configs/action.json"},
             "slo_specs": {"slo-a": "configs/slo.json"},
@@ -200,6 +202,7 @@ class HostBridgeTests(unittest.TestCase):
         )
         config = json.loads(self.config_path.read_text(encoding="utf-8"))
         config["run_configs"] = {"native-window": "configs/native-run.json"}
+        config["run_sets"] = {"native-set": ["native-window"]}
         config["actions"] = {"native-policy": "configs/native-policy.json"}
         config["baseline_metrics"] = {}
         self.config_path.write_text(json.dumps(config), encoding="utf-8")
@@ -230,6 +233,162 @@ class HostBridgeTests(unittest.TestCase):
             )
             self.assertEqual(metrics["schema_version"], "schednav.metrics-report/v2")
             self.assertEqual(metrics["source"]["engine"]["name"], "schednav-sim")
+        finally:
+            service.close()
+
+    def test_run_set_operations_produce_deterministic_multiwindow_evidence(self):
+        write_canonical_trace(
+            self.project_root / "datasets/local",
+            trace_id="bridge-run-set",
+            time_origin="2026-01-01 00:00:00",
+            source={"dataset": "bridge-fixture"},
+            nodes=[TraceNode("n1", "A", 2)],
+            jobs=[
+                TraceJob("spot", 0, 10, 2, "Spot", "A"),
+                TraceJob("hp", 2, 2, 2, "HP", "A"),
+            ],
+        )
+        run_config = self.project_root / "configs/native-run.json"
+        run_config.write_text(
+            json.dumps(
+                {
+                    "schema_version": "schednav.native-run-config/v1",
+                    "trace_manifest": "datasets/local/trace.json",
+                }
+            ),
+            encoding="utf-8",
+        )
+        actions = {}
+        for action_id, scheduler, delay in (
+            ("fifo", "fifo", 0),
+            ("preempt", "priority_preemptive", 0),
+            ("delayed", "priority_preemptive", 1),
+        ):
+            path = self.project_root / f"configs/{action_id}.json"
+            value = {
+                "schema_version": "schednav.simulation-policy/v1",
+                "action_id": action_id,
+                "scheduler": scheduler,
+                "spot_guarantee_seconds": 0,
+                "checkpoint_interval_seconds": 2,
+                "preemption_overhead_seconds": 0,
+                "placement_strategy": "deterministic_best_fit",
+            }
+            if delay:
+                value["hp_preemption_delay_seconds"] = delay
+            path.write_text(json.dumps(value), encoding="utf-8")
+            actions[action_id] = f"configs/{action_id}.json"
+        slo = self.project_root / "configs/run-set-slo.json"
+        slo.write_text(
+            json.dumps(
+                {
+                    "schema_version": "schednav.slo-spec/v1",
+                    "name": "run-set-test",
+                    "constraints": [
+                        {
+                            "id": "hp-complete",
+                            "metric": "hp_completion_rate",
+                            "operator": ">=",
+                            "threshold": 1.0,
+                            "severity": "hard",
+                        },
+                        {
+                            "id": "spot-complete",
+                            "metric": "spot_completion_rate",
+                            "operator": ">=",
+                            "threshold": 1.0,
+                            "severity": "hard",
+                        },
+                    ],
+                    "ranking": {
+                        "allocation_metric": "allocation_rate_mean",
+                        "allocation_tie_band": 0.01,
+                        "second_metric": "spot_jct_p95_seconds",
+                        "third_metric": "spot_eviction_rate_per_run",
+                        "unresolved_tie": "human_approval",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        config = json.loads(self.config_path.read_text(encoding="utf-8"))
+        config["run_configs"] = {"window-a": "configs/native-run.json"}
+        config["run_sets"] = {"run-set-a": ["window-a"]}
+        config["actions"] = actions
+        config["slo_specs"] = {"run-set-slo": "configs/run-set-slo.json"}
+        config["baseline_metrics"] = {}
+        self.config_path.write_text(json.dumps(config), encoding="utf-8")
+        catalog = BridgeCatalog.load(self.project_root, self.config_path)
+        service = BridgeService(catalog)
+
+        def completed(request, key):
+            task, _ = service.submit(request, key)
+            for _ in range(1000):
+                current = service.get_task(task["task_id"])
+                if current["status"] not in {"queued", "running"}:
+                    return current
+                time.sleep(0.01)
+            self.fail("Bridge task did not finish")
+
+        try:
+            analyzed = completed(
+                {
+                    "schema_version": REQUEST_SCHEMA,
+                    "operation": "analyze_run_set",
+                    "arguments": {"run_set_id": "run-set-a"},
+                },
+                "run-set-analyze-0001",
+            )
+            self.assertEqual(analyzed["status"], "succeeded")
+            simulated = completed(
+                {
+                    "schema_version": REQUEST_SCHEMA,
+                    "operation": "simulate_run_set",
+                    "arguments": {
+                        "run_set_id": "run-set-a",
+                        "action_ids": ["fifo", "preempt", "delayed"],
+                        "repetitions": 2,
+                    },
+                },
+                "run-set-simulate-0001",
+            )
+            self.assertEqual(simulated["status"], "succeeded")
+            simulations_ref = simulated["artifacts"]["run_set_simulations"]
+            audited = completed(
+                {
+                    "schema_version": REQUEST_SCHEMA,
+                    "operation": "audit_run_set",
+                    "arguments": {
+                        "simulations_ref": simulations_ref,
+                        "slo_spec_id": "run-set-slo",
+                        "baseline_action_id": "fifo",
+                    },
+                },
+                "run-set-audit-0001",
+            )
+            failure_path = (
+                catalog.task_root / audited["task_id"] / "failure.local.json"
+            )
+            self.assertEqual(
+                audited["status"],
+                "succeeded",
+                failure_path.read_text(encoding="utf-8")
+                if failure_path.exists()
+                else audited,
+            )
+            summary = json.loads(
+                catalog.resolve_artifact_ref(
+                    audited["artifacts"]["multiwindow_summary"]
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(summary["schema_version"], "schednav.multiwindow-summary/v1")
+            self.assertEqual(summary["window_count"], 1)
+            self.assertTrue(
+                all(
+                    policy["deterministic_window_count"] == 1
+                    for policy in summary["policies"].values()
+                )
+            )
         finally:
             service.close()
 
@@ -275,6 +434,9 @@ class HostBridgeTests(unittest.TestCase):
                     "compare_policies",
                     "audit_slo",
                     "rank_policies",
+                    "analyze_run_set",
+                    "simulate_run_set",
+                    "audit_run_set",
                     "get_task",
                     "read_artifact",
                 },
@@ -345,6 +507,41 @@ class HostBridgeTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=3)
+            service.close()
+
+    def test_delegated_auth_accepts_post_auth_route_error_but_rejects_401(self):
+        service = BridgeService(self.catalog, {})
+        server = BridgeHTTPServer(
+            ("127.0.0.1", 0),
+            service,
+            (),
+            "http://gateway.test/v1/chat/completions",
+        )
+        try:
+            with patch(
+                "schednav.host_bridge.build_opener",
+            ) as opener:
+                opener.return_value.open.side_effect = HTTPError(
+                    "http://gateway.test/v1/chat/completions",
+                    404,
+                    "authenticated route response",
+                    {},
+                    None,
+                )
+                self.assertTrue(server.validate_token("v" * 32))
+            with patch(
+                "schednav.host_bridge.build_opener",
+            ) as opener:
+                opener.return_value.open.side_effect = HTTPError(
+                    "http://gateway.test/v1/chat/completions",
+                    401,
+                    "unauthorized",
+                    {},
+                    None,
+                )
+                self.assertFalse(server.validate_token("i" * 32))
+        finally:
+            server.server_close()
             service.close()
 
 

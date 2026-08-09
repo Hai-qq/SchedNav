@@ -26,6 +26,8 @@ class SimulationPolicy:
     checkpoint_interval_seconds: int
     preemption_overhead_seconds: int
     placement_strategy: str = "deterministic_best_fit"
+    hp_preemption_delay_seconds: int = 0
+    spot_eviction_budget_rate: float | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "SimulationPolicy":
@@ -38,8 +40,14 @@ class SimulationPolicy:
             "preemption_overhead_seconds",
             "placement_strategy",
         }
-        if set(value) != required:
-            raise ValueError(f"Simulation policy fields must be exactly {sorted(required)}")
+        optional = {
+            "hp_preemption_delay_seconds",
+            "spot_eviction_budget_rate",
+        }
+        if not required.issubset(value) or not set(value).issubset(required | optional):
+            raise ValueError(
+                f"Simulation policy fields must contain {sorted(required)} and only allow {sorted(optional)}"
+            )
         if value["schema_version"] != POLICY_SCHEMA:
             raise ValueError(f"Expected schema_version={POLICY_SCHEMA}")
         policy = cls(
@@ -49,6 +57,14 @@ class SimulationPolicy:
             checkpoint_interval_seconds=int(value["checkpoint_interval_seconds"]),
             preemption_overhead_seconds=int(value["preemption_overhead_seconds"]),
             placement_strategy=str(value["placement_strategy"]),
+            hp_preemption_delay_seconds=int(
+                value.get("hp_preemption_delay_seconds", 0)
+            ),
+            spot_eviction_budget_rate=(
+                float(value["spot_eviction_budget_rate"])
+                if value.get("spot_eviction_budget_rate") is not None
+                else None
+            ),
         )
         policy.validate()
         return policy
@@ -68,12 +84,27 @@ class SimulationPolicy:
             raise ValueError("checkpoint_interval_seconds must be positive")
         if self.preemption_overhead_seconds < 0:
             raise ValueError("preemption_overhead_seconds cannot be negative")
+        if self.hp_preemption_delay_seconds < 0:
+            raise ValueError("hp_preemption_delay_seconds cannot be negative")
+        if self.spot_eviction_budget_rate is not None and not (
+            0.0 <= self.spot_eviction_budget_rate <= 1.0
+        ):
+            raise ValueError("spot_eviction_budget_rate must be between 0 and 1")
         if self.placement_strategy != "deterministic_best_fit":
             raise ValueError("Only deterministic_best_fit placement is supported")
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return a backward-compatible policy payload for hashing and evidence."""
+        value = asdict(self)
+        if self.hp_preemption_delay_seconds == 0:
+            value.pop("hp_preemption_delay_seconds")
+        if self.spot_eviction_budget_rate is None:
+            value.pop("spot_eviction_budget_rate")
+        return value
+
     @property
     def fingerprint(self) -> str:
-        return canonical_sha256(asdict(self))
+        return canonical_sha256(self.to_dict())
 
 
 @dataclass
@@ -180,6 +211,12 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         if trace.evaluation_end_seconds is not None
         else max(job.submit_time_seconds for job in arrivals)
     )
+    evaluation_spot_ids = {
+        job.job_id
+        for job in arrivals
+        if job.service_class == "Spot"
+        and evaluation_start <= job.submit_time_seconds <= evaluation_end
+    }
     now = simulation_start
     simulation_start = now
     allocated_gpu_seconds = 0.0
@@ -279,6 +316,11 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             pending = states[pending_id]
             if pending.job.service_class != "HP":
                 continue
+            if (
+                now + EPSILON
+                < pending.queued_since + policy.hp_preemption_delay_seconds
+            ):
+                continue
             if eligible_free(pending.job) >= pending.job.gpu_count:
                 continue
             model = pending.job.gpu_model
@@ -314,6 +356,36 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                     break
                 victim = candidates[offset]
                 offset += 1
+                if policy.spot_eviction_budget_rate is not None:
+                    all_spot_run_starts = sum(
+                        state.run_count
+                        for state in states.values()
+                        if state.job.service_class == "Spot"
+                    )
+                    all_projected_rate = (
+                        (len(preemption_events) + 1) / (all_spot_run_starts + 1)
+                    )
+                    if all_projected_rate > policy.spot_eviction_budget_rate + EPSILON:
+                        break
+                    evaluation_spot_run_starts = sum(
+                        state.run_count
+                        for state in states.values()
+                        if state.job.job_id in evaluation_spot_ids
+                    )
+                    evaluation_preemptions = sum(
+                        event["preempted_job_id"] in evaluation_spot_ids
+                        for event in preemption_events
+                    )
+                    if victim.job.job_id in evaluation_spot_ids:
+                        evaluation_projected_rate = (
+                            (evaluation_preemptions + 1)
+                            / (evaluation_spot_run_starts + 1)
+                        )
+                        if (
+                            evaluation_projected_rate
+                            > policy.spot_eviction_budget_rate + EPSILON
+                        ):
+                            break
                 run_seconds = now - float(victim.run_start)
                 rollback = run_seconds % policy.checkpoint_interval_seconds
                 overhead = float(policy.preemption_overhead_seconds)
@@ -355,6 +427,13 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             event_times.append(arrivals[arrival_index].submit_time_seconds)
         event_times.extend(now + states[job_id].remaining for job_id in running)
         if policy.scheduler == "priority_preemptive" and queued_hp_count > 0:
+            event_times.extend(
+                states[job_id].queued_since + policy.hp_preemption_delay_seconds
+                for job_id in queue
+                if states[job_id].job.service_class == "HP"
+                and states[job_id].queued_since + policy.hp_preemption_delay_seconds
+                > now + EPSILON
+            )
             event_times.extend(
                 float(states[job_id].run_start) + policy.spot_guarantee_seconds
                 for job_id in running
@@ -407,7 +486,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             "time_origin": trace.time_origin,
             "source": trace.source,
         },
-        "policy": asdict(policy),
+        "policy": policy.to_dict(),
         "policy_fingerprint": policy.fingerprint,
         "window_seconds": {
             "evaluation_start": evaluation_start,

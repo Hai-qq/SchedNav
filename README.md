@@ -66,6 +66,7 @@ Trace Window
 - 整卡或 fractional GPU demand；
 - FIFO 与 HP-first preemptive policy；
 - Spot 保障边界、checkpoint rollback 和抢占 overhead；
+- HP 抢占延迟与同时约束全量/评估人口的 Spot eviction budget；
 - deterministic best-fit 多节点 allocation；
 - drain-to-completion；
 - Job、Spot run、guarantee 和 preemption 事件账本；
@@ -88,6 +89,7 @@ jobs.csv       # job_id, submit, duration, GPU demand, HP/Spot, gpu_model
 | Dataset | Command | Notes |
 |---|---|---|
 | Alibaba Spot GPU Trace | `schednav import-alibaba` | 保留原始 HP/Spot 标签，支持 GPU model 与 arrival cutoff。 |
+| Alibaba GPU Trace v2023 | `schednav import-alibaba-v2023` | 使用源数据 LS/BE QoS 显式映射 HP/Spot，保留 fractional GPU 与 phase provenance。 |
 | Microsoft Philly GPU Trace | `schednav import-philly` | 官方数据没有 HP/Spot 标签，调用者必须显式声明映射并写入 provenance。 |
 | 其他公开或私有 Trace | Canonical adapter contract | 只需生成统一的三文件合同，无需修改仿真器。 |
 
@@ -141,21 +143,23 @@ schednav simulate `
 
 ## Multi-dataset validation
 
-第一方内核已在两个独立来源的真实 GPU Trace 上运行。[Alibaba 12-window evaluation](evidence/native-v1/alibaba-gpu-series-2-multiwindow-30d-v1.json) 固化了 12 个预先分层窗口、4 个策略、每策略每窗口 2 次重复，共 96 次确定性仿真的汇总证据；[Alibaba mixed HP/Spot policy evaluation](evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json) 记录了一个带 warm-up carry-in 的代表性窗口；[Alibaba A100 validation receipt](evidence/native-v1/alibaba-a100-day1-validation.json) 记录了另一 GPU 型号的一天入口验证；[Philly validation receipt](evidence/native-v1/philly-validation.json) 记录了官方数据 hash、111,846 个有效转换任务、前 1,000 个任务的 origin-preserving slice，以及两次 FIFO 运行完全相同的 result/metrics fingerprint。
+第一方内核已在两个数据提供方、三个真实 GPU Trace 版本上运行。[Alibaba 12-window v2 evaluation](evidence/native-v2/alibaba-gpu-series-2-multiwindow-30d-v2.json) 固化了 12 个预先分层窗口、5 个策略、每策略每窗口 2 次重复，共 120 次确定性仿真的汇总证据；[Alibaba v2023 QoS receipt](evidence/native-v2/alibaba-gpu-v2023-qos-full.json) 验证了第二套源生服务等级语义、fractional GPU、仿真、SLO 与并列保留；[Alibaba mixed HP/Spot policy evaluation](evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json) 记录了一个带 warm-up carry-in 的代表性窗口；[Philly validation receipt](evidence/native-v1/philly-validation.json) 验证了另一提供方的 ingestion 与确定性。
 
 该 Philly 验证只覆盖 ingestion、placement、completion、JCT、allocation 和 determinism。由于源数据没有 HP/Spot 标签，Spot eviction、guarantee 和 HP-vs-Spot SLO 明确保持未验证。
 
 代表性 Alibaba 窗口的四个策略全部通过 8 项硬 SLO。三个抢占策略达到 80% allocation 软目标，但在严格 1 个百分点 allocation tie band 内，且 Spot p95 JCT 与 eviction rate 相同，因此结果保持 `tie_requires_human_approval`，未添加隐藏的第四排序指标。
 
-多窗口结果更接近真实结论：12 个窗口中，5 个窗口得到唯一策略、6 个保持并列、1 个没有任何策略通过硬 SLO。在存在合格策略的 11 个窗口里，SLO 合格前沿相对 FIFO 的 allocation 为 5 个提升、6 个持平、0 个下降，平均提升 0.31 个百分点，最大提升 1.99 个百分点。`native-preemptive-0000` 的原始平均 allocation 为 74.68%，高于 FIFO 的 73.41%，但它只在 7/12 窗口通过全部硬 SLO，因此不能宣称某个抢占策略普遍优于 FIFO。完整方法、逐窗解释和复现命令见 [Multi-window Evaluation](docs/multiwindow-evaluation.md)。
+多窗口结果更接近真实结论：每个窗口先过 8 项硬 SLO，再按 allocation → Spot p95 JCT → eviction 分层决策，保留并列和无合格策略状态。11 个存在合格策略的窗口中，v2 合格前沿相对 FIFO 为 7 个提升、4 个持平、0 个下降，平均提升 0.335 个百分点、最大 1.99 个百分点；另有 1 个窗口没有任何候选通过硬 SLO。原始未加保护的抢占策略虽然平均 allocation 更高，但只在 7/12 窗口通过全部硬 SLO，因此不能宣称某个抢占策略普遍优于 FIFO。最新精确计数与 fingerprint 见 [Multi-window Evaluation](docs/multiwindow-evaluation.md)。
 
 单窗口演示可用 `scripts/run_demo_experiment.ps1` 一次执行。多窗口研究使用 `scripts/run_multiwindow_experiment.py` 完成预仿真选窗、限定策略双次运行、同窗 FIFO baseline、SLO 审计与分层排名，再由 `scripts/publish_multiwindow_evidence.py` 生成不含原始数据和逐 Job 结果的公开回执。两个脚本都要求单独下载数据，并拒绝覆盖已有输出路径。
 
 ## AgentTeams integration
 
-SchedNav 映射为 1 个 Manager + 4 个 Worker，并通过受限 MCP bridge 调用负载分析、仿真、比较、审计与排名操作。模型 ID 固定为 `deepseek-v4-flash`。
+SchedNav 映射为 1 个 Manager + 4 个 Worker，并通过受限 MCP bridge 调用单窗或注册 run-set 的负载分析、仿真、比较、审计与排名操作。模型 ID 固定为 `deepseek-v4-flash`。
 
 真实 `native-local` 流程已由四个 Worker 完成负载分析、限定策略选择、四次独立仿真与四次 SLO 审计，再由 Manager 调用比较和排名工具。最终项目状态为 `completed / approval_pending`，与公开实验回执一致地停在三策略人工审批门。
+
+注册 run-set 的 `alibaba-v2-12d` 流程也已由同一拓扑完成：12 窗口负载分析、5 个注册动作确认、120 次确定性仿真、逐窗口八项硬 SLO 审计和 Manager 汇总。结果为 2 个唯一选择、9 个并列和 1 个无合格策略；项目状态为 `completed / approval_pending`，没有自动批准跨窗口通用策略。
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\src).Path

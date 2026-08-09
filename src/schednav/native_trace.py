@@ -661,3 +661,170 @@ def import_alibaba_trace(
         evaluation_start_seconds=evaluation_start_seconds,
         evaluation_end_seconds=evaluation_end_seconds,
     )
+
+
+def import_alibaba_gpu_v2023_trace(
+    node_info_path: Path,
+    pod_info_path: Path,
+    output_dir: Path,
+    *,
+    trace_id: str = "alibaba-gpu-v2023-qos",
+    source_commit: str = "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    included_phases: set[str] | None = None,
+) -> Path:
+    """Convert the official v2023 GPU/QoS tables into the canonical contract.
+
+    The source publishes Latency Sensitive (LS) and Best Effort (BE) QoS
+    labels. SchedNav maps those source labels to HP and Spot respectively and
+    records the interpretation. Durations are observed scheduled-to-deletion
+    occupancy intervals; source phases are not rewritten as completions.
+    """
+    node_info_path = node_info_path.resolve()
+    pod_info_path = pod_info_path.resolve()
+    if not node_info_path.is_file() or not pod_info_path.is_file():
+        raise FileNotFoundError("Alibaba v2023 GPU node and pod CSV files are required")
+    phases = (
+        {"Running", "Failed", "Succeeded"}
+        if included_phases is None
+        else included_phases
+    )
+    if not phases or not phases.issubset({"Running", "Failed", "Succeeded"}):
+        raise ValueError("included_phases must use Running, Failed, and/or Succeeded")
+
+    nodes: list[TraceNode] = []
+    with node_info_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        required = {"sn", "gpu", "model"}
+        if not reader.fieldnames or not required.issubset(reader.fieldnames):
+            raise ValueError("Alibaba v2023 node table has an unsupported header")
+        for row in reader:
+            gpu_count = int(row["gpu"])
+            if gpu_count <= 0:
+                continue
+            nodes.append(
+                TraceNode(
+                    node_id=str(row["sn"]).strip(),
+                    gpu_model=str(row["model"]).strip(),
+                    gpu_count=gpu_count,
+                )
+            )
+    if not nodes:
+        raise ValueError("Alibaba v2023 node table contains no GPU nodes")
+
+    service_mapping = {"LS": "HP", "BE": "Spot"}
+    candidates: list[tuple[float, TraceJob, str]] = []
+    skipped: dict[str, int] = {
+        "unsupported_qos": 0,
+        "excluded_phase": 0,
+        "no_gpu": 0,
+        "missing_or_invalid_interval": 0,
+    }
+    seen: set[str] = set()
+    with pod_info_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        required = {
+            "name",
+            "num_gpu",
+            "gpu_milli",
+            "qos",
+            "pod_phase",
+            "creation_time",
+            "deletion_time",
+            "scheduled_time",
+        }
+        if not reader.fieldnames or not required.issubset(reader.fieldnames):
+            raise ValueError("Alibaba v2023 pod table has an unsupported header")
+        for row in reader:
+            qos = str(row["qos"]).strip()
+            phase = str(row["pod_phase"]).strip()
+            if qos not in service_mapping:
+                skipped["unsupported_qos"] += 1
+                continue
+            if phase not in phases:
+                skipped["excluded_phase"] += 1
+                continue
+            num_gpu = int(row["num_gpu"])
+            if num_gpu <= 0:
+                skipped["no_gpu"] += 1
+                continue
+            scheduled_raw = str(row["scheduled_time"]).strip()
+            if not scheduled_raw:
+                skipped["missing_or_invalid_interval"] += 1
+                continue
+            creation = float(row["creation_time"])
+            scheduled = float(scheduled_raw)
+            deletion = float(row["deletion_time"])
+            if creation < 0 or scheduled < creation or deletion <= scheduled:
+                skipped["missing_or_invalid_interval"] += 1
+                continue
+            job_id = str(row["name"]).strip()
+            if not job_id or job_id in seen:
+                raise ValueError("Alibaba v2023 pod names must be non-empty and unique")
+            seen.add(job_id)
+            gpu_milli = float(row["gpu_milli"])
+            requested = gpu_milli / 1000.0 if num_gpu == 1 else float(num_gpu)
+            if requested <= 0:
+                skipped["no_gpu"] += 1
+                continue
+            candidates.append(
+                (
+                    creation,
+                    TraceJob(
+                        job_id=job_id,
+                        submit_time_seconds=creation,
+                        duration_seconds=deletion - scheduled,
+                        gpu_count=requested,
+                        service_class=service_mapping[qos],
+                        gpu_model="*",
+                    ),
+                    phase,
+                )
+            )
+    if not candidates:
+        raise ValueError("Alibaba v2023 pod table contains no usable LS/BE GPU intervals")
+    origin = min(item[0] for item in candidates)
+    jobs = [
+        TraceJob(
+            job_id=job.job_id,
+            submit_time_seconds=job.submit_time_seconds - origin,
+            duration_seconds=job.duration_seconds,
+            gpu_count=job.gpu_count,
+            service_class=job.service_class,
+            gpu_model=job.gpu_model,
+        )
+        for _, job, _phase in candidates
+    ]
+    phase_counts: dict[str, int] = {}
+    for _creation, _job, phase in candidates:
+        phase_counts[phase] = phase_counts.get(phase, 0) + 1
+    source = {
+        "dataset": "Alibaba cluster-trace-gpu-v2023",
+        "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-gpu-v2023",
+        "commit": source_commit,
+        "license": "Source repository terms apply; raw data is not redistributed by SchedNav.",
+        "node_info_sha256": _sha256_file(node_info_path),
+        "pod_info_sha256": _sha256_file(pod_info_path),
+        "service_class_mapping": {
+            "LS": "HP",
+            "BE": "Spot",
+            "basis": "Source-published Latency Sensitive and Best Effort QoS labels.",
+        },
+        "duration_semantics": "Observed scheduled_time-to-deletion_time occupancy interval; source phase is preserved only in aggregate provenance and is not asserted to be successful completion.",
+        "source_clock": {
+            "kind": "relative_seconds",
+            "normalized_origin_seconds": origin,
+            "canonical_time_origin": "1970-01-01 00:00:00",
+        },
+        "included_source_phases": sorted(phases),
+        "included_source_phase_counts": phase_counts,
+        "skipped_rows": skipped,
+        "redistribution": "Raw and derived per-job data are not redistributed by SchedNav.",
+    }
+    return write_canonical_trace(
+        output_dir,
+        trace_id=trace_id,
+        time_origin="1970-01-01 00:00:00",
+        source=source,
+        nodes=nodes,
+        jobs=jobs,
+    )

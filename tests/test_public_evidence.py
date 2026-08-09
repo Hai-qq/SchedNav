@@ -71,6 +71,55 @@ class PublicEvidenceTests(unittest.TestCase):
             "native-preemptive-1800",
         )
 
+    def test_v2_multiwindow_receipt_records_guarded_policy_frontier(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "native-v2"
+            / "alibaba-gpu-series-2-multiwindow-30d-v2.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("receipt_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(receipt["study"]["selected_window_count"], 12)
+        self.assertEqual(receipt["aggregate"]["window_count"], 12)
+        self.assertEqual(
+            receipt["aggregate"]["selection_status_counts"],
+            {
+                "no_eligible_policy": 1,
+                "selected": 2,
+                "tie_requires_human_approval": 9,
+            },
+        )
+        uplift = receipt["aggregate"]["best_hard_pass_allocation_uplift_vs_fifo"]
+        self.assertEqual(uplift["positive_window_count"], 7)
+        self.assertEqual(uplift["equal_window_count"], 4)
+        self.assertEqual(uplift["negative_window_count"], 0)
+        self.assertEqual(receipt["study"]["action_space"]["excluded_profiles"], [])
+        self.assertFalse(any("native-preemptive-1800" in item for item in receipt["limitations"]))
+
+    def test_second_trace_receipt_is_compatibility_evidence(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "native-v2"
+            / "alibaba-gpu-v2023-qos-full.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("receipt_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(receipt["interpretation"]["claim_scope"], "compatibility_only")
+        self.assertEqual(receipt["workload"]["population"], {"HP": 3590, "Spot": 2510})
+        self.assertLess(
+            receipt["workload"]["regime_signals"]["combined_peak_active_pressure"],
+            0.01,
+        )
+        self.assertTrue(receipt["experiment"]["portfolio_comparable"])
+        self.assertTrue(receipt["experiment"]["all_candidates_passed_hard_slo"])
+        self.assertEqual(receipt["ranking"]["selection_status"], "tie_requires_human_approval")
+
 
 if __name__ == "__main__":
     unittest.main()

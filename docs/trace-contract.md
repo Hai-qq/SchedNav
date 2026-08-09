@@ -46,7 +46,13 @@ job_id,submit_time_seconds,duration_seconds,gpu_count,service_class,gpu_model
 
 For a historical window with full carry-in reconstruction, pass both `--evaluation-start-seconds` and `--evaluation-end-seconds`. The importer keeps earlier selected arrivals from the source origin and excludes arrivals after the evaluation end. Supplying only one boundary is rejected.
 
-For a deliberately bounded carry-in study, also pass `--warmup-start-seconds`. The value must fall between the trace origin and evaluation start and is recorded in provenance. This is an explicit approximation, not equivalent to full-origin replay. The multi-window v1 study fixes this boundary at 30 days before each evaluated day and publishes that limitation with its evidence.
+For a deliberately bounded carry-in study, also pass `--warmup-start-seconds`. The value must fall between the trace origin and evaluation start and is recorded in provenance. This is an explicit approximation, not equivalent to full-origin replay. The current multi-window v2 study and its v1 predecessor fix this boundary at 30 days before each evaluated day and publish that limitation with their evidence.
+
+### Alibaba GPU Trace v2023
+
+`schednav import-alibaba-v2023` converts `cluster-trace-gpu-v2023` node and pod tables. It uses only source-published QoS semantics: `LS → HP` and `BE → Spot`; unsupported QoS rows are excluded and counted in provenance. Fractional `gpu_milli` requests are preserved as fractional GPUs, while multi-GPU requests use `num_gpu`.
+
+The source publishes scheduled, deletion and phase fields rather than a counterfactual application runtime. SchedNav therefore records each included `Running`, `Failed` or `Succeeded` row as an observed scheduled-to-deletion occupancy interval and preserves source phase counts in aggregate provenance. A completed simulator job means the replayed occupancy interval ended; it must not be presented as proof that the original application succeeded.
 
 ### Microsoft Philly GPU Trace
 

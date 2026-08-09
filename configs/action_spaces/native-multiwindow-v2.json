@@ -1,0 +1,29 @@
+{
+  "schema_version": "schednav.native-action-space/v1",
+  "name": "native-multiwindow-v2-guarded-preemption",
+  "controlled_fields": [
+    "scheduler",
+    "spot_guarantee_seconds",
+    "checkpoint_interval_seconds",
+    "hp_preemption_delay_seconds",
+    "spot_eviction_budget_rate"
+  ],
+  "fixed_execution_controls": {
+    "preemption_overhead_seconds": 80,
+    "placement_strategy": "deterministic_best_fit"
+  },
+  "profiles": [
+    "configs/policies/native-fifo.json",
+    "configs/policies/native-preemptive-0000.json",
+    "configs/policies/native-preemptive-budget09-d0000.json",
+    "configs/policies/native-preemptive-budget09-d0900.json",
+    "configs/policies/native-preemptive-budget09-d1800.json"
+  ],
+  "forbidden": [
+    "job_id",
+    "node_id",
+    "gpu_id",
+    "placement",
+    "arbitrary_python"
+  ]
+}

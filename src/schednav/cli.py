@@ -9,6 +9,7 @@ from typing import Any
 
 from .native_simulator import run_native_simulation
 from .native_trace import (
+    import_alibaba_gpu_v2023_trace,
     import_alibaba_trace,
     import_philly_trace,
     load_canonical_trace,
@@ -67,6 +68,21 @@ def main() -> int:
         "--warmup-start-seconds",
         type=float,
         help="optional bounded carry-in start; requires an evaluation window",
+    )
+
+    alibaba_v2023_parser = subparsers.add_parser(
+        "import-alibaba-v2023",
+        help="convert Alibaba v2023 GPU/QoS tables into the canonical trace contract",
+    )
+    alibaba_v2023_parser.add_argument("--node-info", required=True)
+    alibaba_v2023_parser.add_argument("--pod-info", required=True)
+    alibaba_v2023_parser.add_argument("--output-dir", required=True)
+    alibaba_v2023_parser.add_argument("--trace-id", default="alibaba-gpu-v2023-qos")
+    alibaba_v2023_parser.add_argument(
+        "--phase",
+        action="append",
+        dest="phases",
+        choices=["Running", "Failed", "Succeeded"],
     )
 
     workload_parser = subparsers.add_parser(
@@ -165,6 +181,21 @@ def main() -> int:
             evaluation_start_seconds=args.evaluation_start_seconds,
             evaluation_end_seconds=args.evaluation_end_seconds,
             warmup_start_seconds=args.warmup_start_seconds,
+        )
+        trace = load_canonical_trace(manifest)
+        result = {
+            "trace_manifest": str(manifest),
+            "trace_id": trace.trace_id,
+            "trace_fingerprint": trace.fingerprint,
+            "job_count": len(trace.jobs),
+        }
+    elif args.command == "import-alibaba-v2023":
+        manifest = import_alibaba_gpu_v2023_trace(
+            _path(args.node_info),
+            _path(args.pod_info),
+            _path(args.output_dir),
+            trace_id=args.trace_id,
+            included_phases=set(args.phases) if args.phases else None,
         )
         trace = load_canonical_trace(manifest)
         result = {

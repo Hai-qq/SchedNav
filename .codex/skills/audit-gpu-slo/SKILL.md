@@ -22,3 +22,5 @@ schednav audit-slo `
 6. Return observed values, resolved thresholds, pass/fail states and audit fingerprint.
 
 Do not audit unavailable HP/Spot metrics as passed. Do not create a weighted LLM score or an undeclared tie-breaker.
+
+For a registered run set, call `audit_run_set` with the simulation index and FIFO action ID. Preserve every window's `selected`, `tie_requires_human_approval`, or `no_eligible_policy` state. Report the aggregate frontier and robustness counts, but never declare a cross-window universal winner.

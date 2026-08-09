@@ -24,4 +24,6 @@ schednav analyze-trace `
 4. Treat sampled active demand as trace-intended demand, not simulated allocation.
 5. If the source does not publish HP/Spot classes, surface the adapter's explicit mapping and restrict unsupported SLO claims.
 
+For a registered multi-window study, call the bridge's `analyze_run_set` with its `run_set_id`. Return the run-set fingerprint and the ordered per-window workload artifact references; do not merge unlike windows into one workload regime.
+
 Do not pass raw Trace files into the Agent context. Do not select or rank policies from workload statistics alone.

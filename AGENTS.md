@@ -33,7 +33,7 @@
 
 ## 仿真与 Action Space
 
-- 允许 Agent 控制的字段以被实验或任务显式引用的 `configs/action_spaces/*.json` 为准；单窗口默认使用 `native-v1.json`，多窗口研究使用 `native-multiwindow-v1.json`。
+- 允许 Agent 控制的字段以被实验或任务显式引用的 `configs/action_spaces/*.json` 为准；单窗口默认使用 `native-v1.json`，当前多窗口研究使用 `native-multiwindow-v2.json`，`native-multiwindow-v1.json` 仅用于复现实验历史。
 - placement strategy 固定为 `deterministic_best_fit`，不是 Agent action。
 - 资源模型必须保留真实 fractional GPU demand，不能四舍五入为整卡。
 - 抢占必须产生 Spot run、guarantee、rollback、overhead 和 preemption ledger。

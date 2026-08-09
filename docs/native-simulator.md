@@ -15,6 +15,7 @@ Agents select only a cataloged high-level `SimulationPolicy`. The engine owns qu
 - deterministic best-fit placement with stable tie breaking;
 - FIFO and HP-first preemptive scheduling profiles;
 - Spot guarantee boundaries;
+- optional HP preemption delay and rolling evaluation-population Spot eviction budget;
 - checkpoint rollback and preemption overhead;
 - drain-to-completion execution;
 - per-job, run-start, guarantee and preemption ledgers.
@@ -31,9 +32,13 @@ When a trace declares an explicit window, available pre-window arrivals are repl
 - `spot_guarantee_seconds`;
 - `checkpoint_interval_seconds`;
 - `preemption_overhead_seconds`;
+- optional `hp_preemption_delay_seconds` (default `0`);
+- optional `spot_eviction_budget_rate` in `[0, 1]` (default unset);
 - fixed `placement_strategy=deterministic_best_fit`.
 
-The checked-in action space fixes execution controls and provides four curated profiles. Arbitrary cross-products and direct placement fields are not Agent actions.
+Default-valued optional fields are omitted from canonical serialization, preserving existing v1 policy fingerprints. The eviction controller enforces the declared cap over all replayed Spot runs and, separately, over the evaluation-window Spot population used by `spot_eviction_rate_per_run`. This prevents carry-in activity from diluting the audited budget or becoming an unbounded source of evictions.
+
+The checked-in v2 multi-window action space fixes execution controls and provides five curated profiles: FIFO, an unguarded immediate-preemption reference, and three 9% eviction-budget profiles with 0/900/1,800-second HP preemption delays. Arbitrary cross-products and direct placement fields are not Agent actions.
 
 ## Determinism
 

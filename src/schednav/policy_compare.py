@@ -12,7 +12,9 @@ from .metric_catalog import METRIC_CATALOG, SUPPORTED_METRICS_SCHEMAS, get_metri
 
 ACTION_CONTROL_FIELDS = {
     "action_id",
+    "hp_preemption_delay_seconds",
     "scheduler",
+    "spot_eviction_budget_rate",
     "spot_guarantee_seconds",
     "checkpoint_interval_seconds",
 }

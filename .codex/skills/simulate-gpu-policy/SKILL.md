@@ -21,3 +21,5 @@ schednav simulate `
 5. Preserve failed runs as failure evidence; never replace a failed simulation with an estimate.
 
 Keep raw Trace files and per-job results outside published source. The engine, not the Agent, owns queue ordering, preemption and deterministic placement.
+
+For an explicitly approved registered multi-window study, call `simulate_run_set` with the `run_set_id`, three to five registered `action_ids`, and one or two repetitions. Require identical result and metrics fingerprints across repetitions. Return the run-set simulation index reference; never paste per-job results into Agent context.
