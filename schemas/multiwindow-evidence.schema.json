@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/multiwindow-evidence.schema.json",
+  "title": "SchedNav public multi-window evidence receipt",
+  "type": "object",
+  "required": ["schema_version", "study", "aggregate", "windows", "limitations", "source_evidence", "receipt_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.multiwindow-evidence/v1"},
+    "study": {
+      "type": "object",
+      "required": ["dataset", "source_hashes", "capacity_gpus", "eligibility", "eligible_window_count", "selection_method", "selected_window_count", "warmup_seconds", "action_space", "repetitions_per_policy_per_window"],
+      "properties": {
+        "dataset": {"type": "string"},
+        "dataset_commit": {"type": "string"},
+        "source_hashes": {"type": "object"},
+        "gpu_models": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "capacity_gpus": {"type": "number", "exclusiveMinimum": 0},
+        "eligibility": {"type": "object"},
+        "eligible_window_count": {"type": "integer", "minimum": 1},
+        "selection_method": {"type": "object"},
+        "selected_window_count": {"type": "integer", "minimum": 1},
+        "warmup_seconds": {"type": "number", "minimum": 0},
+        "action_space": {"type": "object"},
+        "repetitions_per_policy_per_window": {"type": "integer", "minimum": 2}
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "required": ["window_count", "all_hard_slo_pass_window_count", "selection_status_counts", "frontier_action_window_frequency", "best_hard_pass_allocation_uplift_vs_fifo", "policies", "universal_winner_declared"],
+      "properties": {
+        "window_count": {"type": "integer", "minimum": 1},
+        "all_hard_slo_pass_window_count": {"type": "integer", "minimum": 0},
+        "selection_status_counts": {"type": "object"},
+        "frontier_action_window_frequency": {"type": "object"},
+        "best_hard_pass_allocation_uplift_vs_fifo": {"type": "object"},
+        "policies": {"type": "object", "minProperties": 1},
+        "universal_winner_declared": {"const": false}
+      }
+    },
+    "windows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["date", "stratum", "population", "regime_signals", "fifo_allocation_rate", "best_hard_pass_allocation_rate", "best_hard_pass_allocation_uplift_vs_fifo", "ranking", "policies", "window_record_fingerprint"],
+        "properties": {
+          "date": {"type": "string", "format": "date"},
+          "stratum": {"type": "object"},
+          "population": {"type": "object"},
+          "regime_signals": {"type": "object"},
+          "fifo_allocation_rate": {"type": "number", "minimum": 0, "maximum": 1},
+          "best_hard_pass_allocation_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "best_hard_pass_allocation_uplift_vs_fifo": {"type": ["number", "null"]},
+          "ranking": {"type": "object"},
+          "policies": {"type": "object", "minProperties": 1},
+          "window_record_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "source_evidence": {
+      "type": "object",
+      "required": ["selection_fingerprint", "multiwindow_fingerprint", "experiment_fingerprint"],
+      "properties": {
+        "selection_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "multiwindow_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "experiment_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "receipt_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

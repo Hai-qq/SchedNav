@@ -155,33 +155,47 @@ class NativeSimulatorTests(unittest.TestCase):
         self.assertEqual(result["cluster"]["allocation_rate_mean"], 1.0)
 
     def test_checked_in_action_space_contains_only_executable_profiles(self):
-        action_space = json.loads(
-            (PROJECT_ROOT / "configs" / "action_spaces" / "native-v1.json").read_text(
+        action_space_schema = json.loads(
+            (PROJECT_ROOT / "schemas" / "action-space.schema.json").read_text(
                 encoding="utf-8"
             )
         )
-        self.assertEqual(action_space["schema_version"], "schednav.native-action-space/v1")
-        controlled = set(action_space["controlled_fields"])
-        self.assertEqual(
-            controlled,
-            {"scheduler", "spot_guarantee_seconds", "checkpoint_interval_seconds"},
-        )
-        fixed = action_space["fixed_execution_controls"]
-        policies = []
-        for relative in action_space["profiles"]:
-            profile_path = (PROJECT_ROOT / relative).resolve()
-            self.assertTrue(profile_path.is_relative_to(PROJECT_ROOT))
-            policy_value = json.loads(profile_path.read_text(encoding="utf-8"))
-            policy = SimulationPolicy.from_dict(policy_value)
-            self.assertEqual(
-                policy.preemption_overhead_seconds,
-                fixed["preemption_overhead_seconds"],
+        for filename in ("native-v1.json", "native-multiwindow-v1.json"):
+            action_space = json.loads(
+                (PROJECT_ROOT / "configs" / "action_spaces" / filename).read_text(
+                    encoding="utf-8"
+                )
             )
-            self.assertEqual(policy.placement_strategy, fixed["placement_strategy"])
-            policies.append(policy)
-        self.assertGreaterEqual(len(policies), 3)
-        self.assertLessEqual(len(policies), 5)
-        self.assertEqual(len({policy.action_id for policy in policies}), len(policies))
+            self.assertLessEqual(
+                set(action_space), set(action_space_schema["properties"])
+            )
+            self.assertEqual(
+                action_space["schema_version"], "schednav.native-action-space/v1"
+            )
+            controlled = set(action_space["controlled_fields"])
+            self.assertEqual(
+                controlled,
+                {"scheduler", "spot_guarantee_seconds", "checkpoint_interval_seconds"},
+            )
+            fixed = action_space["fixed_execution_controls"]
+            policies = []
+            for relative in action_space["profiles"]:
+                profile_path = (PROJECT_ROOT / relative).resolve()
+                self.assertTrue(profile_path.is_relative_to(PROJECT_ROOT))
+                policy_value = json.loads(profile_path.read_text(encoding="utf-8"))
+                policy = SimulationPolicy.from_dict(policy_value)
+                self.assertEqual(
+                    policy.preemption_overhead_seconds,
+                    fixed["preemption_overhead_seconds"],
+                )
+                self.assertEqual(policy.placement_strategy, fixed["placement_strategy"])
+                policies.append(policy)
+            self.assertGreaterEqual(len(policies), 3)
+            self.assertLessEqual(len(policies), 5)
+            self.assertEqual(len({policy.action_id for policy in policies}), len(policies))
+            for excluded in action_space.get("excluded_profiles", []):
+                self.assertTrue(excluded["action_id"])
+                self.assertTrue(excluded["reason"])
 
 
 if __name__ == "__main__":

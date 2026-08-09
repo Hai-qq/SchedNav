@@ -1,0 +1,1188 @@
+{
+  "aggregate": {
+    "all_hard_slo_pass_window_count": 4,
+    "best_hard_pass_allocation_uplift_vs_fifo": {
+      "equal_window_count": 6,
+      "max": 0.019912215,
+      "mean": 0.003097516,
+      "median": 0.0,
+      "min": 0.0,
+      "negative_window_count": 0,
+      "positive_window_count": 5
+    },
+    "frontier_action_window_frequency": {
+      "native-fifo": 9,
+      "native-preemptive-0000": 7,
+      "native-preemptive-3600": 6,
+      "native-preemptive-7200": 5
+    },
+    "policies": {
+      "native-fifo": {
+        "allocation_delta_vs_fifo": {
+          "equal_window_count": 12,
+          "max": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "negative_window_count": 0,
+          "positive_window_count": 0
+        },
+        "allocation_rate_mean": {
+          "max": 0.979751611,
+          "mean": 0.734148493,
+          "median": 0.770907176,
+          "min": 0.46967497
+        },
+        "allocation_soft_target_pass_count": 4,
+        "deterministic_window_count": 12,
+        "hard_slo_pass_count": 11,
+        "hard_slo_pass_rate": 0.916666667,
+        "hp_p95_jct_regression_vs_fifo": {
+          "max": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0
+        },
+        "spot_eviction_rate_per_run": {
+          "max": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0
+        },
+        "window_count": 12
+      },
+      "native-preemptive-0000": {
+        "allocation_delta_vs_fifo": {
+          "equal_window_count": 3,
+          "max": 0.123810952,
+          "mean": 0.01264982,
+          "median": 0.000961098,
+          "min": -0.026824828,
+          "negative_window_count": 2,
+          "positive_window_count": 7
+        },
+        "allocation_rate_mean": {
+          "max": 1.0,
+          "mean": 0.746798313,
+          "median": 0.77160272,
+          "min": 0.46967497
+        },
+        "allocation_soft_target_pass_count": 4,
+        "deterministic_window_count": 12,
+        "hard_slo_pass_count": 7,
+        "hard_slo_pass_rate": 0.583333333,
+        "hp_p95_jct_regression_vs_fifo": {
+          "max": 0.435976082,
+          "mean": 0.031108943,
+          "median": 0.0,
+          "min": -0.04021911
+        },
+        "spot_eviction_rate_per_run": {
+          "max": 0.94538835,
+          "mean": 0.148687773,
+          "median": 0.007936508,
+          "min": 0.0
+        },
+        "window_count": 12
+      },
+      "native-preemptive-3600": {
+        "allocation_delta_vs_fifo": {
+          "equal_window_count": 4,
+          "max": 0.018041285,
+          "mean": 0.003434962,
+          "median": 1.0122e-05,
+          "min": -0.019743974,
+          "negative_window_count": 1,
+          "positive_window_count": 7
+        },
+        "allocation_rate_mean": {
+          "max": 0.997792896,
+          "mean": 0.737583456,
+          "median": 0.77160272,
+          "min": 0.46967497
+        },
+        "allocation_soft_target_pass_count": 4,
+        "deterministic_window_count": 12,
+        "hard_slo_pass_count": 7,
+        "hard_slo_pass_rate": 0.583333333,
+        "hp_p95_jct_regression_vs_fifo": {
+          "max": 2.082078721,
+          "mean": 0.172002163,
+          "median": 0.0,
+          "min": -0.017721233
+        },
+        "spot_eviction_rate_per_run": {
+          "max": 0.818548387,
+          "mean": 0.166674685,
+          "median": 0.02739726,
+          "min": 0.0
+        },
+        "window_count": 12
+      },
+      "native-preemptive-7200": {
+        "allocation_delta_vs_fifo": {
+          "equal_window_count": 4,
+          "max": 0.017404277,
+          "mean": 0.002034861,
+          "median": 1.7664e-05,
+          "min": -0.009425734,
+          "negative_window_count": 2,
+          "positive_window_count": 6
+        },
+        "allocation_rate_mean": {
+          "max": 0.997155887,
+          "mean": 0.736183354,
+          "median": 0.77160272,
+          "min": 0.46967497
+        },
+        "allocation_soft_target_pass_count": 4,
+        "deterministic_window_count": 12,
+        "hard_slo_pass_count": 6,
+        "hard_slo_pass_rate": 0.5,
+        "hp_p95_jct_regression_vs_fifo": {
+          "max": 1.690997755,
+          "mean": 0.139866454,
+          "median": 0.0,
+          "min": -0.012600311
+        },
+        "spot_eviction_rate_per_run": {
+          "max": 0.685314685,
+          "mean": 0.135158946,
+          "median": 0.020833333,
+          "min": 0.0
+        },
+        "window_count": 12
+      }
+    },
+    "selection_status_counts": {
+      "no_eligible_policy": 1,
+      "selected": 5,
+      "tie_requires_human_approval": 6
+    },
+    "universal_winner_declared": false,
+    "window_count": 12
+  },
+  "limitations": [
+    "This is historical, offline counterfactual evaluation, not online scheduling.",
+    "Each selected day uses a fixed 30-day warm-up, so jobs submitted earlier than the warm-up boundary are not reconstructed.",
+    "native-preemptive-1800 was excluded by the declared 600-second evaluation-resource gate; this is not an SLO failure result.",
+    "A no_eligible_policy result is preserved rather than forcing a recommendation."
+  ],
+  "receipt_fingerprint": "741eecdf2edc17e612023f107f67470d9d6e37d400ed1dc201c9500e705c9173",
+  "schema_version": "schednav.multiwindow-evidence/v1",
+  "source_evidence": {
+    "experiment_fingerprint": "c438429e390242f2369f060c0ea63380b6aae076892dd28ba9fff5c77a84c240",
+    "multiwindow_fingerprint": "7f0a36b849c06356148a1820d2e38bbcd683ccbd94c254f5b9e55e2ca50fb8c4",
+    "selection_fingerprint": "a0d6915afd6420b376f0e82f695e6a9f86947cb0b4e2e8ed8092ec89d28413b5"
+  },
+  "study": {
+    "action_space": {
+      "excluded_profiles": [
+        {
+          "action_id": "native-preemptive-1800",
+          "reason": "Exceeded the declared 600-second per-batch feasibility gate in both full-origin and fixed-30-day-warm-up multi-window trials. This is an evaluation-resource exclusion, not an SLO result."
+        }
+      ],
+      "fingerprint": "b277ab7de527a07d32a0e39eed2e69ef0accc3d6dd56faf8d6b19546afbdc426",
+      "name": "native-multiwindow-v1-bounded-policies",
+      "path": "configs/action_spaces/native-multiwindow-v1.json"
+    },
+    "capacity_gpus": 976,
+    "dataset": "Alibaba cluster-trace-v2026-spot-gpu",
+    "dataset_commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "eligibility": {
+      "min_hp_jobs": 20,
+      "min_spot_jobs": 20,
+      "origin_aligned_complete_windows_only": true,
+      "sample_interval_seconds": 3600,
+      "window_size_seconds": 86400
+    },
+    "eligible_window_count": 112,
+    "gpu_models": [
+      "GPU-series-2"
+    ],
+    "repetitions_per_policy_per_window": 2,
+    "selected_window_count": 12,
+    "selection_method": {
+      "name": "pressure-by-spot-share-stratified-medoid",
+      "pressure_strata": 3,
+      "selected_before_simulation": true,
+      "spot_share_strata_per_pressure": 4,
+      "tie_breaker": "earliest_window_start"
+    },
+    "source_hashes": {
+      "job_info_sha256": "f921e1932ae13196e204fdb0351d6697a7a0ef2e82e00ae123ed20e873284fb2",
+      "node_info_sha256": "35ef4d6288061265f2f9a207ef3df79bb1301cb9c0646a62087449e176781895"
+    },
+    "warmup_seconds": 2592000
+  },
+  "windows": [
+    {
+      "best_hard_pass_allocation_rate": 0.5713521938531848,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.0,
+      "date": "2024-04-03",
+      "fifo_allocation_rate": 0.5713521938531848,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.5713521938531848,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 114158.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "e2c6d41a984025c09832107e0d82d4e94f2647c3893419be3dbd8eb5edad8b8d",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 68935.2
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.571347640066417,
+          "failed_hard_constraints": [
+            "allocation-fifo-nondegradation"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 114158.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "9e7188c349336107b79d6125b70a2a6290dca062d061638dfbe07fa701f1fd6a",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 68935.2
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.5713521938531848,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 114158.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "30f14f9e43932ae65a2e44beb2213eeddcfe16d7f58dfe990e1b87153928c1af",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 68935.2
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.5713521938531848,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 114158.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "6d032d9e6a1941748b0ee61724fcfbacad86d1c569c5d183de10830eaae8c140",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 68935.2
+        }
+      },
+      "population": {
+        "HP": 106,
+        "Spot": 25
+      },
+      "ranking": {
+        "ranking_fingerprint": "dbb619844ea089f851d94ad782fd4eae55d52993d1d6b49abe6ac79f0c97068c",
+        "selected_action_ids": [
+          "native-fifo",
+          "native-preemptive-3600",
+          "native-preemptive-7200"
+        ],
+        "selection_status": "tie_requires_human_approval"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.811475,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.778689,
+        "spot_peak_active_pressure": 0.070697,
+        "spot_requested_gpu_share": 0.0432
+      },
+      "stratum": {
+        "cell_size": 10,
+        "pressure": 1,
+        "spot_share": 1
+      },
+      "window_record_fingerprint": "a2192eaecf5ae977803b5db9e86a0b5fd9378586e5c78dfd63524b2f5fbbd2bd"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.7652100035690304,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.0013910869870040754,
+      "date": "2024-04-13",
+      "fifo_allocation_rate": 0.7638189165820263,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.7638189165820263,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 15128.9,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "82481420db0f763b95c17d4ab920584a30c281fed878b4a19d915a5c15e2832f",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 21659.75
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.7652100035690304,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 15128.9,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "761cb2ed6733b0f733362d0f9d06bf71ff35b060c101ea56801eacdd00e5424a",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 21659.75
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.7652100035690304,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 15128.9,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "a7c670e16a4a02aed2745a4a61b7fcb87090ed0df437efedeb2ddaedbd348da5",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 21659.75
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.7652100035690304,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 15128.9,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "24735ca5f7d8f24f0c135a707b07752e7c0ce5361a1cc72892784e628fcfe4d3",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 21659.75
+        }
+      },
+      "population": {
+        "HP": 22,
+        "Spot": 196
+      },
+      "ranking": {
+        "ranking_fingerprint": "4abe4a8207841f4d41a96b30a99dd92dcaee27d68294b2239da9b00c64612e9b",
+        "selected_action_ids": [
+          "native-fifo",
+          "native-preemptive-0000",
+          "native-preemptive-3600",
+          "native-preemptive-7200"
+        ],
+        "selection_status": "tie_requires_human_approval"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.822746,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.779713,
+        "spot_peak_active_pressure": 0.064549,
+        "spot_requested_gpu_share": 0.418904
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 1,
+        "spot_share": 4
+      },
+      "window_record_fingerprint": "33d8466619b73a402fc1b407f34c6e7ba8b04e5d3e8fbf6748b3de92b378de9a"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.469674970148979,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.0,
+      "date": "2024-04-22",
+      "fifo_allocation_rate": 0.469674970148979,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.469674970148979,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 20028.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "076bc3d5e56b233dbab0e0402e3471868231f413a51ea179c56e8bf216c11a4e",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 17165.15
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.469674970148979,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 20028.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "dddd944d314f743288743b5bb0805916c1ceb484cff984610aded84371085d68",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 17165.15
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.469674970148979,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 20028.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "60bce6597423a1752de03aab3bb3ac75e3a3487fa9e48f1c166f2279f696273d",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 17165.15
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.469674970148979,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 20028.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "bdeb2d640686141cb51ec7ff699b226f3cc23ea920b08bca813c273865e4d14a",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 17165.15
+        }
+      },
+      "population": {
+        "HP": 184,
+        "Spot": 138
+      },
+      "ranking": {
+        "ranking_fingerprint": "6d23dade05da440a07ffbec00679a4542757cb7eba9793ee2c6ab299ab8d481f",
+        "selected_action_ids": [
+          "native-fifo",
+          "native-preemptive-0000",
+          "native-preemptive-3600",
+          "native-preemptive-7200"
+        ],
+        "selection_status": "tie_requires_human_approval"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.846311,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.810451,
+        "spot_peak_active_pressure": 0.118852,
+        "spot_requested_gpu_share": 0.105761
+      },
+      "stratum": {
+        "cell_size": 10,
+        "pressure": 1,
+        "spot_share": 2
+      },
+      "window_record_fingerprint": "8e1773a3b190a00746200828a229a37f0e4617a9ffa753997a3c88818315103f"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.7180139289901466,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.010574889015678157,
+      "date": "2024-06-08",
+      "fifo_allocation_rate": 0.7074390399744684,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.7074390399744684,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 281199.4,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "29b0c10aa5f5a6d462d78185338497e22345ee7c04801e254ac709d1dd153ae0",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 19765.8
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.7180139289901466,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 274979.8,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "d88076ae3f805e03ab439a9bb1266cfa43998e3381e66220a85289ede05fe32c",
+          "spot_eviction_rate_per_run": 0.0625,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 21547.8
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.7182040258700626,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 276216.2,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "e6726f91020c620c73a8cb66180424d43c4ca36fb72f3cc20403ed7a598494f2",
+          "spot_eviction_rate_per_run": 0.16666666666666666,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 22642.8
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.7146908505316262,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 277656.2,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "cf3cb135570bb2d183b5f216f2572d1b583453094918034d0d85a017c1f0d394",
+          "spot_eviction_rate_per_run": 0.1346153846153846,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 22642.8
+        }
+      },
+      "population": {
+        "HP": 33,
+        "Spot": 45
+      },
+      "ranking": {
+        "ranking_fingerprint": "aa36116901df192494fe4d545bd242dd913d9ee83dbb8398ac4e60c4c65ad482",
+        "selected_action_ids": [
+          "native-preemptive-0000"
+        ],
+        "selection_status": "selected"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 1.123975,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.814549,
+        "spot_peak_active_pressure": 0.32582,
+        "spot_requested_gpu_share": 0.356196
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 3,
+        "spot_share": 4
+      },
+      "window_record_fingerprint": "b53c20046a2645c2f89637155402f0c0e4896ef0054618ea2d74fb896fe550cc"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.8533734499811113,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.0,
+      "date": "2024-06-12",
+      "fifo_allocation_rate": 0.8533734499811113,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.8533734499811113,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 16169.2,
+          "hp_queue_p95_seconds": 1.95,
+          "metrics_fingerprint": "da8d2b76df6ae283ff6f13fbd6598b06804db9ab474f667d2ee8d4e63c2212ce",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 15190.2
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.8265486219197664,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run",
+            "allocation-fifo-nondegradation"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 16169.2,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "6fd8a4707df061750fad3444d7bef6feb36e58597a0f1d0adc5d7c3b4298751b",
+          "spot_eviction_rate_per_run": 0.3611111111111111,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 16353.0
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.8336294757320165,
+          "failed_hard_constraints": [
+            "allocation-fifo-nondegradation"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 16169.2,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "46084c0aade3c1788fd5cdcabd36dd0fe34d06a227a858f3691904aefd9126c7",
+          "spot_eviction_rate_per_run": 0.0547945205479452,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 15799.8
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.8439477161715784,
+          "failed_hard_constraints": [
+            "allocation-fifo-nondegradation"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 16169.2,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "b01ad29f7eee653c55415503598fc2c92404ec8dcdab8ee5efce639ec0d54adc",
+          "spot_eviction_rate_per_run": 0.041666666666666664,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 15238.2
+        }
+      },
+      "population": {
+        "HP": 180,
+        "Spot": 69
+      },
+      "ranking": {
+        "ranking_fingerprint": "a16772c6c8b1b58e18a291356b81e75d6167b166b17bb1fd61195595ff4a2dd3",
+        "selected_action_ids": [
+          "native-fifo"
+        ],
+        "selection_status": "selected"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 1.117828,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 1.076844,
+        "spot_peak_active_pressure": 0.20082,
+        "spot_requested_gpu_share": 0.255319
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 3,
+        "spot_share": 3
+      },
+      "window_record_fingerprint": "d032f3b7f929adb3b1e2f75d078d3af9f3831c0b96045005589dd042c178d541"
+    },
+    {
+      "best_hard_pass_allocation_rate": null,
+      "best_hard_pass_allocation_uplift_vs_fifo": null,
+      "date": "2024-06-25",
+      "fifo_allocation_rate": 0.9797516108546338,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.9797516108546338,
+          "failed_hard_constraints": [
+            "hp-p95-queue-seconds"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 25838.0,
+          "hp_queue_p95_seconds": 5973.25,
+          "metrics_fingerprint": "2ac552a3060974a862dfc2c08ea095289fe632fc37c25308082e4afedad08819",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 70076.4
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.9999994248472441,
+          "failed_hard_constraints": [
+            "hp-p95-jct-fifo-regression",
+            "hp-p95-queue-seconds",
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 37102.75,
+          "hp_queue_p95_seconds": 8776.25,
+          "metrics_fingerprint": "2ac13e7c773263c10439e19a7061f792e5854b4adca2cb1ddac2c23aa7d3ac9d",
+          "spot_eviction_rate_per_run": 0.9453883495145631,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 188694.6
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.9977928957700823,
+          "failed_hard_constraints": [
+            "hp-p95-jct-fifo-regression",
+            "hp-p95-queue-seconds",
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 79634.75,
+          "hp_queue_p95_seconds": 16010.75,
+          "metrics_fingerprint": "145300fea5435eff98d1606301ad1aec4d5e51dc7292a3679d883c54193eeba6",
+          "spot_eviction_rate_per_run": 0.8185483870967742,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 79481.6
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.997155887410658,
+          "failed_hard_constraints": [
+            "hp-p95-jct-fifo-regression",
+            "hp-p95-queue-seconds",
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 69530.0,
+          "hp_queue_p95_seconds": 24281.75,
+          "metrics_fingerprint": "ceaac7569bbf836b988b5cbdfc3ef39b9c7063809edb0aa0f45e99927ee3adaa",
+          "spot_eviction_rate_per_run": 0.6853146853146853,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 96046.6
+        }
+      },
+      "population": {
+        "HP": 546,
+        "Spot": 45
+      },
+      "ranking": {
+        "ranking_fingerprint": "f3193b28606840d23405fa9177f53b5f1e28aa65dabb9629d46a0d3da47fed8b",
+        "selected_action_ids": [],
+        "selection_status": "no_eligible_policy"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 1.137295,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 1.097336,
+        "spot_peak_active_pressure": 0.055328,
+        "spot_requested_gpu_share": 0.078821
+      },
+      "stratum": {
+        "cell_size": 10,
+        "pressure": 3,
+        "spot_share": 1
+      },
+      "window_record_fingerprint": "9786beb031294de4696494d7337c4008c665fce8437f762de0c2f3ea578edbe1"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.8761890482756423,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.0,
+      "date": "2024-07-05",
+      "fifo_allocation_rate": 0.8761890482756423,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.8761890482756423,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 56190.95,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "b5cd17ad60a2c5e66c2e5640df03d0ecb65c7888b9cf86dc5d792607b0482550",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 63491.4
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 1.0,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 53931.0,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "b9b8fde4fd6fac1cb6a4bfbfdb3ecde212e1119af80e63dc65e9a36e7470fcdf",
+          "spot_eviction_rate_per_run": 0.29411764705882354,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 140372.05
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.8897083636365706,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 56190.95,
+          "hp_queue_p95_seconds": 11.55,
+          "metrics_fingerprint": "6c21f348ce0d699db8e518f5d3c3b8fe2c73cb67bb67d5079dc55ddf6366a521",
+          "spot_eviction_rate_per_run": 0.7538461538461538,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 64811.4
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.8774345089566344,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 56190.95,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "ffaf9f7546343f7e2f176904ae0bb3f943ef83bccf9c7e06f7e6219c417a037b",
+          "spot_eviction_rate_per_run": 0.6033057851239669,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 64151.4
+        }
+      },
+      "population": {
+        "HP": 70,
+        "Spot": 48
+      },
+      "ranking": {
+        "ranking_fingerprint": "af3cfd8abcdcfcd80716c961bd4a1f549938e83c5ab224cdc2c4417256f5e020",
+        "selected_action_ids": [
+          "native-fifo"
+        ],
+        "selection_status": "selected"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.933402,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.867828,
+        "spot_peak_active_pressure": 0.128074,
+        "spot_requested_gpu_share": 0.313978
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 2,
+        "spot_share": 4
+      },
+      "window_record_fingerprint": "9a80360226947455ee962d82a208c33c383d33c2aa47f79c40b13a05a98c2631"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.7779954358723414,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.0,
+      "date": "2024-07-09",
+      "fifo_allocation_rate": 0.7779954358723414,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.7779954358723414,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 616868.1,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "078f788cc7d4c691a7d5a835890d46a4b976e9448a685689a2250700d2f21ca0",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 32612.75
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.7779954358723414,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 616868.1,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "24708ac024194771f91c27e24c7213b8fa0edbee45a3f682e320c3494f42ee1a",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 32612.75
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.7779954358723414,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 616868.1,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "ad513cd5c82453d4298386d2c1f0f96c36278cabd16d7139a798160358e89be3",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 32612.75
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.7779954358723414,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 616868.1,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "f6dd15861166a396005d914f792281fcc89c9e473a75aa9f61f48cd748c722c3",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 32612.75
+        }
+      },
+      "population": {
+        "HP": 75,
+        "Spot": 42
+      },
+      "ranking": {
+        "ranking_fingerprint": "3ecf16e3aaed02cb10318c40b7685a5b6ff67daf8e3c46646a5eaf236325bce4",
+        "selected_action_ids": [
+          "native-fifo",
+          "native-preemptive-0000",
+          "native-preemptive-3600",
+          "native-preemptive-7200"
+        ],
+        "selection_status": "tie_requires_human_approval"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.889344,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.844262,
+        "spot_peak_active_pressure": 0.074795,
+        "spot_requested_gpu_share": 0.22093
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 1,
+        "spot_share": 3
+      },
+      "window_record_fingerprint": "7b08f4efe4999b843e85d1ea133a8f9a787d71077c8fab077674eb396fd2fac0"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.8711452195010606,
+      "best_hard_pass_allocation_uplift_vs_fifo": 3.532742390954802e-05,
+      "date": "2024-07-12",
+      "fifo_allocation_rate": 0.8711098920771511,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.8711098920771511,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 55800.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "dd11dcd1084bbc52bf3fff858663cef67d7b2d36b7d51f008a1f8afd6b211ca4",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 19001.3
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.8716410011765846,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 55782.0,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "b3d0fd4ff411700e146f4315bcf7458983a436dc73073c219ba6f3ab8533b5e0",
+          "spot_eviction_rate_per_run": 0.10526315789473684,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 19001.3
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.8711264351306434,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 55782.0,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "67a27ab64f1f3b69e7a15e8294c76d5cfc8f89a6bf889620afe567bc5afc4d49",
+          "spot_eviction_rate_per_run": 0.05555555555555555,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 19001.3
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.8711452195010606,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 55800.5,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "f4ec62f4a2c639bdbdcce18ef28274c846bdc2a48ef1f182e6af193f27e461b4",
+          "spot_eviction_rate_per_run": 0.05555555555555555,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 19001.3
+        }
+      },
+      "population": {
+        "HP": 86,
+        "Spot": 34
+      },
+      "ranking": {
+        "ranking_fingerprint": "c7454017b325837bbeebea177cd02b80e877b77591d264bae6ed8b0219238769",
+        "selected_action_ids": [
+          "native-fifo"
+        ],
+        "selection_status": "selected"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.967213,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.941598,
+        "spot_peak_active_pressure": 0.110656,
+        "spot_requested_gpu_share": 0.174559
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 2,
+        "spot_share": 3
+      },
+      "window_record_fingerprint": "04556b48b9d1118f8dece28cb99cff0d7b292d3f857495d5eb5099123cb1a98d"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.5138068798800229,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.0,
+      "date": "2024-07-21",
+      "fifo_allocation_rate": 0.5138068798800229,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.5138068798800229,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 41890.6,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "2fdf6990de86ef5720656bd8d935a9d055c6d53115f1ccbc624238c9bb575c49",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25500.5
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.5138068798800229,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 41890.6,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "2b5ec8ad4da8d6e31204921d4ed97b01943f13a7fa35855ff8c3dbc4c258cc18",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25500.5
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.5138068798800229,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 41890.6,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "6d82f5b5f63eb57a29830dcb7e1b0ee596543ce4e6a85d2e77b757dc8ad30d39",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25500.5
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.5138068798800229,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 41890.6,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "3a7d3734114b08aa80f58858ae5f62d0f85e20f4374891fa57e7024349f2980c",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25500.5
+        }
+      },
+      "population": {
+        "HP": 53,
+        "Spot": 24
+      },
+      "ranking": {
+        "ranking_fingerprint": "66d850ffed317840af1f41dff99aaf0dfb5f45c686237eebffdc1e93932801d2",
+        "selected_action_ids": [
+          "native-fifo",
+          "native-preemptive-0000",
+          "native-preemptive-3600",
+          "native-preemptive-7200"
+        ],
+        "selection_status": "tie_requires_human_approval"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.936475,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.832992,
+        "spot_peak_active_pressure": 0.110656,
+        "spot_requested_gpu_share": 0.052151
+      },
+      "stratum": {
+        "cell_size": 10,
+        "pressure": 2,
+        "spot_share": 1
+      },
+      "window_record_fingerprint": "9cea261e2f1b5a7d15b3ed8b7aa133def1a81350be811bda8f6fa1778a2b0433"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.6486432016042991,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.01991221532428944,
+      "date": "2024-08-13",
+      "fifo_allocation_rate": 0.6287309862800097,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.6287309862800097,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 39099.75,
+          "hp_queue_p95_seconds": 381.75,
+          "metrics_fingerprint": "1a58fecdb9f4994ae0596d855a8509269896b5a901b9281697d5a5ea32a23719",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25173.75
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.6486432016042991,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 39099.75,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "f06644c4dbdd32835fa254deea31416166469c87ce775639d9614f0d4062c1c0",
+          "spot_eviction_rate_per_run": 0.015873015873015872,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25173.75
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.6459575939991716,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 39099.75,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "70673e0523d7f9d58838861dedad07c880976b5490093bf91baade516bb187bb",
+          "spot_eviction_rate_per_run": 0.1506849315068493,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 27032.95
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.6352613240343743,
+          "failed_hard_constraints": [
+            "spot-eviction-rate-per-run"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 39099.75,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "4aaf6ccd513b080af4bc2181e955af6d784c929372030f2afb51dcbd7c9edb04",
+          "spot_eviction_rate_per_run": 0.10144927536231885,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 26239.3
+        }
+      },
+      "population": {
+        "HP": 176,
+        "Spot": 62
+      },
+      "ranking": {
+        "ranking_fingerprint": "5dac7a5717f10da7aef187965894fb0d82e5c1897f057db7ad7b81492cb0bcaa",
+        "selected_action_ids": [
+          "native-preemptive-0000"
+        ],
+        "selection_status": "selected"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 1.016906,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.875,
+        "spot_peak_active_pressure": 0.181865,
+        "spot_requested_gpu_share": 0.181551
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 3,
+        "spot_share": 2
+      },
+      "window_record_fingerprint": "61e5efff9c823c57ba15d21b8d04b455959b79c51f997479aacdfc5bcd83d9fc"
+    },
+    {
+      "best_hard_pass_allocation_rate": 0.7986986522593708,
+      "best_hard_pass_allocation_uplift_vs_fifo": 0.002159159021838941,
+      "date": "2024-08-15",
+      "fifo_allocation_rate": 0.7965394932375318,
+      "policies": {
+        "native-fifo": {
+          "allocation_rate_mean": 0.7965394932375318,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 59272.3,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "d7a2cf26103fc5ffc771f176c0d375719a64d653083a61b1af73c244d398ad7f",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25384.4
+        },
+        "native-preemptive-0000": {
+          "allocation_rate_mean": 0.7986986522593708,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 59272.3,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "d43ccbbb7e5338c4c14858a7182746bc5cf25db5a656ea891fa530ef4e93f031",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25384.4
+        },
+        "native-preemptive-3600": {
+          "allocation_rate_mean": 0.7965431931892806,
+          "failed_hard_constraints": [],
+          "hard_slo_passed": true,
+          "hp_jct_p95_seconds": 59272.3,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "6058fba1d54c0563b9050156ae0d21a2fd64baa3a3869f6dfa9304c2c8117d3b",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25384.4
+        },
+        "native-preemptive-7200": {
+          "allocation_rate_mean": 0.7965252626538825,
+          "failed_hard_constraints": [
+            "allocation-fifo-nondegradation"
+          ],
+          "hard_slo_passed": false,
+          "hp_jct_p95_seconds": 59272.3,
+          "hp_queue_p95_seconds": 0.0,
+          "metrics_fingerprint": "89740533a7df41453e952ada1985993857aadd8c850d7ce82737af182d22859b",
+          "spot_eviction_rate_per_run": 0.0,
+          "spot_guarantee_success_rate": 1.0,
+          "spot_jct_p95_seconds": 25384.4
+        }
+      },
+      "population": {
+        "HP": 103,
+        "Spot": 33
+      },
+      "ranking": {
+        "ranking_fingerprint": "7ce45c8d97e456d92e22e6ec3734cdbfcdddf539488dd31d782faa5348f2b5ee",
+        "selected_action_ids": [
+          "native-fifo",
+          "native-preemptive-0000",
+          "native-preemptive-3600"
+        ],
+        "selection_status": "tie_requires_human_approval"
+      },
+      "regime_signals": {
+        "combined_peak_active_pressure": 0.950307,
+        "dominant_arrival_type": "HP",
+        "hp_peak_active_pressure": 0.925205,
+        "spot_peak_active_pressure": 0.090164,
+        "spot_requested_gpu_share": 0.117789
+      },
+      "stratum": {
+        "cell_size": 9,
+        "pressure": 2,
+        "spot_share": 2
+      },
+      "window_record_fingerprint": "a12530e9f8b57c6e72faf9bb9188afdead73a42620f7054fee4af0f05fd011c1"
+    }
+  ]
+}

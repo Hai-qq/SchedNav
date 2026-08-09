@@ -34,7 +34,7 @@ job_id,submit_time_seconds,duration_seconds,gpu_count,service_class,gpu_model
 - The manifest records the source URL/version and SHA-256 of source inputs when available.
 - Dataset adapters must document every semantic mapping, filter and skipped-record rule.
 - A prefix trace starts at the published origin and applies an inclusive arrival cutoff.
-- An explicit evaluation trace replays all selected arrivals from the published origin through the inclusive evaluation end. Arrivals before `evaluation_window_seconds.start` are warm-up state: they affect scheduling state but are excluded from the evaluated HP/Spot job population. Allocation is integrated only inside the declared window.
+- An explicit evaluation trace replays selected arrivals through the inclusive evaluation end. By default replay starts at the published origin; a declared `warmup_start_seconds` may bound carry-in reconstruction for a resource-controlled study. Arrivals from that boundary up to `evaluation_window_seconds.start` are warm-up state: they affect scheduling state but are excluded from the evaluated HP/Spot job population. Allocation is integrated only inside the declared window.
 - Explicit evaluation traces cannot contain post-window arrivals and must contain at least one arrival inside the window.
 - Content fingerprints cover the normalized files and metadata so AgentTeams passes references rather than large trace payloads.
 
@@ -44,7 +44,9 @@ job_id,submit_time_seconds,duration_seconds,gpu_count,service_class,gpu_model
 
 `schednav import-alibaba` converts `node_info_df.csv` and `job_info_df.csv`. It preserves published HP/Spot labels, `gpu_request × worker_num`, GPU model and relative submit time. Optional GPU-model, inclusive submit-time and explicit evaluation-window filters are recorded in provenance.
 
-For a historical window with correct carry-in state, pass both `--evaluation-start-seconds` and `--evaluation-end-seconds`. The importer keeps earlier selected arrivals for warm-up and excludes arrivals after the evaluation end. Supplying only one boundary is rejected.
+For a historical window with full carry-in reconstruction, pass both `--evaluation-start-seconds` and `--evaluation-end-seconds`. The importer keeps earlier selected arrivals from the source origin and excludes arrivals after the evaluation end. Supplying only one boundary is rejected.
+
+For a deliberately bounded carry-in study, also pass `--warmup-start-seconds`. The value must fall between the trace origin and evaluation start and is recorded in provenance. This is an explicit approximation, not equivalent to full-origin replay. The multi-window v1 study fixes this boundary at 30 days before each evaluated day and publishes that limitation with its evidence.
 
 ### Microsoft Philly GPU Trace
 

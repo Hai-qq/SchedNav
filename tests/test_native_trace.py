@@ -206,6 +206,45 @@ class NativeTraceTests(unittest.TestCase):
             self.assertEqual(trace.evaluation_end_seconds, 20)
             self.assertEqual(trace.source["filter"]["max_submit_time_seconds"], 20)
 
+            bounded = load_canonical_trace(
+                import_alibaba_trace(
+                    node_path,
+                    job_path,
+                    root / "bounded-warmup",
+                    gpu_models={"GPU-series-2"},
+                    evaluation_start_seconds=10,
+                    evaluation_end_seconds=20,
+                    warmup_start_seconds=5,
+                )
+            )
+            self.assertEqual([job.job_id for job in bounded.jobs], ["evaluated"])
+            self.assertEqual(bounded.source["filter"]["warmup_start_seconds"], 5)
+
+    def test_rejects_invalid_alibaba_warmup_bounds(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            node_path = root / "node_info_df.csv"
+            job_path = root / "job_info_df.csv"
+            node_path.write_text(
+                "node_name,gpu_model,gpu_capacity_num\nn1,GPU-series-2,8\n",
+                encoding="utf-8",
+            )
+            job_path.write_text(
+                "job_name,gpu_model,gpu_request,worker_num,submit_time,duration,job_type\n"
+                "j1,GPU-series-2,1,1,10,2,HP\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "warm-up start"):
+                import_alibaba_trace(
+                    node_path,
+                    job_path,
+                    root / "invalid",
+                    evaluation_start_seconds=10,
+                    evaluation_end_seconds=20,
+                    warmup_start_seconds=11,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

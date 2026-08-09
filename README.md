@@ -137,17 +137,19 @@ schednav simulate `
   --metrics C:\datasets\schednav\fifo-metrics.json
 ```
 
-同一个 Trace 可分别运行 `configs/policies/` 中的 4 个有限策略，再交给 compare、SLO audit 与 ranking 命令处理。
+同一个 Trace 可分别运行所选 Action Space 声明的有限策略，再交给 compare、SLO audit 与 ranking 命令处理。
 
 ## Multi-dataset validation
 
-第一方内核已在两个独立来源的真实 GPU Trace 上运行。[Alibaba mixed HP/Spot policy evaluation](evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json) 记录了一个带 warm-up carry-in 的代表性窗口、四策略双次仿真、8 项硬 SLO 审计和正式排名；[Alibaba A100 validation receipt](evidence/native-v1/alibaba-a100-day1-validation.json) 记录了另一 GPU 型号的一天入口验证；[Philly validation receipt](evidence/native-v1/philly-validation.json) 记录了官方数据 hash、111,846 个有效转换任务、前 1,000 个任务的 origin-preserving slice，以及两次 FIFO 运行完全相同的 result/metrics fingerprint。
+第一方内核已在两个独立来源的真实 GPU Trace 上运行。[Alibaba 12-window evaluation](evidence/native-v1/alibaba-gpu-series-2-multiwindow-30d-v1.json) 固化了 12 个预先分层窗口、4 个策略、每策略每窗口 2 次重复，共 96 次确定性仿真的汇总证据；[Alibaba mixed HP/Spot policy evaluation](evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json) 记录了一个带 warm-up carry-in 的代表性窗口；[Alibaba A100 validation receipt](evidence/native-v1/alibaba-a100-day1-validation.json) 记录了另一 GPU 型号的一天入口验证；[Philly validation receipt](evidence/native-v1/philly-validation.json) 记录了官方数据 hash、111,846 个有效转换任务、前 1,000 个任务的 origin-preserving slice，以及两次 FIFO 运行完全相同的 result/metrics fingerprint。
 
 该 Philly 验证只覆盖 ingestion、placement、completion、JCT、allocation 和 determinism。由于源数据没有 HP/Spot 标签，Spot eviction、guarantee 和 HP-vs-Spot SLO 明确保持未验证。
 
 代表性 Alibaba 窗口的四个策略全部通过 8 项硬 SLO。三个抢占策略达到 80% allocation 软目标，但在严格 1 个百分点 allocation tie band 内，且 Spot p95 JCT 与 eviction rate 相同，因此结果保持 `tie_requires_human_approval`，未添加隐藏的第四排序指标。
 
-完整实验可用 `scripts/run_demo_experiment.ps1` 一次执行：导入真实 Trace、分析负载、每个策略独立运行两次、验证确定性、生成 FIFO baseline、审计 SLO 并分层排名。脚本要求单独下载数据，且拒绝覆盖已有输出目录。
+多窗口结果更接近真实结论：12 个窗口中，5 个窗口得到唯一策略、6 个保持并列、1 个没有任何策略通过硬 SLO。在存在合格策略的 11 个窗口里，SLO 合格前沿相对 FIFO 的 allocation 为 5 个提升、6 个持平、0 个下降，平均提升 0.31 个百分点，最大提升 1.99 个百分点。`native-preemptive-0000` 的原始平均 allocation 为 74.68%，高于 FIFO 的 73.41%，但它只在 7/12 窗口通过全部硬 SLO，因此不能宣称某个抢占策略普遍优于 FIFO。完整方法、逐窗解释和复现命令见 [Multi-window Evaluation](docs/multiwindow-evaluation.md)。
+
+单窗口演示可用 `scripts/run_demo_experiment.ps1` 一次执行。多窗口研究使用 `scripts/run_multiwindow_experiment.py` 完成预仿真选窗、限定策略双次运行、同窗 FIFO baseline、SLO 审计与分层排名，再由 `scripts/publish_multiwindow_evidence.py` 生成不含原始数据和逐 Job 结果的公开回执。两个脚本都要求单独下载数据，并拒绝覆盖已有输出路径。
 
 ## AgentTeams integration
 

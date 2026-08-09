@@ -67,3 +67,7 @@ On the representative Alibaba `GPU-series-2` window, the same-Trace FIFO HP p95 
 | `native-preemptive-3600` | 80.7893% | 44,971.1 s | 0 s | 21,961.1 s | 5.6180% | 100% | 8/8 pass | yes |
 
 Every policy also has 100% HP/Spot completion and zero HP preempted jobs. Because all three preemptive policies fall within the strict one-percentage-point allocation band and have identical Spot p95 JCT and eviction rate, the formal result is `tie_requires_human_approval`. See the [aggregate receipt](../evidence/native-v1/alibaba-gpu-series-2-2024-04-12-policy-evaluation.json).
+
+## Verified multi-window evaluation
+
+The same SLO was applied independently to 12 preselected `GPU-series-2` daily windows. FIFO passed all hard constraints in 11/12 windows; the three preemptive profiles passed in 7/12, 7/12 and 6/12 windows respectively. The study preserved six ties and one window with no eligible policy rather than forcing a recommendation. Among the 11 feasible windows, the best eligible allocation was higher than FIFO in five, equal in six and lower in none. See [Multi-window Evaluation](multiwindow-evaluation.md) and the [content-addressed receipt](../evidence/native-v1/alibaba-gpu-series-2-multiwindow-30d-v1.json).

@@ -63,6 +63,11 @@ def main() -> int:
     alibaba_parser.add_argument("--max-submit-time-seconds", type=float)
     alibaba_parser.add_argument("--evaluation-start-seconds", type=float)
     alibaba_parser.add_argument("--evaluation-end-seconds", type=float)
+    alibaba_parser.add_argument(
+        "--warmup-start-seconds",
+        type=float,
+        help="optional bounded carry-in start; requires an evaluation window",
+    )
 
     workload_parser = subparsers.add_parser(
         "analyze-trace", help="analyze any canonical SchedNav trace"
@@ -159,6 +164,7 @@ def main() -> int:
             max_submit_time_seconds=args.max_submit_time_seconds,
             evaluation_start_seconds=args.evaluation_start_seconds,
             evaluation_end_seconds=args.evaluation_end_seconds,
+            warmup_start_seconds=args.warmup_start_seconds,
         )
         trace = load_canonical_trace(manifest)
         result = {

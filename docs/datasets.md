@@ -50,6 +50,14 @@ To reproduce the full import, double simulation, comparison, audit and ranking s
   -OutputDirectory C:\experiments\schednav-gpu-series-2-2024-04-12
 ```
 
+## Verified multi-window policy evaluation
+
+The broader `GPU-series-2` study first scanned complete origin-aligned days and retained the 112 windows containing at least 20 HP and 20 Spot jobs. Before any policy simulation, it selected 12 windows by three balanced peak-pressure strata and four balanced Spot-request-share strata per pressure group. Each selected day uses a fixed 30-day warm-up and evaluates four bounded actions twice, for 96 deterministic runs.
+
+Across the 12 windows, the result is five unique selections, six unresolved ties and one `no_eligible_policy` outcome. Of the 11 windows with at least one hard-SLO-compliant policy, the best eligible frontier improves allocation over FIFO in five and matches FIFO in six; none regress because FIFO non-degradation is itself a hard gate. The mean uplift is 0.31 percentage points and the maximum is 1.99 percentage points. This is evidence for safe regime-dependent selection, not a claim that one preemptive profile always wins.
+
+The compact [multi-window receipt](../evidence/native-v1/alibaba-gpu-series-2-multiwindow-30d-v1.json) contains selection metadata, policy aggregates, every window decision and content fingerprints without raw or per-job data. See [multiwindow-evaluation.md](multiwindow-evaluation.md) for methodology, limitations and reproduction.
+
 ## Evaluation rule
 
 Results from different datasets are separate evidence populations. SchedNav compares policies within the same trace fingerprint and window; it never compares raw metrics across unrelated datasets as though they were controlled experiments. Multi-dataset validation is used to test robustness and expose regime-specific behavior.

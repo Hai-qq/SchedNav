@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bisect import insort_right
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
@@ -150,6 +151,11 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         }
         for node in trace.nodes
     }
+    free_by_model: dict[str, float] = {}
+    for node in nodes.values():
+        model = str(node["gpu_model"])
+        free_by_model[model] = free_by_model.get(model, 0.0) + float(node["free"])
+    total_free = sum(free_by_model.values())
     states = {
         job.job_id: _JobState(job, job.duration_seconds, job.submit_time_seconds, index)
         for index, job in enumerate(trace.jobs)
@@ -157,6 +163,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
     arrivals = list(trace.jobs)
     arrival_index = 0
     queue: list[str] = []
+    queued_hp_count = 0
     running: set[str] = set()
     completed: set[str] = set()
     preemption_events: list[dict[str, Any]] = []
@@ -178,6 +185,33 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
     allocated_gpu_seconds = 0.0
     warmup_allocated_gpu_seconds = 0.0
     evaluation_allocated_gpu_seconds = 0.0
+
+    def enqueue(job_id: str) -> None:
+        nonlocal queued_hp_count
+        insort_right(queue, job_id, key=queue_key)
+        if states[job_id].job.service_class == "HP":
+            queued_hp_count += 1
+
+    def eligible_free(job: TraceJob) -> float:
+        if job.gpu_model == "*":
+            return total_free
+        return free_by_model.get(job.gpu_model, 0.0)
+
+    def reserve(allocation: dict[str, float]) -> None:
+        nonlocal total_free
+        _reserve(allocation, nodes)
+        for node_id, count in allocation.items():
+            model = str(nodes[node_id]["gpu_model"])
+            free_by_model[model] -= count
+            total_free -= count
+
+    def release(allocation: dict[str, float] | None) -> None:
+        nonlocal total_free
+        _release(allocation, nodes)
+        for node_id, count in (allocation or {}).items():
+            model = str(nodes[node_id]["gpu_model"])
+            free_by_model[model] += count
+            total_free += count
 
     def queue_key(job_id: str) -> tuple[Any, ...]:
         state = states[job_id]
@@ -205,50 +239,61 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         )
 
     def start_jobs() -> bool:
-        started_any = False
-        while True:
-            started = False
-            for job_id in sorted(queue, key=queue_key):
-                state = states[job_id]
-                allocation = _allocate(state.job, nodes)
-                if allocation is None:
-                    continue
-                queue.remove(job_id)
-                _reserve(allocation, nodes)
-                state.queue_seconds += now - state.queued_since
-                state.first_start = now if state.first_start is None else state.first_start
-                state.run_start = now
-                state.run_count += 1
-                state.allocation = allocation
-                running.add(job_id)
-                started = True
-                started_any = True
+        nonlocal queued_hp_count
+        if total_free <= EPSILON:
+            return False
+        started_ids: list[str] = []
+        for job_id in list(queue):
+            if total_free <= EPSILON:
                 break
-            if not started:
-                return started_any
+            state = states[job_id]
+            if eligible_free(state.job) < state.job.gpu_count:
+                continue
+            allocation = _allocate(state.job, nodes)
+            if allocation is None:
+                continue
+            reserve(allocation)
+            state.queue_seconds += now - state.queued_since
+            state.first_start = now if state.first_start is None else state.first_start
+            state.run_start = now
+            state.run_count += 1
+            state.allocation = allocation
+            running.add(job_id)
+            started_ids.append(job_id)
+        if started_ids:
+            started = set(started_ids)
+            queued_hp_count -= sum(
+                states[job_id].job.service_class == "HP" for job_id in started_ids
+            )
+            queue[:] = [job_id for job_id in queue if job_id not in started]
+        return bool(started_ids)
 
     def preempt_for_hp() -> bool:
         nonlocal next_enqueue_order
-        if policy.scheduler != "priority_preemptive":
+        if policy.scheduler != "priority_preemptive" or queued_hp_count == 0:
             return False
         changed = False
-        for pending_id in sorted(queue, key=queue_key):
+        candidate_cache: dict[str, list[_JobState]] = {}
+        candidate_offsets: dict[str, int] = {}
+        for pending_id in list(queue):
             pending = states[pending_id]
             if pending.job.service_class != "HP":
                 continue
-            while _eligible_free(pending.job, nodes) < pending.job.gpu_count:
-                candidates = [
-                    states[job_id]
-                    for job_id in running
-                    if states[job_id].job.service_class == "Spot"
-                    and states[job_id].run_start is not None
-                    and now + EPSILON
-                    >= float(states[job_id].run_start) + policy.spot_guarantee_seconds
-                    and _shares_eligible_model(pending.job, states[job_id], nodes)
-                ]
-                if not candidates:
-                    break
-                candidates.sort(
+            if eligible_free(pending.job) >= pending.job.gpu_count:
+                continue
+            model = pending.job.gpu_model
+            if model not in candidate_cache:
+                candidate_cache[model] = sorted(
+                    (
+                        states[job_id]
+                        for job_id in running
+                        if states[job_id].job.service_class == "Spot"
+                        and states[job_id].run_start is not None
+                        and now + EPSILON
+                        >= float(states[job_id].run_start)
+                        + policy.spot_guarantee_seconds
+                        and _shares_eligible_model(pending.job, states[job_id], nodes)
+                    ),
                     key=lambda state: (
                         state.remaining,
                         state.job.submit_time_seconds,
@@ -256,7 +301,19 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                     ),
                     reverse=True,
                 )
-                victim = candidates[0]
+                candidate_offsets[model] = 0
+            candidates = candidate_cache[model]
+            offset = candidate_offsets[model]
+            while eligible_free(pending.job) < pending.job.gpu_count:
+                while (
+                    offset < len(candidates)
+                    and candidates[offset].job.job_id not in running
+                ):
+                    offset += 1
+                if offset >= len(candidates):
+                    break
+                victim = candidates[offset]
+                offset += 1
                 run_seconds = now - float(victim.run_start)
                 rollback = run_seconds % policy.checkpoint_interval_seconds
                 overhead = float(policy.preemption_overhead_seconds)
@@ -272,7 +329,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                         "added_gpu_seconds": (rollback + overhead) * victim.job.gpu_count,
                     }
                 )
-                _release(victim.allocation, nodes)
+                release(victim.allocation)
                 victim.allocation = None
                 victim.run_start = None
                 victim.preemptions += 1
@@ -280,13 +337,14 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                 victim.enqueue_order = next_enqueue_order
                 next_enqueue_order += 1
                 running.remove(victim.job.job_id)
-                queue.append(victim.job.job_id)
+                enqueue(victim.job.job_id)
                 changed = True
+            candidate_offsets[model] = offset
         return changed
 
     while len(completed) < len(states):
         while arrival_index < len(arrivals) and arrivals[arrival_index].submit_time_seconds <= now + EPSILON:
-            queue.append(arrivals[arrival_index].job_id)
+            enqueue(arrivals[arrival_index].job_id)
             arrival_index += 1
         start_jobs()
         if preempt_for_hp():
@@ -296,9 +354,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         if arrival_index < len(arrivals):
             event_times.append(arrivals[arrival_index].submit_time_seconds)
         event_times.extend(now + states[job_id].remaining for job_id in running)
-        if policy.scheduler == "priority_preemptive" and any(
-            states[job_id].job.service_class == "HP" for job_id in queue
-        ):
+        if policy.scheduler == "priority_preemptive" and queued_hp_count > 0:
             event_times.extend(
                 float(states[job_id].run_start) + policy.spot_guarantee_seconds
                 for job_id in running
@@ -312,7 +368,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
             raise RuntimeError(f"Simulation cannot make progress; pending jobs={pending}")
         next_time = min(future)
         delta = next_time - now
-        allocated = sum(states[job_id].job.gpu_count for job_id in running)
+        allocated = trace.capacity_gpus - total_free
         allocated_gpu_seconds += allocated * delta
         warmup_overlap = max(
             0.0,
@@ -334,7 +390,7 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
         for job_id in ending:
             state = states[job_id]
             close_spot_run(state, now, "completed")
-            _release(state.allocation, nodes)
+            release(state.allocation)
             state.allocation = None
             state.run_start = None
             state.completion = now

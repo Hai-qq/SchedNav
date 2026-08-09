@@ -21,7 +21,7 @@ Agents select only a cataloged high-level `SimulationPolicy`. The engine owns qu
 
 The simulator integrates allocated GPU-seconds exactly between discrete events. Allocation rate is allocated GPU-seconds divided by physical GPU-seconds inside the explicit evaluation window, or the arrival window when no explicit boundary is declared. Jobs still drain to completion after the window, but drain capacity-time is excluded from the utilization denominator.
 
-When a trace declares an explicit window, pre-window arrivals are replayed as warm-up. They can occupy GPUs or complete during the evaluated interval, but they are not counted in HP/Spot completion, JCT, queue, eviction, Spot-run or guarantee populations. Cluster allocation before the evaluation start is recorded separately as `warmup_allocated_gpu_seconds`. A Spot eviction is a preemption event, and the eviction rate is events for evaluation-population Spot jobs divided by their explicit run starts.
+When a trace declares an explicit window, available pre-window arrivals are replayed as warm-up. They can occupy GPUs or complete during the evaluated interval, but they are not counted in HP/Spot completion, JCT, queue, eviction, Spot-run or guarantee populations. Cluster allocation before the evaluation start is recorded separately as `warmup_allocated_gpu_seconds`. A Spot eviction is a preemption event, and the eviction rate is events for evaluation-population Spot jobs divided by their explicit run starts. A trace may use full-origin carry-in or publish a bounded warm-up boundary; the latter is recorded as an evaluation limitation.
 
 ## Policy contract
 
@@ -38,6 +38,8 @@ The checked-in action space fixes execution controls and provides four curated p
 ## Determinism
 
 Ordering is stable by arrival/enqueue order and job ID. Placement is stable by available capacity and node ID. Results, metrics, traces and policies all carry canonical SHA-256 fingerprints. Repeating the same trace and policy produces the same `simulation-result/v1` fingerprint.
+
+The implementation keeps the queue in that declared order and caches free capacity by GPU model to avoid repeated full scans. These are execution optimizations only: placement, preemption, accounting and fingerprint semantics remain unchanged and are covered by deterministic regression tests.
 
 ## Current limitations
 

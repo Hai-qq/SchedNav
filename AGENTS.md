@@ -33,7 +33,7 @@
 
 ## 仿真与 Action Space
 
-- 允许 Agent 控制的字段以 `configs/action_spaces/native-v1.json` 为准。
+- 允许 Agent 控制的字段以被实验或任务显式引用的 `configs/action_spaces/*.json` 为准；单窗口默认使用 `native-v1.json`，多窗口研究使用 `native-multiwindow-v1.json`。
 - placement strategy 固定为 `deterministic_best_fit`，不是 Agent action。
 - 资源模型必须保留真实 fractional GPU demand，不能四舍五入为整卡。
 - 抢占必须产生 Spot run、guarantee、rollback、overhead 和 preemption ledger。
@@ -42,14 +42,14 @@
 
 ## AgentTeams
 
-- AgentTeams 固定 `v1.2.1`，采用 1 Manager + 4 standalone Worker；映射事实以 `docs/agentteams-integration.md` 为准。
+- AgentTeams 集成契约以 `v1.2.1` 源码检出为基准，采用 1 Manager + 4 standalone Worker；不得据此假定同名运行镜像标签存在，实际部署必须另行记录镜像引用或 digest。映射事实以 `docs/agentteams-integration.md` 为准。
 - AgentTeams 的 LLM model ID 硬锁为 `deepseek-v4-flash`，Embedding 禁用；未经用户明确变更，不得调用、构建或配置其他模型。
 - bridge 只暴露白名单结构化操作，不得开放任意 shell、路径或 placement 参数。
 - Agent 间传递 artifact reference、schema、fingerprint、状态和小型摘要，不传原始 Trace 或大日志。
 
 ## 验证与文档
 
-- canonical Trace 合同以 `docs/trace-contract.md` 为准，first-party simulator 以 `docs/native-simulator.md` 为准，数据集边界以 `docs/datasets.md` 为准。
+- canonical Trace 合同以 `docs/trace-contract.md` 为准，first-party simulator 以 `docs/native-simulator.md` 为准，数据集边界以 `docs/datasets.md` 为准，多窗口方法与结论以 `docs/multiwindow-evaluation.md` 及其公开回执为准。
 - 真实小窗口先做 deterministic golden test，再扩大数据窗口；非 Alibaba 数据至少验证 ingestion、provenance 和 simulator compatibility。
 - 修改代码、配置、metric schema、数据语义或运行方式时，同一增量同步 `README.md` 与受影响的 `docs/`。
 - 每个可独立验收增量在最终答复前执行测试、公开边界检查和 `neat-freak` 收尾审计。

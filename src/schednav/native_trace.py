@@ -549,6 +549,7 @@ def import_alibaba_trace(
     max_submit_time_seconds: float | None = None,
     evaluation_start_seconds: float | None = None,
     evaluation_end_seconds: float | None = None,
+    warmup_start_seconds: float | None = None,
 ) -> Path:
     """Convert Alibaba's published node/job tables into the canonical contract."""
     node_info_path = node_info_path.resolve()
@@ -558,6 +559,8 @@ def import_alibaba_trace(
     datetime.fromisoformat(time_origin)
     if (evaluation_start_seconds is None) != (evaluation_end_seconds is None):
         raise ValueError("Evaluation window start and end must be supplied together")
+    if warmup_start_seconds is not None and evaluation_start_seconds is None:
+        raise ValueError("warmup_start_seconds requires an evaluation window")
     if evaluation_start_seconds is not None and evaluation_end_seconds is not None:
         if evaluation_start_seconds < 0 or evaluation_end_seconds <= evaluation_start_seconds:
             raise ValueError("Expected 0 <= evaluation start < evaluation end")
@@ -566,6 +569,10 @@ def import_alibaba_trace(
             and max_submit_time_seconds != evaluation_end_seconds
         ):
             raise ValueError("max_submit_time_seconds must equal the evaluation end")
+        if warmup_start_seconds is not None and not (
+            0 <= warmup_start_seconds <= evaluation_start_seconds
+        ):
+            raise ValueError("Expected 0 <= warm-up start <= evaluation start")
         max_submit_time_seconds = evaluation_end_seconds
 
     nodes: list[TraceNode] = []
@@ -605,6 +612,8 @@ def import_alibaba_trace(
                 continue
             if max_submit_time_seconds is not None and float(row["submit_time"]) > max_submit_time_seconds:
                 continue
+            if warmup_start_seconds is not None and float(row["submit_time"]) < warmup_start_seconds:
+                continue
             job_id = str(row["job_name"]).strip()
             if not job_id or job_id in seen:
                 raise ValueError(f"Alibaba job_name must be unique; invalid row {index}")
@@ -632,8 +641,11 @@ def import_alibaba_trace(
             "max_submit_time_seconds": max_submit_time_seconds,
             "evaluation_start_seconds": evaluation_start_seconds,
             "evaluation_end_seconds": evaluation_end_seconds,
+            "warmup_start_seconds": warmup_start_seconds,
             "semantics": (
-                "All selected arrivals through the inclusive evaluation end are replayed for state warm-up; only arrivals inside the explicit evaluation window contribute job SLO metrics, while allocation is integrated over that window."
+                "Selected arrivals from the declared warm-up start through the inclusive evaluation end are replayed; only arrivals inside the explicit evaluation window contribute job SLO metrics, while allocation is integrated over that window."
+                if warmup_start_seconds is not None
+                else "All selected arrivals through the inclusive evaluation end are replayed for state warm-up; only arrivals inside the explicit evaluation window contribute job SLO metrics, while allocation is integrated over that window."
                 if evaluation_start_seconds is not None
                 else "All selected arrivals from the source origin through the inclusive cutoff; jobs drain to completion."
             ),

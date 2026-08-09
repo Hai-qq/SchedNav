@@ -1,0 +1,32 @@
+{
+  "schema_version": "schednav.native-action-space/v1",
+  "name": "native-multiwindow-v1-bounded-policies",
+  "controlled_fields": [
+    "scheduler",
+    "spot_guarantee_seconds",
+    "checkpoint_interval_seconds"
+  ],
+  "fixed_execution_controls": {
+    "preemption_overhead_seconds": 80,
+    "placement_strategy": "deterministic_best_fit"
+  },
+  "profiles": [
+    "configs/policies/native-fifo.json",
+    "configs/policies/native-preemptive-0000.json",
+    "configs/policies/native-preemptive-3600.json",
+    "configs/policies/native-preemptive-7200.json"
+  ],
+  "excluded_profiles": [
+    {
+      "action_id": "native-preemptive-1800",
+      "reason": "Exceeded the declared 600-second per-batch feasibility gate in both full-origin and fixed-30-day-warm-up multi-window trials. This is an evaluation-resource exclusion, not an SLO result."
+    }
+  ],
+  "forbidden": [
+    "job_id",
+    "node_id",
+    "gpu_id",
+    "placement",
+    "arbitrary_python"
+  ]
+}
