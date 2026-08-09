@@ -1,0 +1,30 @@
+{
+  "schema_version": "schednav.native-action-space/v1",
+  "name": "native-multiwindow-v3-production-guarantee",
+  "controlled_fields": [
+    "scheduler",
+    "spot_guarantee_seconds",
+    "checkpoint_interval_seconds",
+    "hp_preemption_delay_seconds",
+    "spot_eviction_budget_rate",
+    "preemption_victim_strategy"
+  ],
+  "fixed_execution_controls": {
+    "preemption_overhead_seconds": 80,
+    "placement_strategy": "deterministic_best_fit"
+  },
+  "profiles": [
+    "configs/policies/native-fifo.json",
+    "configs/policies/native-preemptive-3600.json",
+    "configs/policies/native-preemptive-g3600-b09-d0000.json",
+    "configs/policies/native-preemptive-g3600-b09-d0900.json",
+    "configs/policies/native-preemptive-g3600-b09-loss-aware.json"
+  ],
+  "forbidden": [
+    "job_id",
+    "node_id",
+    "gpu_id",
+    "placement",
+    "arbitrary_python"
+  ]
+}

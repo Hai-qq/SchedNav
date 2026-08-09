@@ -1,0 +1,11 @@
+{
+  "schema_version": "schednav.simulation-policy/v1",
+  "action_id": "native-preemptive-g3600-b09-d0900",
+  "scheduler": "priority_preemptive",
+  "spot_guarantee_seconds": 3600,
+  "checkpoint_interval_seconds": 3600,
+  "preemption_overhead_seconds": 80,
+  "placement_strategy": "deterministic_best_fit",
+  "hp_preemption_delay_seconds": 900,
+  "spot_eviction_budget_rate": 0.09
+}

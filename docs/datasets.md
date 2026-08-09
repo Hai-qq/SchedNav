@@ -72,6 +72,14 @@ Across the 12 windows, the v2 result is two unique FIFO selections, nine unresol
 
 The compact [v2 multi-window receipt](../evidence/native-v2/alibaba-gpu-series-2-multiwindow-30d-v2.json) contains selection metadata, policy aggregates, every window decision and content fingerprints without raw or per-job data. See [multiwindow-evaluation.md](multiwindow-evaluation.md) for methodology, v1 comparison, limitations and reproduction.
 
+## Verified adaptive holdout evaluation
+
+The current v3 study evaluates all 112 eligible `GPU-series-2` windows rather than sampling 12 medoids. A chronological prefix of 67 windows is calibration evidence and the final 45 windows are holdout evaluation. Five bounded actions run twice on every window, producing 1,120 deterministic executions.
+
+The calibration hierarchy selects FIFO as the best fixed action. On holdout, the AgentTeams candidate controller finds a hard-SLO-compliant option in 41/45 windows and covers at least one catalog-frontier action in all 41 feasible windows while evaluating 185 rather than 225 policy-window candidates. Its selected-frontier mean allocation uplift over FIFO ranges from 0.209 to 0.257 percentage points because unresolved ties retain a lower and upper bound; the conservative count is five positive, 36 equal and zero negative outcomes. The three-candidate workload rule uses only 135 evaluations and covers 39/41 formal frontiers, so cost and quality are reported together. Exact frontier-set matches and maximum-allocation candidate coverage remain separately labeled diagnostics.
+
+The [adaptive holdout receipt](../evidence/native-v3/alibaba-gpu-series-2-adaptive-holdout-v3.json) and [all-window receipt](../evidence/native-v3/alibaba-gpu-series-2-all112-v3.json) contain only aggregates, window-level decisions and fingerprints. See [adaptive-holdout-evaluation.md](adaptive-holdout-evaluation.md) for the freeze order, AgentTeams provenance, controller definitions and limitations.
+
 ## Evaluation rule
 
 Results from different datasets are separate evidence populations. SchedNav compares policies within the same trace fingerprint and window; it never compares raw metrics across unrelated datasets as though they were controlled experiments. Multi-dataset validation is used to test robustness and expose regime-specific behavior.

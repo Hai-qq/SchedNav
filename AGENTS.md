@@ -33,8 +33,9 @@
 
 ## 仿真与 Action Space
 
-- 允许 Agent 控制的字段以被实验或任务显式引用的 `configs/action_spaces/*.json` 为准；单窗口默认使用 `native-v1.json`，当前多窗口研究使用 `native-multiwindow-v2.json`，`native-multiwindow-v1.json` 仅用于复现实验历史。
+- 允许 Agent 控制的字段以被实验或任务显式引用的 `configs/action_spaces/*.json` 为准；单窗口默认使用 `native-v1.json`，当前全窗口自适应研究使用 `native-multiwindow-v3.json`，v1/v2 action space 仅用于复现实验历史。
 - placement strategy 固定为 `deterministic_best_fit`，不是 Agent action。
+- `preemption_victim_strategy` 只允许目录声明的确定性高层规则，具体 victim 仍由 simulator 选择。
 - 资源模型必须保留真实 fractional GPU demand，不能四舍五入为整卡。
 - 抢占必须产生 Spot run、guarantee、rollback、overhead 和 preemption ledger。
 - 指标与排名以正式 SLO 配置和 `src/schednav/metric_catalog.py` 为准；不得使用 LLM 自由加权分数或未声明的 tie-breaker。

@@ -1,6 +1,6 @@
 # Multi-window Policy Evaluation
 
-This study tests whether SchedNav's hard-SLO-first control plane can make safe, regime-dependent choices across multiple real workload windows. It is a historical offline counterfactual evaluation, not an online scheduler or a forecasting result.
+This document records the 12-window v2 guarded-policy study. The current all-112-window chronological controller comparison is documented separately in [Adaptive Holdout Evaluation](adaptive-holdout-evaluation.md). Both are historical offline counterfactual evaluations, not online scheduling or forecasting results.
 
 ## Study design
 

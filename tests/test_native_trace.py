@@ -14,6 +14,7 @@ from schednav.native_trace import (
     import_philly_trace,
     load_canonical_trace,
     slice_canonical_trace,
+    slice_evaluation_window,
     write_canonical_trace,
 )
 
@@ -281,6 +282,48 @@ class NativeTraceTests(unittest.TestCase):
             )
             self.assertEqual([job.job_id for job in bounded.jobs], ["evaluated"])
             self.assertEqual(bounded.source["filter"]["warmup_start_seconds"], 5)
+
+    def test_slices_evaluation_window_from_an_imported_canonical_trace(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            full = load_canonical_trace(
+                write_canonical_trace(
+                    root / "full",
+                    trace_id="full",
+                    time_origin="2026-01-01 00:00:00",
+                    source={"dataset": "unit-fixture"},
+                    nodes=[TraceNode("n1", "A", 2)],
+                    jobs=[
+                        TraceJob("excluded", 1, 20, 1, "Spot", "A"),
+                        TraceJob("warmup", 5, 20, 1, "Spot", "A"),
+                        TraceJob("evaluated", 10, 2, 1, "HP", "A"),
+                        TraceJob("post", 21, 2, 1, "HP", "A"),
+                    ],
+                )
+            )
+
+            sliced = load_canonical_trace(
+                slice_evaluation_window(
+                    full,
+                    root / "window",
+                    trace_id="window",
+                    warmup_start_seconds=5,
+                    evaluation_start_seconds=10,
+                    evaluation_end_seconds=20,
+                )
+            )
+
+            self.assertEqual(
+                [job.job_id for job in sliced.jobs], ["warmup", "evaluated"]
+            )
+            self.assertEqual(sliced.evaluation_start_seconds, 10)
+            self.assertEqual(sliced.evaluation_end_seconds, 20)
+            self.assertEqual(
+                sliced.source["canonical_evaluation_slice"][
+                    "parent_trace_fingerprint"
+                ],
+                full.fingerprint,
+            )
 
     def test_rejects_invalid_alibaba_warmup_bounds(self):
         with tempfile.TemporaryDirectory() as temporary:

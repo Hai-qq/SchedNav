@@ -54,6 +54,9 @@ READABLE_ARTIFACT_SCHEMAS = {
     "schednav.run-set-simulations/v1",
     "schednav.run-set-audit/v1",
     "schednav.multiwindow-summary/v1",
+    "schednav.adaptive-study-design/v1",
+    "schednav.controller-selections/v1",
+    "schednav.adaptive-benchmark/v1",
 }
 
 

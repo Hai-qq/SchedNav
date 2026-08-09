@@ -216,6 +216,7 @@ def build_window_selection_report(
     min_spot_jobs: int = 20,
     pressure_strata: int = 3,
     spot_share_strata: int = 4,
+    selection_mode: str = "stratified-medoid",
 ) -> dict[str, Any]:
     candidates = scan_complete_daily_windows(
         trace,
@@ -224,11 +225,41 @@ def build_window_selection_report(
         min_hp_jobs=min_hp_jobs,
         min_spot_jobs=min_spot_jobs,
     )
-    selected = select_stratified_windows(
-        candidates,
-        pressure_strata=pressure_strata,
-        spot_share_strata=spot_share_strata,
-    )
+    if selection_mode == "stratified-medoid":
+        selected = select_stratified_windows(
+            candidates,
+            pressure_strata=pressure_strata,
+            spot_share_strata=spot_share_strata,
+        )
+        selection_method = {
+            "name": "pressure-by-spot-share-stratified-medoid",
+            "pressure_strata": pressure_strata,
+            "spot_share_strata_per_pressure": spot_share_strata,
+            "tie_breaker": "earliest_window_start",
+            "selected_before_simulation": True,
+        }
+        definition = (
+            "Windows are selected before policy simulation by balanced peak-pressure "
+            "ranks, then balanced Spot-request-share ranks within each pressure "
+            "stratum. One normalized medoid is selected per cell."
+        )
+    elif selection_mode == "all-eligible":
+        selected = []
+        for ordinal, candidate in enumerate(candidates, start=1):
+            value = candidate.as_dict()
+            value["stratum"] = {"mode": "all_eligible", "ordinal": ordinal}
+            selected.append(value)
+        selection_method = {
+            "name": "all-eligible-origin-aligned",
+            "ordering": "ascending_window_start",
+            "selected_before_simulation": True,
+        }
+        definition = (
+            "Every origin-aligned complete window meeting the declared HP and Spot "
+            "population thresholds is selected before policy simulation."
+        )
+    else:
+        raise ValueError("selection_mode must be stratified-medoid or all-eligible")
     candidate_payload = [candidate.as_dict() for candidate in candidates]
     report: dict[str, Any] = {
         "schema_version": "schednav.multiwindow-selection/v1",
@@ -243,18 +274,12 @@ def build_window_selection_report(
             "min_hp_jobs": min_hp_jobs,
             "min_spot_jobs": min_spot_jobs,
         },
-        "selection_method": {
-            "name": "pressure-by-spot-share-stratified-medoid",
-            "pressure_strata": pressure_strata,
-            "spot_share_strata_per_pressure": spot_share_strata,
-            "tie_breaker": "earliest_window_start",
-            "selected_before_simulation": True,
-        },
+        "selection_method": selection_method,
         "eligible_window_count": len(candidates),
         "eligible_windows_fingerprint": canonical_sha256(candidate_payload),
         "selected_window_count": len(selected),
         "selected_windows": selected,
-        "definition": "Windows are selected before policy simulation by balanced peak-pressure ranks, then balanced Spot-request-share ranks within each pressure stratum. One normalized medoid is selected per cell.",
+        "definition": definition,
     }
     report["selection_fingerprint"] = canonical_sha256(report)
     return report

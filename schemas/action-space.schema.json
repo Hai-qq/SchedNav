@@ -18,13 +18,16 @@
     "controlled_fields": {
       "type": "array",
       "minItems": 3,
-      "maxItems": 3,
+      "maxItems": 6,
       "uniqueItems": true,
       "items": {
         "enum": [
           "scheduler",
           "spot_guarantee_seconds",
-          "checkpoint_interval_seconds"
+          "checkpoint_interval_seconds",
+          "hp_preemption_delay_seconds",
+          "spot_eviction_budget_rate",
+          "preemption_victim_strategy"
         ]
       }
     },

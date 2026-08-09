@@ -67,6 +67,7 @@ Trace Window
 - FIFO 与 HP-first preemptive policy；
 - Spot 保障边界、checkpoint rollback 和抢占 overhead；
 - HP 抢占延迟与同时约束全量/评估人口的 Spot eviction budget；
+- 可选的 longest-remaining / lowest-checkpoint-loss 抢占受害者规则；
 - deterministic best-fit 多节点 allocation；
 - drain-to-completion；
 - Job、Spot run、guarantee 和 preemption 事件账本；
@@ -149,9 +150,11 @@ schednav simulate `
 
 代表性 Alibaba 窗口的四个策略全部通过 8 项硬 SLO。三个抢占策略达到 80% allocation 软目标，但在严格 1 个百分点 allocation tie band 内，且 Spot p95 JCT 与 eviction rate 相同，因此结果保持 `tie_requires_human_approval`，未添加隐藏的第四排序指标。
 
-多窗口结果更接近真实结论：每个窗口先过 8 项硬 SLO，再按 allocation → Spot p95 JCT → eviction 分层决策，保留并列和无合格策略状态。11 个存在合格策略的窗口中，v2 合格前沿相对 FIFO 为 7 个提升、4 个持平、0 个下降，平均提升 0.335 个百分点、最大 1.99 个百分点；另有 1 个窗口没有任何候选通过硬 SLO。原始未加保护的抢占策略虽然平均 allocation 更高，但只在 7/12 窗口通过全部硬 SLO，因此不能宣称某个抢占策略普遍优于 FIFO。最新精确计数与 fingerprint 见 [Multi-window Evaluation](docs/multiwindow-evaluation.md)。
+多窗口结果更接近真实结论：每个窗口先过 8 项硬 SLO，再按 allocation → Spot p95 JCT → eviction 分层决策，保留并列和无合格策略状态。12 窗口 v2 研究用于策略保护机制对比；当前 v3 进一步覆盖全部 112 个合格窗口，并采用 67/45 的时间顺序 calibration/holdout 切分。
 
-单窗口演示可用 `scripts/run_demo_experiment.ps1` 一次执行。多窗口研究使用 `scripts/run_multiwindow_experiment.py` 完成预仿真选窗、限定策略双次运行、同窗 FIFO baseline、SLO 审计与分层排名，再由 `scripts/publish_multiwindow_evidence.py` 生成不含原始数据和逐 Job 结果的公开回执。两个脚本都要求单独下载数据，并拒绝覆盖已有输出路径。
+在 45 个 holdout 窗口中，FIFO/校准集最佳固定策略只在 40 个窗口通过全部硬 SLO。AgentTeams 候选控制器在 41 个窗口找到合格策略，并以 185 个候选评估在 41/41 个可行窗口覆盖至少一个五动作正式分层最优动作；其待人工裁决前沿相对 FIFO 的平均 allocation uplift 为 +0.209～+0.257 个百分点。三候选 workload rule 使用 135 个评估并覆盖 39/41 个正式前沿，穷举目录则需要 225 个评估。候选搜索质量与仿真成本会同时报告，完整方法、限制与 fingerprint 见 [Adaptive Holdout Evaluation](docs/adaptive-holdout-evaluation.md)。
+
+单窗口演示可用 `scripts/run_demo_experiment.ps1` 一次执行。多窗口研究使用 `scripts/run_multiwindow_experiment.py` 完成预仿真选窗、限定策略双次运行、同窗 FIFO baseline、SLO 审计与分层排名。已有 AgentTeams controller 时，`scripts/run_adaptive_demo.ps1` 可一次完成冻结设计、全 112 窗口实验、holdout 对照和公开回执。所有脚本都要求单独下载数据，并拒绝覆盖已有输出路径。
 
 ## AgentTeams integration
 
@@ -160,6 +163,8 @@ SchedNav 映射为 1 个 Manager + 4 个 Worker，并通过受限 MCP bridge 调
 真实 `native-local` 流程已由四个 Worker 完成负载分析、限定策略选择、四次独立仿真与四次 SLO 审计，再由 Manager 调用比较和排名工具。最终项目状态为 `completed / approval_pending`，与公开实验回执一致地停在三策略人工审批门。
 
 注册 run-set 的 `alibaba-v2-12d` 流程也已由同一拓扑完成：12 窗口负载分析、5 个注册动作确认、120 次确定性仿真、逐窗口八项硬 SLO 审计和 Manager 汇总。结果为 2 个唯一选择、9 个并列和 1 个无合格策略；项目状态为 `completed / approval_pending`，没有自动批准跨窗口通用策略。
+
+自适应 holdout 项目 `proj-20260809-080145` 在任何 v3 仿真前冻结了 45 个评估窗口的候选集合。Workload Analyst 验证设计，Scheduling Strategist 使用 `deepseek-v4-flash` 为每窗选择 3–5 个有界动作，Manager 验证覆盖和动作合法性；正式 simulator 随后完成 1,120 次运行并生成独立 holdout 证据。项目保留 `approval_pending`，没有让 Agent 直接批准部署策略。
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\src).Path

@@ -14,6 +14,7 @@
     "preemption_overhead_seconds": {"type": "integer", "minimum": 0},
     "placement_strategy": {"const": "deterministic_best_fit"},
     "hp_preemption_delay_seconds": {"type": "integer", "minimum": 0},
-    "spot_eviction_budget_rate": {"type": "number", "minimum": 0, "maximum": 1}
+    "spot_eviction_budget_rate": {"type": "number", "minimum": 0, "maximum": 1},
+    "preemption_victim_strategy": {"enum": ["longest_remaining", "lowest_checkpoint_loss"]}
   }
 }

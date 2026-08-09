@@ -24,6 +24,8 @@ The Manager owns task decomposition, status, artifact references, declared ranki
 
 For a registered multi-window batch, the same roles exchange `run_set_id` and compact artifact references: the analyst calls `analyze_run_set`, the simulator calls `simulate_run_set`, and the auditor calls `audit_run_set`. Every window remains an independent SLO and ranking decision.
 
+For the adaptive v3 holdout, candidate selection is a separate pre-simulation project. Workload Analyst verifies a frozen `schednav.adaptive-study-design/v1`; Scheduling Strategist emits `schednav.controller-selections/v1` covering each declared holdout window with 3–5 catalog actions and FIFO. Only after Manager validation does the deterministic experiment run. This ordering prevents evaluation metrics from leaking into Agent candidate generation.
+
 ## Model contract
 
 Every role is locked to `deepseek-v4-flash`. The bundle builder rejects every other model ID and disables embedding. The model generates plans and high-level hypotheses only; deterministic Python code performs simulation, comparison, SLO audit and ranking.
@@ -127,6 +129,18 @@ Project `proj-20260809-065201` exercised the registered `alibaba-v2-12d` run set
 5. Manager preserved the tool outcomes: 2 unique FIFO selections, 9 ties requiring human approval, 1 no-eligible window, and an eligible frontier above/equal/below FIFO in 7/4/0 feasible windows. The final proposal is retained in the local AgentTeams artifact store; no policy was auto-approved.
 
 The AgentTeams summary matches the checked-in v2 receipt's metrics and decision counts. Its run-set fingerprints are execution-record fingerprints and therefore differ from the separately published experiment receipt fingerprints.
+
+## Verified adaptive holdout selection workflow
+
+Project `proj-20260809-080145` completed the pre-simulation controller stage as `completed / approval_pending` with Workload Analyst and Scheduling Strategist on `deepseek-v4-flash`:
+
+1. SchedNav froze design fingerprint `e41ada5d5293e8630fa14387975924e5726ca2ff3ca8a0c7a6490689d2ce9672` before v3 simulation. It declares all 112 eligible windows, the chronological 67/45 split, the five-action catalog and workload-only thresholds.
+2. Workload Analyst completed `task-20260809-080200`, independently verifying the fingerprints, split, action IDs and calibration medians without calling simulation, audit, comparison or ranking tools.
+3. Scheduling Strategist completed `task-20260809-080300` and produced 45 exact window entries: 18 contain three candidates, four contain four and 23 contain all five. Every entry includes FIFO and only declared action IDs.
+4. Manager validated exact coverage and constraints, then published raw artifact `shared/projects/proj-20260809-080145/artifacts/agent-controller-raw.json` with SHA-256 `ae9884f1429f7767cc3dff44d4da0d85bc9ef4b36c87d9718305d9ba487768b8`.
+5. SchedNav normalized that artifact to controller fingerprint `6e2056ea486bc697b9761a50346a31e545cad759f62d382ddd96b74fbb84f460` before starting 1,120 deterministic simulations.
+
+On the 45-window holdout, the AgentTeams candidate sets cover at least one action on 41/41 feasible formal catalog frontiers using 185 candidate evaluations, compared with 39/41 using 135 evaluations for the fixed three-candidate workload rule and 41/41 using 225 evaluations for exhaustive catalog search. Exact frontier-set matches and raw maximum-allocation candidate coverage are reported separately. The latter precedes the formal allocation-band, Spot-JCT and eviction hierarchy. The comparison therefore reports both decision quality and simulation cost. Full evidence is in [Adaptive Holdout Evaluation](adaptive-holdout-evaluation.md); raw AgentTeams rooms, task workspaces and logs remain local.
 
 ## Bundle build
 

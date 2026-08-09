@@ -15,6 +15,7 @@ ACTION_CONTROL_FIELDS = {
     "hp_preemption_delay_seconds",
     "scheduler",
     "spot_eviction_budget_rate",
+    "preemption_victim_strategy",
     "spot_guarantee_seconds",
     "checkpoint_interval_seconds",
 }

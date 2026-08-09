@@ -34,11 +34,12 @@ When a trace declares an explicit window, available pre-window arrivals are repl
 - `preemption_overhead_seconds`;
 - optional `hp_preemption_delay_seconds` (default `0`);
 - optional `spot_eviction_budget_rate` in `[0, 1]` (default unset);
+- optional `preemption_victim_strategy`: `longest_remaining` (default) or `lowest_checkpoint_loss`;
 - fixed `placement_strategy=deterministic_best_fit`.
 
-Default-valued optional fields are omitted from canonical serialization, preserving existing v1 policy fingerprints. The eviction controller enforces the declared cap over all replayed Spot runs and, separately, over the evaluation-window Spot population used by `spot_eviction_rate_per_run`. This prevents carry-in activity from diluting the audited budget or becoming an unbounded source of evictions.
+Default-valued optional fields are omitted from canonical serialization, preserving existing v1 policy fingerprints. The eviction controller enforces the declared cap over all replayed Spot runs and, separately, over the evaluation-window Spot population used by `spot_eviction_rate_per_run`. This prevents carry-in activity from diluting the audited budget or becoming an unbounded source of evictions. The loss-aware victim rule deterministically minimizes checkpoint rollback at an HP preemption event, then uses remaining work and stable source identifiers as tie-breakers; the Agent never selects the concrete victim.
 
-The checked-in v2 multi-window action space fixes execution controls and provides five curated profiles: FIFO, an unguarded immediate-preemption reference, and three 9% eviction-budget profiles with 0/900/1,800-second HP preemption delays. Arbitrary cross-products and direct placement fields are not Agent actions.
+The current v3 multi-window action space fixes execution controls and provides five curated profiles with a 3,600-second Spot guarantee: FIFO, an unbudgeted preemptive reference, two 9% eviction-budget profiles with 0/900-second HP delays, and one 9%-budget loss-aware victim profile. The v2 action space remains historical reproduction evidence. Arbitrary cross-products and direct placement fields are not Agent actions.
 
 ## Determinism
 

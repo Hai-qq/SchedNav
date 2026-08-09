@@ -28,6 +28,7 @@ class SimulationPolicy:
     placement_strategy: str = "deterministic_best_fit"
     hp_preemption_delay_seconds: int = 0
     spot_eviction_budget_rate: float | None = None
+    preemption_victim_strategy: str = "longest_remaining"
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "SimulationPolicy":
@@ -43,6 +44,7 @@ class SimulationPolicy:
         optional = {
             "hp_preemption_delay_seconds",
             "spot_eviction_budget_rate",
+            "preemption_victim_strategy",
         }
         if not required.issubset(value) or not set(value).issubset(required | optional):
             raise ValueError(
@@ -64,6 +66,9 @@ class SimulationPolicy:
                 float(value["spot_eviction_budget_rate"])
                 if value.get("spot_eviction_budget_rate") is not None
                 else None
+            ),
+            preemption_victim_strategy=str(
+                value.get("preemption_victim_strategy", "longest_remaining")
             ),
         )
         policy.validate()
@@ -90,6 +95,14 @@ class SimulationPolicy:
             0.0 <= self.spot_eviction_budget_rate <= 1.0
         ):
             raise ValueError("spot_eviction_budget_rate must be between 0 and 1")
+        if self.preemption_victim_strategy not in {
+            "longest_remaining",
+            "lowest_checkpoint_loss",
+        }:
+            raise ValueError(
+                "preemption_victim_strategy must be longest_remaining or "
+                "lowest_checkpoint_loss"
+            )
         if self.placement_strategy != "deterministic_best_fit":
             raise ValueError("Only deterministic_best_fit placement is supported")
 
@@ -100,6 +113,8 @@ class SimulationPolicy:
             value.pop("hp_preemption_delay_seconds")
         if self.spot_eviction_budget_rate is None:
             value.pop("spot_eviction_budget_rate")
+        if self.preemption_victim_strategy == "longest_remaining":
+            value.pop("preemption_victim_strategy")
         return value
 
     @property
@@ -325,24 +340,37 @@ def simulate_trace(trace: CanonicalTrace, policy: SimulationPolicy) -> dict[str,
                 continue
             model = pending.job.gpu_model
             if model not in candidate_cache:
-                candidate_cache[model] = sorted(
-                    (
-                        states[job_id]
-                        for job_id in running
-                        if states[job_id].job.service_class == "Spot"
-                        and states[job_id].run_start is not None
-                        and now + EPSILON
-                        >= float(states[job_id].run_start)
-                        + policy.spot_guarantee_seconds
-                        and _shares_eligible_model(pending.job, states[job_id], nodes)
-                    ),
-                    key=lambda state: (
-                        state.remaining,
-                        state.job.submit_time_seconds,
-                        state.job.job_id,
-                    ),
-                    reverse=True,
-                )
+                eligible_victims = [
+                    states[job_id]
+                    for job_id in running
+                    if states[job_id].job.service_class == "Spot"
+                    and states[job_id].run_start is not None
+                    and now + EPSILON
+                    >= float(states[job_id].run_start)
+                    + policy.spot_guarantee_seconds
+                    and _shares_eligible_model(pending.job, states[job_id], nodes)
+                ]
+                if policy.preemption_victim_strategy == "lowest_checkpoint_loss":
+                    candidate_cache[model] = sorted(
+                        eligible_victims,
+                        key=lambda state: (
+                            (now - float(state.run_start))
+                            % policy.checkpoint_interval_seconds,
+                            -state.remaining,
+                            state.job.submit_time_seconds,
+                            state.job.job_id,
+                        ),
+                    )
+                else:
+                    candidate_cache[model] = sorted(
+                        eligible_victims,
+                        key=lambda state: (
+                            state.remaining,
+                            state.job.submit_time_seconds,
+                            state.job.job_id,
+                        ),
+                        reverse=True,
+                    )
                 candidate_offsets[model] = 0
             candidates = candidate_cache[model]
             offset = candidate_offsets[model]

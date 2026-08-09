@@ -26,4 +26,6 @@ schednav analyze-trace `
 
 For a registered multi-window study, call the bridge's `analyze_run_set` with its `run_set_id`. Return the run-set fingerprint and the ordered per-window workload artifact references; do not merge unlike windows into one workload regime.
 
+For an adaptive holdout study, verify `schednav.adaptive-study-design/v1`, its fingerprint and chronological split before summarizing calibration/evaluation regimes. Use only declared workload fields; do not inspect policy metrics or change the split after simulation.
+
 Do not pass raw Trace files into the Agent context. Do not select or rank policies from workload statistics alone.

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/adaptive-benchmark.schema.json",
+  "title": "SchedNav adaptive holdout benchmark",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "design_fingerprint", "multiwindow_fingerprint", "rule_controller_fingerprint", "agent_controller_fingerprint", "split", "calibration_static_selection", "best_static_action_id", "controllers", "claim_boundary", "benchmark_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.adaptive-benchmark/v1"},
+    "design_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "multiwindow_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "rule_controller_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "agent_controller_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "split": {"type": "object"},
+    "calibration_static_selection": {"type": "object"},
+    "best_static_action_id": {"type": "string", "minLength": 1},
+    "controllers": {
+      "type": "object",
+      "required": ["fifo", "best_static", "workload_rule", "agentteams", "catalog_oracle"]
+    },
+    "claim_boundary": {"type": "string", "minLength": 1},
+    "benchmark_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

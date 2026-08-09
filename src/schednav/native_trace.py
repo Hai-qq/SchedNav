@@ -371,6 +371,65 @@ def slice_canonical_trace(
     )
 
 
+def slice_evaluation_window(
+    trace: CanonicalTrace,
+    output_dir: Path,
+    *,
+    trace_id: str,
+    warmup_start_seconds: float,
+    evaluation_start_seconds: float,
+    evaluation_end_seconds: float,
+) -> Path:
+    """Write one evaluation window from an already imported canonical trace."""
+    if trace.evaluation_start_seconds is not None:
+        raise ValueError("Evaluation slicing requires a full canonical trace")
+    if not (
+        0
+        <= warmup_start_seconds
+        <= evaluation_start_seconds
+        < evaluation_end_seconds
+    ):
+        raise ValueError(
+            "Expected 0 <= warmup start <= evaluation start < evaluation end"
+        )
+    jobs = [
+        job
+        for job in trace.jobs
+        if warmup_start_seconds
+        <= job.submit_time_seconds
+        <= evaluation_end_seconds
+    ]
+    if not jobs or not any(
+        evaluation_start_seconds
+        <= job.submit_time_seconds
+        <= evaluation_end_seconds
+        for job in jobs
+    ):
+        raise ValueError("The requested evaluation slice contains no evaluation arrivals")
+    source = dict(trace.source)
+    source["canonical_evaluation_slice"] = {
+        "parent_trace_id": trace.trace_id,
+        "parent_trace_fingerprint": trace.fingerprint,
+        "warmup_start_seconds": float(warmup_start_seconds),
+        "evaluation_start_seconds": float(evaluation_start_seconds),
+        "evaluation_end_seconds": float(evaluation_end_seconds),
+        "semantics": (
+            "Jobs arriving in the inclusive warm-up-to-evaluation-end interval; "
+            "selected jobs drain to completion."
+        ),
+    }
+    return write_canonical_trace(
+        output_dir,
+        trace_id=trace_id,
+        time_origin=trace.time_origin,
+        source=source,
+        nodes=list(trace.nodes),
+        jobs=jobs,
+        evaluation_start_seconds=evaluation_start_seconds,
+        evaluation_end_seconds=evaluation_end_seconds,
+    )
+
+
 def _iter_json_array(path: Path, chunk_size: int = 1024 * 1024) -> Iterator[dict[str, Any]]:
     """Stream a top-level JSON array without loading a multi-gigabyte file."""
     decoder = json.JSONDecoder()

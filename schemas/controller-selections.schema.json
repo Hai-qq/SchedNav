@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/controller-selections.schema.json",
+  "title": "SchedNav bounded controller selections",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "controller_id", "design_fingerprint", "selection_basis", "model_id", "windows", "definition", "controller_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.controller-selections/v1"},
+    "controller_id": {"type": "string", "minLength": 1},
+    "design_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "selection_basis": {"enum": ["workload_only", "calibration_and_workload"]},
+    "model_id": {"type": ["string", "null"]},
+    "windows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["window_id", "candidate_action_ids", "reason_code"],
+        "properties": {
+          "window_id": {"type": "string", "minLength": 1},
+          "candidate_action_ids": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "reason_code": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "definition": {"type": "string", "minLength": 1},
+    "controller_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "provenance": {"type": "object"}
+  }
+}

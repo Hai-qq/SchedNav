@@ -22,7 +22,11 @@ from schednav.multiwindow import (
     build_window_selection_report,
 )
 from schednav.native_simulator import run_native_simulation
-from schednav.native_trace import import_alibaba_trace, load_canonical_trace
+from schednav.native_trace import (
+    import_alibaba_trace,
+    load_canonical_trace,
+    slice_evaluation_window,
+)
 from schednav.native_workload import analyze_trace_file
 from schednav.policy_portfolio import compare_policy_portfolio
 from schednav.policy_rank import rank_audited_policies
@@ -115,6 +119,11 @@ def main() -> int:
     )
     parser.add_argument("--gpu-model", default="GPU-series-2")
     parser.add_argument("--time-origin", default="2024-03-01 00:00:00")
+    parser.add_argument(
+        "--selection-trace-id",
+        default=None,
+        help="Optional stable trace id used to reproduce a separately frozen selection.",
+    )
     parser.add_argument("--window-size-seconds", type=int, default=86400)
     parser.add_argument("--sample-interval-seconds", type=int, default=3600)
     parser.add_argument("--warmup-seconds", type=int, default=30 * 86400)
@@ -122,6 +131,11 @@ def main() -> int:
     parser.add_argument("--min-spot-jobs", type=int, default=20)
     parser.add_argument("--pressure-strata", type=int, default=3)
     parser.add_argument("--spot-share-strata", type=int, default=4)
+    parser.add_argument(
+        "--selection-mode",
+        choices=("stratified-medoid", "all-eligible"),
+        default="stratified-medoid",
+    )
     parser.add_argument("--repetitions", type=int, default=2)
     parser.add_argument("--workers", type=int, default=4)
     args = parser.parse_args()
@@ -156,7 +170,10 @@ def main() -> int:
         node_info,
         job_info,
         output_root / "selection-trace",
-        trace_id=f"alibaba-{args.gpu_model.lower()}-full-selection",
+        trace_id=(
+            args.selection_trace_id
+            or f"alibaba-{args.gpu_model.lower()}-full-selection"
+        ),
         time_origin=args.time_origin,
         gpu_models={args.gpu_model},
     )
@@ -169,6 +186,7 @@ def main() -> int:
         min_spot_jobs=args.min_spot_jobs,
         pressure_strata=args.pressure_strata,
         spot_share_strata=args.spot_share_strata,
+        selection_mode=args.selection_mode,
     )
     _write_json(output_root / "window-selection.json", selection)
     origin = datetime.fromisoformat(args.time_origin)
@@ -193,16 +211,13 @@ def main() -> int:
             f"[prepare {window_number}/{selection['selected_window_count']}] {window_id}",
             flush=True,
         )
-        trace_path = import_alibaba_trace(
-            node_info,
-            job_info,
+        trace_path = slice_evaluation_window(
+            selection_trace,
             window_root / "trace",
             trace_id=f"alibaba-{args.gpu_model.lower()}-{date}",
-            time_origin=args.time_origin,
-            gpu_models={args.gpu_model},
+            warmup_start_seconds=warmup_start,
             evaluation_start_seconds=start,
             evaluation_end_seconds=end,
-            warmup_start_seconds=warmup_start,
         )
         trace = load_canonical_trace(trace_path)
         workload = analyze_trace_file(

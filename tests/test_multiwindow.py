@@ -75,6 +75,49 @@ class MultiwindowTests(unittest.TestCase):
             )
             self.assertRegex(selection["selection_fingerprint"], "^[0-9a-f]{64}$")
 
+    def test_selects_every_eligible_window_before_simulation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            day = 86400
+            jobs = []
+            for index in range(3):
+                jobs.extend(
+                    [
+                        TraceJob(f"hp-{index}", index * day, 60, 1, "HP", "A"),
+                        TraceJob(
+                            f"spot-{index}", index * day, 60, 1, "Spot", "A"
+                        ),
+                    ]
+                )
+            jobs.append(TraceJob("sentinel", 3 * day - 1, 1, 1, "HP", "A"))
+            trace = load_canonical_trace(
+                write_canonical_trace(
+                    Path(temporary),
+                    trace_id="all-eligible-fixture",
+                    time_origin="2026-01-01 00:00:00",
+                    source={"dataset": "unit-fixture"},
+                    nodes=[TraceNode("n1", "A", 4)],
+                    jobs=jobs,
+                )
+            )
+
+            selection = build_window_selection_report(
+                trace,
+                min_hp_jobs=1,
+                min_spot_jobs=1,
+                selection_mode="all-eligible",
+            )
+
+            self.assertEqual(selection["eligible_window_count"], 3)
+            self.assertEqual(selection["selected_window_count"], 3)
+            self.assertEqual(
+                selection["selection_method"]["name"],
+                "all-eligible-origin-aligned",
+            )
+            self.assertEqual(
+                [item["stratum"]["ordinal"] for item in selection["selected_windows"]],
+                [1, 2, 3],
+            )
+
     def test_aggregates_robustness_without_declaring_a_universal_winner(self):
         def record(window_id: str, fifo: float, preemptive: float) -> dict:
             return {

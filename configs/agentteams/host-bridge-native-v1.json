@@ -9,7 +9,7 @@
   "run_sets": {
     "native-local": ["native-local"]
   },
-  "action_space": "configs/action_spaces/native-multiwindow-v2.json",
+  "action_space": "configs/action_spaces/native-multiwindow-v3.json",
   "actions": {
     "native-fifo": "configs/policies/native-fifo.json",
     "native-preemptive-0000": "configs/policies/native-preemptive-0000.json",
@@ -17,7 +17,10 @@
     "native-preemptive-3600": "configs/policies/native-preemptive-3600.json",
     "native-preemptive-budget09-d0000": "configs/policies/native-preemptive-budget09-d0000.json",
     "native-preemptive-budget09-d0900": "configs/policies/native-preemptive-budget09-d0900.json",
-    "native-preemptive-budget09-d1800": "configs/policies/native-preemptive-budget09-d1800.json"
+    "native-preemptive-budget09-d1800": "configs/policies/native-preemptive-budget09-d1800.json",
+    "native-preemptive-g3600-b09-d0000": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+    "native-preemptive-g3600-b09-d0900": "configs/policies/native-preemptive-g3600-b09-d0900.json",
+    "native-preemptive-g3600-b09-loss-aware": "configs/policies/native-preemptive-g3600-b09-loss-aware.json"
   },
   "slo_specs": {
     "schednav-demo-slo-v1": "configs/slos/schednav-demo-slo-v1.json"

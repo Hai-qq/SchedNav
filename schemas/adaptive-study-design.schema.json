@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/adaptive-study-design.schema.json",
+  "title": "SchedNav frozen adaptive study design",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "trace", "selection_fingerprint", "action_space", "split", "workload_rule_thresholds", "windows", "definition", "design_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.adaptive-study-design/v1"},
+    "trace": {"type": "object"},
+    "selection_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "action_space": {"type": "object"},
+    "split": {
+      "type": "object",
+      "required": ["method", "calibration_window_count", "evaluation_window_count", "evaluation_not_visible_to_calibration_selection"],
+      "properties": {
+        "method": {"const": "chronological-prefix-calibration"},
+        "calibration_window_count": {"type": "integer", "minimum": 1},
+        "evaluation_window_count": {"type": "integer", "minimum": 1},
+        "evaluation_not_visible_to_calibration_selection": {"const": true}
+      }
+    },
+    "workload_rule_thresholds": {"type": "object"},
+    "windows": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["window_id", "date", "partition", "window_seconds", "population", "regime_signals"],
+        "properties": {
+          "window_id": {"type": "string", "minLength": 1},
+          "date": {"type": "string", "format": "date"},
+          "partition": {"enum": ["calibration", "evaluation"]}
+        }
+      }
+    },
+    "definition": {"type": "string", "minLength": 1},
+    "design_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
