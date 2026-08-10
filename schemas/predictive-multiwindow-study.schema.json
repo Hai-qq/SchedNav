@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/predictive-multiwindow-study.schema.json",
+  "title": "SchedNav frozen predictive multi-window study",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "study_id",
+    "dataset",
+    "trace_contract",
+    "prior_window_selection",
+    "split",
+    "execution",
+    "arms",
+    "calibration_selection",
+    "windows",
+    "definition",
+    "design_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.predictive-multiwindow-study/v1"},
+    "study_id": {"type": "string", "minLength": 1},
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "repository", "commit", "node_info_sha256", "job_info_sha256", "time_origin", "gpu_model"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "repository": {"type": "string", "format": "uri"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "node_info_sha256": {"$ref": "#/$defs/fingerprint"},
+        "job_info_sha256": {"$ref": "#/$defs/fingerprint"},
+        "time_origin": {"type": "string", "minLength": 1},
+        "gpu_model": {"type": "string", "minLength": 1}
+      }
+    },
+    "trace_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "warmup_start_seconds", "include_warmup_spot", "tenant_mapping", "evaluation_window_seconds"],
+      "properties": {
+        "schema_version": {"const": "schednav.trace/v2"},
+        "warmup_start_seconds": {"type": "number", "minimum": 0},
+        "include_warmup_spot": {"const": false},
+        "tenant_mapping": {"type": "string", "minLength": 1},
+        "evaluation_window_seconds": {"type": "integer", "minimum": 1}
+      }
+    },
+    "prior_window_selection": {"type": "object"},
+    "split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "calibration_window_count", "holdout_window_count", "holdout_results_absent_when_selection_is_frozen"],
+      "properties": {
+        "method": {"const": "chronological-prefix-calibration"},
+        "calibration_window_count": {"type": "integer", "minimum": 1},
+        "holdout_window_count": {"type": "integer", "minimum": 1},
+        "holdout_results_absent_when_selection_is_frozen": {"const": true}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repetitions_per_arm_per_window", "slo", "minimum_tenant_training_hours", "placement_strategy", "future_arrivals_visible_to_controllers"],
+      "properties": {
+        "repetitions_per_arm_per_window": {"type": "integer", "minimum": 2},
+        "slo": {"$ref": "#/$defs/projectPath"},
+        "minimum_tenant_training_hours": {"type": "integer", "minimum": 1},
+        "placement_strategy": {"const": "deterministic_best_fit"},
+        "future_arrivals_visible_to_controllers": {"const": false}
+      }
+    },
+    "arms": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["arm_id", "kind", "policy", "controller", "role"],
+        "properties": {
+          "arm_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "kind": {"enum": ["static", "predictive"]},
+          "policy": {"$ref": "#/$defs/projectPath"},
+          "controller": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/projectPath"}]},
+          "role": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "calibration_selection": {"type": "object"},
+    "windows": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["window_id", "date", "partition", "start_seconds", "end_seconds", "stratum"],
+        "properties": {
+          "window_id": {"type": "string", "minLength": 1},
+          "date": {"type": "string", "format": "date"},
+          "partition": {"enum": ["calibration", "holdout"]},
+          "start_seconds": {"type": "number", "minimum": 0},
+          "end_seconds": {"type": "number", "exclusiveMinimum": 0},
+          "stratum": {"type": "object"}
+        }
+      }
+    },
+    "definition": {"type": "string", "minLength": 1},
+    "design_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "projectPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:|/|.*(?:^|/)\\.\\.(?:/|$)).+$"
+    }
+  }
+}

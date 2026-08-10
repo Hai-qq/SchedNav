@@ -72,6 +72,14 @@ The current v2026 adapter was also used to build a trace/v2 `GPU-series-2` windo
 
 Two independent 28-day-lookback tenant-model trainings at cutoff `3628800` produced identical forecast artifacts. Two closed-loop replays produced identical result and metrics artifacts. The controller passed seven of eight hard SLOs but achieved 75.2975% allocation versus 76.3997% for the exact-trace FIFO baseline, so it was rejected by `allocation-fifo-nondegradation`. The compact [predictive receipt](../evidence/predictive-v1/alibaba-gpu-series-2-2024-04-12-tenant-predictive.json) records model, forecast, quota, feedback, metric and audit fingerprints without redistributing the trace or model state.
 
+## Verified predictive multi-window evaluation
+
+The predictive v1 study reuses dates selected before any predictive replay by the published pressure-by-Spot-share procedure. It excludes the one date with less than the controller's declared 844-hour training minimum, then chronologically freezes six calibration and five holdout windows. FIFO, guarded static, aggregate predictive and tenant predictive arms each run twice from fresh state, for 88 deterministic executions.
+
+No arm passes every hard SLO in all six calibration windows, so the content-addressed pre-holdout selection lock contains no selected arm. On the five diagnostic holdout windows, FIFO and guarded static pass 5/5, tenant predictive passes 1/5 and aggregate predictive passes 0/5. Tenant decomposition improves mean allocation over the aggregate ablation by 0.9792 percentage points, but remains 1.1407 percentage points below FIFO and therefore does not establish predictive-control superiority.
+
+The compact [predictive multi-window receipt](../evidence/predictive-v2/alibaba-gpu-series-2-predictive-multiwindow-v1.json) contains the frozen split, per-window aggregate metrics, SLO outcomes and fingerprint chain. Raw Trace rows, canonical jobs and per-job results remain local. See [predictive-control.md](predictive-control.md) for the execution order and limitations.
+
 ## Verified multi-window policy evaluation
 
 The broader `GPU-series-2` study first scanned complete origin-aligned days and retained the 112 windows containing at least 20 HP and 20 Spot jobs. Before any policy simulation, it selected 12 windows by three balanced peak-pressure strata and four balanced Spot-request-share strata per pressure group. Each selected day uses a fixed 30-day warm-up and evaluates five bounded actions twice, for 120 deterministic runs.

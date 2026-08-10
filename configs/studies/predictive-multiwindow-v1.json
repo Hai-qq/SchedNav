@@ -1,0 +1,179 @@
+{
+  "schema_version": "schednav.predictive-multiwindow-study/v1",
+  "study_id": "predictive-multiwindow-v1",
+  "dataset": {
+    "name": "Alibaba cluster-trace-v2026-spot-gpu",
+    "repository": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-v2026-spot-gpu",
+    "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "node_info_sha256": "35ef4d6288061265f2f9a207ef3df79bb1301cb9c0646a62087449e176781895",
+    "job_info_sha256": "f921e1932ae13196e204fdb0351d6697a7a0ef2e82e00ae123ed20e873284fb2",
+    "time_origin": "2024-03-01 00:00:00",
+    "gpu_model": "GPU-series-2"
+  },
+  "trace_contract": {
+    "schema_version": "schednav.trace/v2",
+    "warmup_start_seconds": 0,
+    "include_warmup_spot": false,
+    "tenant_mapping": "organization -> tenant_id",
+    "evaluation_window_seconds": 86400
+  },
+  "prior_window_selection": {
+    "receipt": "evidence/native-v2/alibaba-gpu-series-2-multiwindow-30d-v2.json",
+    "selection_fingerprint": "a0d6915afd6420b376f0e82f695e6a9f86947cb0b4e2e8ed8092ec89d28413b5",
+    "method": "pressure-by-spot-share-stratified-medoid",
+    "selected_before_predictive_simulation": true,
+    "original_selected_window_count": 12,
+    "excluded_windows": [
+      {
+        "date": "2024-04-03",
+        "start_seconds": 2851200,
+        "reason": "The cutoff predates the controller minimum of 844 observed hours."
+      }
+    ]
+  },
+  "split": {
+    "method": "chronological-prefix-calibration",
+    "calibration_window_count": 6,
+    "holdout_window_count": 5,
+    "holdout_results_absent_when_selection_is_frozen": true
+  },
+  "execution": {
+    "repetitions_per_arm_per_window": 2,
+    "slo": "configs/slos/schednav-demo-slo-v1.json",
+    "minimum_tenant_training_hours": 844,
+    "placement_strategy": "deterministic_best_fit",
+    "future_arrivals_visible_to_controllers": false
+  },
+  "arms": [
+    {
+      "arm_id": "fifo",
+      "kind": "static",
+      "policy": "configs/policies/native-fifo.json",
+      "controller": null,
+      "role": "same-trace baseline"
+    },
+    {
+      "arm_id": "guarded-static",
+      "kind": "static",
+      "policy": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+      "controller": null,
+      "role": "scheduler-only ablation"
+    },
+    {
+      "arm_id": "aggregate-predictive",
+      "kind": "predictive",
+      "policy": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+      "controller": "configs/controllers/predictive-spot-v1.json",
+      "role": "aggregate forecasting ablation"
+    },
+    {
+      "arm_id": "tenant-predictive",
+      "kind": "predictive",
+      "policy": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+      "controller": "configs/controllers/tenant-predictive-spot-v1.json",
+      "role": "tenant and resource-pool forecasting"
+    }
+  ],
+  "calibration_selection": {
+    "hard_slo_rule": "An arm is eligible only if it passes every hard SLO in every calibration window.",
+    "ranking": [
+      "maximize mean allocation_rate_mean",
+      "within a strict 0.01 allocation band minimize mean spot_jct_p95_seconds",
+      "then minimize mean spot_eviction_rate_per_run"
+    ],
+    "unresolved_tie": "human_approval",
+    "weighted_score": false
+  },
+  "windows": [
+    {
+      "window_id": "GPU-series-2-2024-04-13",
+      "date": "2024-04-13",
+      "partition": "calibration",
+      "start_seconds": 3715200,
+      "end_seconds": 3801599,
+      "stratum": {"pressure": 1, "spot_share": 4, "cell_size": 9}
+    },
+    {
+      "window_id": "GPU-series-2-2024-04-22",
+      "date": "2024-04-22",
+      "partition": "calibration",
+      "start_seconds": 4492800,
+      "end_seconds": 4579199,
+      "stratum": {"pressure": 1, "spot_share": 2, "cell_size": 10}
+    },
+    {
+      "window_id": "GPU-series-2-2024-06-08",
+      "date": "2024-06-08",
+      "partition": "calibration",
+      "start_seconds": 8553600,
+      "end_seconds": 8639999,
+      "stratum": {"pressure": 3, "spot_share": 4, "cell_size": 9}
+    },
+    {
+      "window_id": "GPU-series-2-2024-06-12",
+      "date": "2024-06-12",
+      "partition": "calibration",
+      "start_seconds": 8899200,
+      "end_seconds": 8985599,
+      "stratum": {"pressure": 3, "spot_share": 3, "cell_size": 9}
+    },
+    {
+      "window_id": "GPU-series-2-2024-06-25",
+      "date": "2024-06-25",
+      "partition": "calibration",
+      "start_seconds": 10022400,
+      "end_seconds": 10108799,
+      "stratum": {"pressure": 3, "spot_share": 1, "cell_size": 10}
+    },
+    {
+      "window_id": "GPU-series-2-2024-07-05",
+      "date": "2024-07-05",
+      "partition": "calibration",
+      "start_seconds": 10886400,
+      "end_seconds": 10972799,
+      "stratum": {"pressure": 2, "spot_share": 4, "cell_size": 9}
+    },
+    {
+      "window_id": "GPU-series-2-2024-07-09",
+      "date": "2024-07-09",
+      "partition": "holdout",
+      "start_seconds": 11232000,
+      "end_seconds": 11318399,
+      "stratum": {"pressure": 1, "spot_share": 3, "cell_size": 9}
+    },
+    {
+      "window_id": "GPU-series-2-2024-07-12",
+      "date": "2024-07-12",
+      "partition": "holdout",
+      "start_seconds": 11491200,
+      "end_seconds": 11577599,
+      "stratum": {"pressure": 2, "spot_share": 3, "cell_size": 9}
+    },
+    {
+      "window_id": "GPU-series-2-2024-07-21",
+      "date": "2024-07-21",
+      "partition": "holdout",
+      "start_seconds": 12268800,
+      "end_seconds": 12355199,
+      "stratum": {"pressure": 2, "spot_share": 1, "cell_size": 10}
+    },
+    {
+      "window_id": "GPU-series-2-2024-08-13",
+      "date": "2024-08-13",
+      "partition": "holdout",
+      "start_seconds": 14256000,
+      "end_seconds": 14342399,
+      "stratum": {"pressure": 3, "spot_share": 2, "cell_size": 9}
+    },
+    {
+      "window_id": "GPU-series-2-2024-08-15",
+      "date": "2024-08-15",
+      "partition": "holdout",
+      "start_seconds": 14428800,
+      "end_seconds": 14515199,
+      "stratum": {"pressure": 2, "spot_share": 2, "cell_size": 9}
+    }
+  ],
+  "definition": "The 11 eligible windows reuse a selection frozen before predictive simulation. The first six windows calibrate the bounded arm set; a content-addressed selection lock must exist before any of the last five windows may be simulated.",
+  "design_fingerprint": "00f39b67adce0976a4c7540f21569039bbb7627cc6f615f2983714007dde4b42"
+}

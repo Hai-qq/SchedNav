@@ -162,6 +162,20 @@ This run verifies the real Manager/Worker handoff, cutoff-safe artifact boundary
 
 That project used the lightweight aggregate controller. The subsequent tenant-aware increment keeps the same AgentTeams roles, Skills and bridge operations; no new agent framework or free-form model action was introduced. Bounded bridge tasks `f994e65b1db6463b9de801f2e3889fde` (`forecast_demand`) and `dca77dbd7aaf4882b951292487f89b79` (`simulate_predictive_policy`) both succeeded with `tenant-predictive-local + tenant-predictive-spot-v1`; their forecast and metrics fingerprints exactly match the direct deterministic runs. The checked-in [tenant-predictive receipt](../evidence/predictive-v1/alibaba-gpu-series-2-2024-04-12-tenant-predictive.json) records this bridge proof together with two deterministic forecasts and two deterministic closed-loop replays. It passes seven of eight hard SLOs and is rejected for allocation non-degradation. This is execution evidence for the new deterministic worker tool path, not a claim that a second live AgentTeams room has already produced a better policy.
 
+The subsequent 11-window predictive calibration/holdout study was executed by the deterministic runner, not by an Agent. It evaluates FIFO, guarded-static, aggregate-predictive and tenant-predictive arms twice per window and writes a selection lock before holdout. Calibration produced `no_eligible_arm`; holdout then recorded 5/5 hard-SLO passes for FIFO and guarded-static, 1/5 for tenant-predictive and 0/5 for aggregate-predictive. The [public receipt](../evidence/predictive-v2/alibaba-gpu-series-2-predictive-multiwindow-v1.json) therefore constrains future AgentTeams behavior: tenant prediction remains a shadow hypothesis, the Auditor must reject its allocation regressions, and Manager cannot claim that multi-agent orchestration has improved scheduling performance. A future outer rolling project must generate its choice from past-only state, preserve state handoff, and beat these frozen controls on unseen windows.
+
+## Verified predictive multi-window evidence gate
+
+Project `proj-20260809-160234` separately exercised the complete Manager/Worker topology as a read-only gate over the already frozen study. Every role used `deepseek-v4-flash`; no role called simulation, audit, comparison or ranking tools, and no new performance value was generated:
+
+1. Workload Analyst completed `task-20260809-160300` with 44/44 checks over the 11-window set, chronological 6/5 split, cutoffs and no-future boundary.
+2. Scheduling Strategist completed `task-20260809-160400` with 54/54 checks over the four frozen arms, pre-holdout selection lock, absence of post-hoc candidates and absence of a weighted score.
+3. Simulation Agent completed `task-20260809-160500` with 39/39 primary and 9/9 fingerprint-pattern checks over 88 receipts, 88 metrics artifacts and 44 deterministic two-repetition cells.
+4. SLO Auditor completed `task-20260809-160600` with 30/30 checks, independently reproducing the hard-SLO pass counts and confirming that thresholds were unchanged and no winner was stated.
+5. Manager retained the human gate as `approval_pending` and wrote the only evidence-supported decision: `no_calibration_eligible_arm`, `selected=[]`; holdout results remain diagnostic and cannot modify the frozen selection.
+
+The gate consumed a 249-file local evidence set whose manifest covered every file except the manifest itself. Raw rows, per-job results, task workspaces, rooms and the Manager decision record remain local runtime evidence; the repository publishes only the compact receipt and these reproducibility facts.
+
 ## Bundle build
 
 ```powershell

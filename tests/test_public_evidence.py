@@ -11,6 +11,51 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class PublicEvidenceTests(unittest.TestCase):
+    def test_predictive_multiwindow_receipt_preserves_negative_holdout_result(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "predictive-v2"
+            / "alibaba-gpu-series-2-predictive-multiwindow-v1.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("receipt_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(
+            receipt["schema_version"],
+            "schednav.predictive-multiwindow-evidence/v1",
+        )
+        self.assertEqual(receipt["status"], "no_calibration_eligible_arm")
+        self.assertEqual(len(receipt["windows"]), 11)
+        self.assertEqual(
+            [item["partition"] for item in receipt["windows"]],
+            ["calibration"] * 6 + ["holdout"] * 5,
+        )
+        self.assertFalse(
+            receipt["information_boundary"]["controller_future_arrivals_visible"]
+        )
+        self.assertTrue(
+            receipt["information_boundary"][
+                "selection_lock_precedes_holdout_simulation"
+            ]
+        )
+        self.assertEqual(
+            receipt["calibration"]["selection"]["status"], "no_eligible_arm"
+        )
+        holdout = receipt["holdout"]["arms"]
+        self.assertEqual(holdout["fifo"]["hard_slo_pass_count"], 5)
+        self.assertEqual(holdout["guarded-static"]["hard_slo_pass_count"], 5)
+        self.assertEqual(holdout["tenant-predictive"]["hard_slo_pass_count"], 1)
+        self.assertEqual(holdout["aggregate-predictive"]["hard_slo_pass_count"], 0)
+        self.assertLess(
+            holdout["tenant-predictive"]["allocation_delta_vs_fifo"]["mean"], 0
+        )
+        self.assertGreater(
+            holdout["tenant-predictive"]["allocation_rate_mean"]["mean"],
+            holdout["aggregate-predictive"]["allocation_rate_mean"]["mean"],
+        )
+
     def test_tenant_predictive_receipt_is_deterministic_and_preserves_rejection(self):
         path = (
             PROJECT_ROOT

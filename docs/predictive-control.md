@@ -152,6 +152,9 @@ Leakage regressions create two traces with identical prefixes and different futu
 | `schednav.predictive-observation-bundle/v1` | Agent-safe cutoff artifact and information-boundary receipt. |
 | `schednav.predictive-control-report/v1` | Rolling decisions, training, forecast diagnostics, feedback events, \(\eta\) and quota ranges. |
 | `schednav.predictive-run/v1` | Host-bridge receipt linking trace, policy, controller, result and metrics. |
+| `schednav.predictive-multiwindow-study/v1` | Pre-simulation window set, chronological split, bounded arms and lock rule. |
+| `schednav.predictive-selection-lock/v1` | Content-addressed calibration outcome created before holdout execution. |
+| `schednav.predictive-multiwindow-evidence/v1` | Compact calibration/holdout metrics and information-boundary receipt. |
 
 Forecast MAE, WAPE, mean error, P90 coverage and pinball loss are diagnostics. They are never converted into an undeclared SLO or an LLM-weighted score.
 
@@ -186,6 +189,38 @@ At cutoff `3628800`, four observed HP tenant series produced a four-hour P90 for
 
 Seven of eight hard constraints pass. `allocation-fifo-nondegradation` fails, so the controller is rejected for this window. This proves that the trainable prediction, quota, feedback, replay and audit path works deterministically; it does not prove performance superiority. The trace fingerprint differs from the earlier aggregate-controller shadow run, so their absolute metrics must not be compared as a controlled experiment.
 
+## Predictive multi-window calibration and holdout
+
+The frozen [predictive study design](../configs/studies/predictive-multiwindow-v1.json) reuses the 12 dates selected before any predictive simulation by the published pressure-by-Spot-share stratified study. The 2024-04-03 date is excluded because its cutoff has only 792 observed hours, below the tenant controller's declared 844-hour minimum. No result-based window filtering is performed.
+
+The remaining 11 trace/v2 windows retain HP history from the source origin, exclude pre-evaluation Spot arrivals, and use an identical evaluation population for every arm. They are split chronologically into six calibration days and five holdout days. Four arms isolate the source of any change:
+
+1. same-trace FIFO;
+2. guarded static scheduling without a forecast controller;
+3. the aggregate predictive controller under the same guarded policy;
+4. the tenant/resource-pool predictive controller under the same guarded policy.
+
+Every arm runs twice from fresh state in every window, for 88 simulations. The runner writes one fingerprinted receipt after each task and resumes only when the receipt and metrics validate. A valid pre-existing selection lock also permits an interrupted `all` run to resume after holdout execution has begun; when no lock exists, any holdout artifact still causes a retrospective-lock refusal. Calibration selection requires an arm to pass all eight hard SLOs in all six calibration windows. It then applies the declared allocation → Spot p95 JCT → eviction hierarchy, retaining unresolved ties. The selection lock was written with zero holdout results present; its fingerprint is `b0ef25c3d5c1a73ec5074700cec284a198a026fcd5fb5d8bd5a3011a27da7455`.
+
+| Arm | Calibration hard-SLO pass | Holdout hard-SLO pass | Holdout mean allocation | Mean delta vs FIFO | Holdout Spot p95 JCT mean |
+|---|---:|---:|---:|---:|---:|
+| FIFO | 5/6 | 5/5 | 71.0826% | 0.0000 pp | 25,534.54 s |
+| Guarded static | 5/6 | 5/5 | 71.0991% | +0.0165 pp | 25,643.85 s |
+| Aggregate predictive | 2/6 | 0/5 | 68.9627% | -2.1199 pp | 974,425.40 s |
+| Tenant predictive | 3/6 | 1/5 | 69.9419% | -1.1407 pp | 43,682.30 s |
+
+All four arms fail the 3,600-second HP p95 queue constraint on the high-pressure 2024-06-25 calibration day, so no arm qualifies across all six days and the frozen selection is empty. The holdout is therefore diagnostic evidence, not a retrospectively selected winner. FIFO and guarded static pass every hidden day. Tenant decomposition improves over aggregate prediction by about 0.979 percentage points of mean allocation and greatly reduces Spot p95 JCT, but it still loses allocation to FIFO in four of five holdout windows. Its holdout eviction rate is zero and guarantee success is 100%; the failure is conservative admission, not excessive eviction.
+
+The result establishes three useful facts without overstating them:
+
+- the no-future tenant controller and all ledgers remain deterministic across multiple regimes;
+- tenant/resource-pool decomposition is materially better than the lightweight aggregate ablation on these windows;
+- the current P90 quota path is too conservative to satisfy the formal FIFO non-degradation requirement, so neither prediction nor the Agent layer has demonstrated scheduling superiority.
+
+The compact [public receipt](../evidence/predictive-v2/alibaba-gpu-series-2-predictive-multiwindow-v1.json) has fingerprint `f39df254822b441d354227d02549bd18efce3366d95ce0a00e5c3b13d96ee394`. Raw rows, trace/v2 job files and per-job results remain local.
+
+After the deterministic runner froze all 88 runs and the public receipt, AgentTeams project `proj-20260809-160234` performed a separate read-only evidence gate with all roles locked to `deepseek-v4-flash`. Workload, strategy, simulation-evidence and SLO stages passed 44/44, 54/54, 39/39 + 9/9 and 30/30 checks respectively without re-running simulation or inventing metrics. The Manager preserved `approval_pending` and `no_calibration_eligible_arm / selected=[]`; this validates the evidence boundary and rejection workflow, not scheduling superiority. Full rooms, task workspaces and the decision record remain local runtime evidence.
+
 ## Commands
 
 ```powershell
@@ -212,11 +247,33 @@ schednav simulate-predictive `
   --metrics C:\experiments\schednav\tenant-metrics.json
 ```
 
+The complete multi-window sequence is deliberately phased so the holdout cannot be run before the calibration lock:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py prepare `
+  --dataset-directory C:\datasets\cluster-trace-v2026-spot-gpu `
+  --output-directory C:\experiments\schednav-predictive-multiwindow
+
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py run-calibration `
+  --output-directory C:\experiments\schednav-predictive-multiwindow --workers 2
+
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py freeze-selection `
+  --output-directory C:\experiments\schednav-predictive-multiwindow
+
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py run-holdout `
+  --output-directory C:\experiments\schednav-predictive-multiwindow --workers 2
+
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py publish `
+  --output-directory C:\experiments\schednav-predictive-multiwindow `
+  --evidence-output C:\experiments\schednav-predictive-multiwindow-public.json
+```
+
 ## Current boundary
 
 - This is an online-shaped control loop evaluated by historical shadow replay, not a Kubernetes/Slurm actuator or production deployment.
 - The closed loop changes Spot admission quota under one fixed registered policy. Outer rolling policy switching and state handoff are separate work.
 - The independent-Gaussian tenant aggregation is a declared modeling assumption whose calibration must be measured per dataset.
+- The current multi-window evidence rejects both predictive profiles on FIFO allocation non-degradation; future controller work must improve calibration or implement an evidence-backed past-only fallback before making a superiority claim.
 - A cold-start window shorter than 844 hours cannot train the default tenant profile.
 - Persistent model serving, process-restart recovery, live telemetry collection, deployment rollback and cluster failure handling are not implemented.
 - Every policy still requires a compatible FIFO baseline and the declared hard-SLO-first audit. Prediction alone is not evidence of improvement.

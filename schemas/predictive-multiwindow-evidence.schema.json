@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/predictive-multiwindow-evidence.schema.json",
+  "title": "SchedNav predictive multi-window public evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "study",
+    "information_boundary",
+    "calibration",
+    "holdout",
+    "windows",
+    "interpretation",
+    "limitations",
+    "receipt_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.predictive-multiwindow-evidence/v1"},
+    "status": {
+      "enum": [
+        "no_calibration_eligible_arm",
+        "holdout_passed",
+        "holdout_tie_requires_human_approval",
+        "holdout_rejected"
+      ]
+    },
+    "study": {
+      "type": "object",
+      "required": ["study_id", "design_fingerprint", "dataset", "prior_selection_fingerprint", "trace_contract", "split", "repetitions_per_arm_per_window", "arms"],
+      "properties": {
+        "study_id": {"type": "string", "minLength": 1},
+        "design_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "prior_selection_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "repetitions_per_arm_per_window": {"type": "integer", "minimum": 2},
+        "arms": {"type": "array", "minItems": 3, "maxItems": 5},
+        "dataset": {"type": "object"},
+        "trace_contract": {"type": "object"},
+        "split": {"type": "object"}
+      }
+    },
+    "information_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_selection_precedes_predictive_simulation", "controller_future_arrivals_visible", "selection_lock_precedes_holdout_simulation", "selection_lock_fingerprint"],
+      "properties": {
+        "window_selection_precedes_predictive_simulation": {"const": true},
+        "controller_future_arrivals_visible": {"const": false},
+        "selection_lock_precedes_holdout_simulation": {"const": true},
+        "selection_lock_fingerprint": {"$ref": "#/$defs/fingerprint"}
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "required": ["summary_fingerprint", "selection", "arms"],
+      "properties": {
+        "summary_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "selection": {
+          "type": "object",
+          "required": ["status", "selected_arm_ids", "selection_fingerprint", "weighted_score_used"],
+          "properties": {
+            "status": {"enum": ["no_eligible_arm", "selected", "tie_requires_human_approval"]},
+            "selected_arm_ids": {"type": "array", "items": {"type": "string"}},
+            "selection_fingerprint": {"$ref": "#/$defs/fingerprint"},
+            "weighted_score_used": {"const": false}
+          }
+        },
+        "arms": {"type": "object", "minProperties": 3, "maxProperties": 5}
+      }
+    },
+    "holdout": {
+      "type": "object",
+      "required": ["summary_fingerprint", "selected_arm_ids_frozen_before_execution", "selected_arms", "arms"],
+      "properties": {
+        "summary_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "selected_arm_ids_frozen_before_execution": {"type": "array", "items": {"type": "string"}},
+        "selected_arms": {"type": "object"},
+        "arms": {"type": "object", "minProperties": 3, "maxProperties": 5}
+      }
+    },
+    "windows": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["window_id", "date", "partition", "trace_fingerprint", "population", "regime_signals", "arms"],
+        "properties": {
+          "window_id": {"type": "string", "minLength": 1},
+          "date": {"type": "string", "format": "date"},
+          "partition": {"enum": ["calibration", "holdout"]},
+          "trace_fingerprint": {"$ref": "#/$defs/fingerprint"},
+          "population": {"type": "object"},
+          "regime_signals": {"type": "object"},
+          "arms": {"type": "object", "minProperties": 3, "maxProperties": 5}
+        }
+      }
+    },
+    "interpretation": {"type": "object"},
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "receipt_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

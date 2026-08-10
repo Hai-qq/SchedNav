@@ -42,6 +42,7 @@
 - 抢占必须产生 Spot run、guarantee、rollback、overhead 和 preemption ledger。
 - 预测控制器只能接收当前 scheduler state 和截至 cutoff 的历史；未来目标只能在到达后用于 forecast scoring。轻量与 tenant-aware 控制合同分别以 `configs/controllers/predictive-spot-v1.json`、`configs/controllers/tenant-predictive-spot-v1.json` 和 `docs/predictive-control.md` 为准。tenant-aware 运行必须使用 trace/v2、非空 tenant ID 和具体资源池。
 - 当前真实 tenant-aware 单窗证据通过 7/8 项硬 SLO，但 allocation 低于同 Trace FIFO，因此只能声明实现链路可执行和确定性，不得声明性能优势。
+- 当前 11 窗口预测证据按时间切为 6 个 calibration 与 5 个 holdout，并在任何 holdout 运行前写入 selection lock。FIFO/guarded-static 在 holdout 均通过 5/5，tenant-predictive 通过 1/5，aggregate-predictive 通过 0/5；两个预测 arm 均因 allocation 非退化约束失败。冻结证据已经只读复核，Agent 必须保留 `approval_pending / no_calibration_eligible_arm / selected=[]`，不得声明预测控制或多 Agent 已证明性能优势。
 - 指标与排名以正式 SLO 配置和 `src/schednav/metric_catalog.py` 为准；不得使用 LLM 自由加权分数或未声明的 tie-breaker。
 - 当前内核限制以 `docs/native-simulator.md` 与 `docs/predictive-control.md` 为准，不得把未实现的拓扑、网络、CPU、故障、live-cluster adapter 或外层 rolling policy switching 写成已有功能。
 

@@ -1,6 +1,6 @@
 # Multi-window Policy Evaluation
 
-This document records the 12-window v2 guarded-policy study. The current all-112-window chronological controller comparison is documented separately in [Adaptive Holdout Evaluation](adaptive-holdout-evaluation.md). Both are historical offline counterfactual evaluations, not online scheduling or forecasting results.
+This document records the 12-window v2 guarded-policy study. The all-112-window chronological controller comparison is documented in [Adaptive Holdout Evaluation](adaptive-holdout-evaluation.md), while the cutoff-safe tenant/aggregate controller study is documented in [Predictive Spot Control](predictive-control.md#predictive-multi-window-calibration-and-holdout). These are separate protocols and their absolute metrics must not be mixed.
 
 ## Study design
 
@@ -69,7 +69,7 @@ Both commands refuse to overwrite an existing output path. The published [v2 rec
 
 ## Limitations
 
-- Historical windows expose future arrivals to the offline experiment; there is no rolling forecast/MPC loop yet.
+- This static-policy study exposes each complete historical window to counterfactual simulation. The separate predictive study has a cutoff-safe controller and pre-holdout lock, but neither study is a live-cluster deployment or a completed outer MPC policy switcher.
 - A 30-day warm-up is a fixed carry-in approximation. Jobs submitted earlier than that boundary are not reconstructed.
 - The contention study currently relies on one published source with native HP/Spot labels and one GPU model slice. The second source-semantic HP/Spot trace is too underloaded to exercise scheduling trade-offs.
 - The five profiles are a finite hand-designed portfolio, not an exhaustive parameter search.

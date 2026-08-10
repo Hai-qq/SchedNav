@@ -9,7 +9,7 @@ SchedNav 是一个面向 GPU 集群的多智能体调度决策系统。它内置
 
 Agent 不直接决定 Job → GPU/Node placement。具体队列推进、抢占、资源核算和节点分配全部由 `schednav-sim` 执行；LLM 只能选择仓库中声明的高层 Policy Action。
 
-仓库中已发布的 V1 实验仍是 historical trace-driven policy optimization。代码同时提供一个只读取决策截止时刻及以前状态的预测控制内环：按租户和 GPU 资源池观测 HP 需求、训练概率模型、生成 Spot 配额并根据真实保障事件反馈调节，可做无未来泄漏的 rolling replay / shadow evaluation；它尚不等同于已经接入真实集群的在线调度系统。
+仓库中已发布的 V1 实验仍是 historical trace-driven policy optimization。代码同时提供一个只读取决策截止时刻及以前状态的预测控制内环：按租户和 GPU 资源池观测 HP 需求、训练概率模型、生成 Spot 配额并根据真实保障事件反馈调节，可做无未来泄漏的 rolling replay / shadow evaluation。当前 11 窗口 calibration/holdout 证据显示该预测控制器仍偏保守，因此它尚不能替代合格的静态策略，更不等同于已经接入真实集群的在线调度系统。
 
 ## Why SchedNav
 
@@ -18,6 +18,7 @@ Agent 不直接决定 Job → GPU/Node placement。具体队列推进、抢占�
 - **有限 Action Space**：Agent 不能提交 Job、Node、GPU ID 或任意代码；
 - **Simulator-in-the-loop**：候选策略必须在同一 Trace fingerprint 和窗口上真实运行；
 - **Tenant-aware predictive loop**：一分钟观测、每日重训、P90 预留、五分钟配额与保障事件反馈全部由第一方确定性代码执行；
+- **Chronological holdout**：预测研究在任何隐藏窗口运行前锁定校准结论，并把无合格候选作为正式结果保留；
 - **Hard-SLO-first**：先淘汰违反硬约束的策略，再按显式层级排序，不使用 LLM 自由加权分；
 - **结构化证据**：Trace、Policy、SimulationResult、MetricsReport、SLOAudit 和 Ranking 都具有版本化 schema 与 fingerprint；
 - **Human approval**：证据无法唯一决胜时保留并列，由人类明确批准。
@@ -178,6 +179,23 @@ schednav simulate-predictive `
   --metrics C:\datasets\schednav\predictive-metrics.json
 ```
 
+运行可恢复的预测多窗口研究：
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py prepare `
+  --dataset-directory C:\datasets\cluster-trace-v2026-spot-gpu `
+  --output-directory C:\experiments\schednav-predictive-multiwindow
+
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py run-calibration `
+  --output-directory C:\experiments\schednav-predictive-multiwindow --workers 2
+
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py freeze-selection `
+  --output-directory C:\experiments\schednav-predictive-multiwindow
+
+.\.venv\Scripts\python.exe .\scripts\run_predictive_multiwindow_experiment.py run-holdout `
+  --output-directory C:\experiments\schednav-predictive-multiwindow --workers 2
+```
+
 同一个 Trace 可分别运行所选 Action Space 声明的有限策略，再交给 compare、SLO audit 与 ranking 命令处理。
 
 ## Multi-dataset validation
@@ -190,11 +208,13 @@ schednav simulate-predictive `
 
 可训练的 tenant-predictive 路径也已在真实 `GPU-series-2` trace/v2 窗口上重复两次：两个 cutoff forecast 以及两组完整 result/metrics 分别同哈希。该控制器通过 7/8 项硬 SLO，但 allocation 为 75.30%，低于兼容 FIFO 的 76.40%，因此被硬约束淘汰。这个[精简证据回执](evidence/predictive-v1/alibaba-gpu-series-2-2024-04-12-tenant-predictive.json)证明预测、quota、反馈、仿真与审计链路可执行且可复现，不证明性能优于 FIFO。
 
+进一步的[预测多窗口回执](evidence/predictive-v2/alibaba-gpu-series-2-predictive-multiwindow-v1.json)复用预先分层选出的真实日期，剔除唯一不足 844 小时训练历史的窗口，并按时间顺序切成 6 个 calibration 与 5 个 holdout。四条对照链、每窗两次运行共 88 次仿真均确定性复现。校准阶段没有任何 arm 在 6/6 窗口通过全部硬 SLO，因此 selection lock 为空；这个结论在运行 holdout 前已固化。holdout 中 FIFO 与 guarded-static 均为 5/5，tenant-predictive 为 1/5，aggregate-predictive 为 0/5。tenant 分解优于 aggregate，但两者 allocation 均低于 FIFO，不能声明预测控制或多 Agent 已带来性能优势。
+
 多窗口结果更接近真实结论：每个窗口先过 8 项硬 SLO，再按 allocation → Spot p95 JCT → eviction 分层决策，保留并列和无合格策略状态。12 窗口 v2 研究用于策略保护机制对比；当前 v3 进一步覆盖全部 112 个合格窗口，并采用 67/45 的时间顺序 calibration/holdout 切分。
 
 在 45 个 holdout 窗口中，FIFO/校准集最佳固定策略只在 40 个窗口通过全部硬 SLO。AgentTeams 候选控制器在 41 个窗口找到合格策略，并以 185 个候选评估在 41/41 个可行窗口覆盖至少一个五动作正式分层最优动作；其待人工裁决前沿相对 FIFO 的平均 allocation uplift 为 +0.209～+0.257 个百分点。三候选 workload rule 使用 135 个评估并覆盖 39/41 个正式前沿，穷举目录则需要 225 个评估。候选搜索质量与仿真成本会同时报告，完整方法、限制与 fingerprint 见 [Adaptive Holdout Evaluation](docs/adaptive-holdout-evaluation.md)。
 
-单窗口演示可用 `scripts/run_demo_experiment.ps1` 一次执行。多窗口研究使用 `scripts/run_multiwindow_experiment.py` 完成预仿真选窗、限定策略双次运行、同窗 FIFO baseline、SLO 审计与分层排名。已有 AgentTeams controller 时，`scripts/run_adaptive_demo.ps1` 可一次完成冻结设计、全 112 窗口实验、holdout 对照和公开回执。所有脚本都要求单独下载数据，并拒绝覆盖已有输出路径。
+单窗口演示可用 `scripts/run_demo_experiment.ps1` 一次执行。静态多窗口研究使用 `scripts/run_multiwindow_experiment.py`；预测研究使用可断点续跑的 `scripts/run_predictive_multiwindow_experiment.py`，并强制 calibration summary → selection lock → holdout 的执行顺序。已有 AgentTeams controller 时，`scripts/run_adaptive_demo.ps1` 可一次完成冻结设计、全 112 窗口实验、holdout 对照和公开回执。所有脚本都要求单独下载数据；预测 runner 对已完成任务逐项验 fingerprint 后恢复。
 
 ## AgentTeams integration
 
@@ -207,6 +227,10 @@ SchedNav 映射为 1 个 Manager + 4 个 Worker，并通过受限 MCP bridge 调
 自适应 holdout 项目 `proj-20260809-080145` 在任何 v3 仿真前冻结了 45 个评估窗口的候选集合。Workload Analyst 验证设计，Scheduling Strategist 使用 `deepseek-v4-flash` 为每窗选择 3–5 个有界动作，Manager 验证覆盖和动作合法性；正式 simulator 随后完成 1,120 次运行并生成独立 holdout 证据。项目保留 `approval_pending`，没有让 Agent 直接批准部署策略。
 
 预测控制 shadow 项目 `proj-20260809-110524` 也已由同一拓扑完整跑通：在 `cutoff_seconds=3628800` 生成不含未来 Job 的预测观测，核验 3 个有界候选，完成 3 次 fixed-policy predictive replay、3 次相对普通 FIFO 的 SLO 审计，再由 Manager 调用确定性的比较与排名工具。三个候选均通过 7/8 项硬约束，但 allocation rate 为 73.52%～73.76%，低于同窗普通 FIFO 的 79.05%，因此项目如实结束为 `completed / no_eligible_policy`。这是依赖较少的 aggregate controller 的 AgentTeams 协同证据；当前 tenant-aware controller 已通过同一 `forecast_demand` / `simulate_predictive_policy` 白名单接口和 `tenant-predictive-local` 运行配置接入，并用单独 trace/v2 回执验证。两次研究的 Trace fingerprint 不同，不做横向性能比较。
+
+新的 11 窗口预测研究仍由确定性 runner 完成 88 次仿真；AgentTeams 没有重新运行仿真或生成新的性能数字。随后，独立的只读证据门禁项目 `proj-20260809-160234` 让四个 Worker 串行复核窗口边界、冻结 arms、重复确定性、完整指纹链和 SLO 结论，检查分别以 44/44、54/54、39/39 + 9/9、30/30 通过。Manager 将项目保留在 `approval_pending`，裁决为 `no_calibration_eligible_arm / selected=[]`，没有推荐 winner。
+
+这给 Agent 层增加了一个必须遵守的证据边界：当前租户预测 profile 只能作为 shadow 候选，SLO Auditor 必须淘汰 allocation 退化的结果，Manager 不能因模型生成了 P90 quota 就推荐部署。后续外层 rolling policy decision 需要以这个负结果为基线，并另行证明 Agent 在只看过去状态时能可靠回退到合格策略。
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\src).Path
@@ -221,7 +245,7 @@ python .\scripts\build_agentteams_bundle.py --project-root .
 |---|---|
 | `.codex/` | 可复用的负载分析、策略、仿真、比较和 SLO Skills。 |
 | `.github/` | GitHub Actions 边界检查和测试。 |
-| `configs/` | 有限策略、预测控制器、Action Space、SLO 和 AgentTeams 配置。 |
+| `configs/` | 有限策略、预测控制器、冻结 study、Action Space、SLO 和 AgentTeams 配置。 |
 | `docs/` | Trace、仿真器、策略合同、SLO 与集成文档。 |
 | `evidence/` | 可公开的最小结构化实验汇总，不包含原始 Trace。 |
 | `integrations/` | AgentTeams 角色 package 与资源模板。 |
@@ -244,7 +268,7 @@ python .\scripts\build_agentteams_bundle.py --project-root .
 ## Scope
 
 - 已发布的 V1 证据是历史 Trace 上的反事实策略优化；
-- 预测控制内环支持按租户/资源池的 cutoff-safe 训练、概率预测、quota、反馈与 rolling replay / shadow evaluation，但尚无真实集群 adapter、在线部署或外层滚动策略切换的生产证明；
+- 预测控制内环支持按租户/资源池的 cutoff-safe 训练、概率预测、quota、反馈与 rolling replay / shadow evaluation；11 窗口证据表明当前 profile allocation 偏保守，尚无性能优势、真实集群 adapter、在线部署或外层滚动策略切换的生产证明；
 - 不引入 RL；
 - 不让 LLM 决定细粒度 placement；
 - 不跨不同 Trace 直接比较绝对指标；
