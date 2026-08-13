@@ -1,0 +1,13 @@
+{
+  "schema_version": "schednav.simulation-policy/v1",
+  "action_id": "rolling-preemptive-open-loss-aware",
+  "scheduler": "priority_preemptive",
+  "spot_guarantee_seconds": 3600,
+  "checkpoint_interval_seconds": 3600,
+  "preemption_overhead_seconds": 80,
+  "placement_strategy": "deterministic_best_fit",
+  "hp_preemption_delay_seconds": 0,
+  "spot_eviction_budget_rate": 0.09,
+  "preemption_victim_strategy": "lowest_checkpoint_loss",
+  "predictive_admission_mode": "bypass"
+}

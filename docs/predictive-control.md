@@ -10,8 +10,9 @@ The implementation is an independent MIT-licensed realization of the predictive 
 |---|---|---|---|
 | `predictive-spot-v1` | Small dependency-free aggregate baseline | `schednav.trace/v1` or v2 | Python standard library |
 | `tenant-predictive-spot-v1` | Full tenant/resource-pool probabilistic controller | `schednav.trace/v2`, non-empty `tenant_id`, concrete `gpu_model` | PyTorch and `chinese-calendar` |
+| `tenant-predictive-spot-v2` | Same tenant model with cutoff-past validation-residual quantile calibration | `schednav.trace/v2`, non-empty `tenant_id`, concrete `gpu_model` | PyTorch and `chinese-calendar` |
 
-The tenant profile is the reference profile for predictive-control experiments. The aggregate profile remains useful for fast contract tests and ablations; its results must not be described as model parity with the tenant profile.
+The tenant profiles are the reference path for predictive-control experiments. V1 preserves the original Gaussian P90 behavior for reproducibility. V2 keeps the same model, cadence, training split and feedback loop, then adds a per-resource-pool correction computed only from the already-declared validation interval. The aggregate profile remains useful for fast contract tests and ablations; its results must not be described as model parity with either tenant profile.
 
 ## Capability coverage
 
@@ -158,6 +159,23 @@ Leakage regressions create two traces with identical prefixes and different futu
 
 Forecast MAE, WAPE, mean error, P90 coverage and pinball loss are diagnostics. They are never converted into an undeclared SLO or an LLM-weighted score.
 
+When `quantile_calibration_method` is
+`validation-residual-nearest-rank`, the controller evaluates the raw aggregate
+P90 forecast on cutoff-past validation targets, sorts
+`actual_gpu_demand - raw_p90_gpu_demand` per resource pool, and adds the
+nearest-rank 90th-percentile residual to later P90 forecasts. The fitted offset,
+sample count, raw coverage and calibrated coverage are fingerprinted in the
+training artifact. No holdout target or post-cutoff arrival participates in the
+correction. Omitting the field preserves the V1 forecast byte contract.
+
+The control report also records `admission_diagnostics`. At each five-minute
+quota update it detects the sampled condition `shortest-horizon quota = 0`
+while the same resource pool has idle GPUs and queued Spot demand. The report
+aggregates the affected pool-update count, fraction, maximum observed queue wait
+and an interval-weighted idle-GPU-seconds exposure estimate. This is a
+starvation warning, not proof that every queued job was placeable, and it does
+not change admission behavior by itself.
+
 ## AgentTeams mapping
 
 The predictive bridge profile is `configs/agentteams/host-bridge-predictive-v1.json`. It registers both controller profiles and the `tenant-predictive-local` v2 run configuration, and exposes only:
@@ -221,6 +239,25 @@ The compact [public receipt](../evidence/predictive-v2/alibaba-gpu-series-2-pred
 
 After the deterministic runner froze all 88 runs and the public receipt, AgentTeams project `proj-20260809-160234` performed a separate read-only evidence gate with all roles locked to `deepseek-v4-flash`. Workload, strategy, simulation-evidence and SLO stages passed 44/44, 54/54, 39/39 + 9/9 and 30/30 checks respectively without re-running simulation or inventing metrics. The Manager preserved `approval_pending` and `no_calibration_eligible_arm / selected=[]`; this validates the evidence boundary and rejection workflow, not scheduling superiority. Full rooms, task workspaces and the decision record remain local runtime evidence.
 
+The outer-loop studies also integrate this tenant/resource-pool predictor into
+a six-cutoff, same-session rolling controller. At every cutoff, the predictor
+and quota feedback consume only completed history and live state; an Agent or
+deterministic rule chooses a bounded three-action candidate set; the selected
+action is frozen before the simulator reveals the next four hours.
+
+The original five-window result used the v1 aggregate-demand scenario and is
+retained at [rolling-v1](../evidence/rolling-v1/alibaba-gpu-series-2-rolling-ablation-v1.json):
+FIFO passed 5/5 while fixed prediction, the past-only rule, single Agent and
+multi-Agent each passed 1/5. The separate v2 holdout uses cutoff-visible HP Job
+shapes, validation-residual P90 calibration and an explicit FIFO-open safety
+action. On 2024-08-21 through 2024-08-25, ordinary FIFO, the rule, single Agent,
+multi-Agent and the non-deployable oracle each pass 4/5 with identical aggregate
+metrics; fixed prediction passes 2/5. V2 therefore avoids the fixed predictor's
+regression by selecting the safe open path, but it still does not establish a
+multi-Agent advantage over FIFO or the same-budget rule. See
+[Rolling Policy Control](rolling-control.md) and the
+[rolling-v2 evidence](../evidence/rolling-v2/alibaba-gpu-series-2-rolling-ablation-v2.json).
+
 ## Commands
 
 ```powershell
@@ -271,7 +308,10 @@ The complete multi-window sequence is deliberately phased so the holdout cannot 
 ## Current boundary
 
 - This is an online-shaped control loop evaluated by historical shadow replay, not a Kubernetes/Slurm actuator or production deployment.
-- The closed loop changes Spot admission quota under one fixed registered policy. Outer rolling policy switching and state handoff are separate work.
+- The inner loop changes Spot admission quota, and the outer loop now performs
+  bounded policy switching with exact same-session state handoff in historical
+  hidden-future replay. Its current five-window result is negative versus FIFO,
+  and it remains a shadow evaluation rather than a production actuator.
 - The independent-Gaussian tenant aggregation is a declared modeling assumption whose calibration must be measured per dataset.
 - The current multi-window evidence rejects both predictive profiles on FIFO allocation non-degradation; future controller work must improve calibration or implement an evidence-backed past-only fallback before making a superiority claim.
 - A cold-start window shorter than 844 hours cannot train the default tenant profile.

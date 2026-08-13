@@ -23,6 +23,7 @@ from .native_workload import analyze_trace_file
 from .policy_compare import compare_policy_metrics
 from .policy_portfolio import compare_policy_portfolio
 from .policy_rank import rank_audited_policies
+from .rolling_experiment import load_json_object, run_rolling_arm
 from .slo import audit_slo
 
 
@@ -138,6 +139,25 @@ def main() -> int:
     predictive_parser.add_argument("--controller", required=True)
     predictive_parser.add_argument("--result", required=True)
     predictive_parser.add_argument("--metrics", required=True)
+
+    rolling_parser = subparsers.add_parser(
+        "simulate-rolling",
+        help="run a state-preserving rolling high-level policy controller",
+    )
+    rolling_parser.add_argument("--trace", required=True)
+    rolling_parser.add_argument("--workload-history-trace")
+    rolling_parser.add_argument("--action-space", required=True)
+    rolling_parser.add_argument("--controller", required=True)
+    rolling_parser.add_argument("--slo", required=True)
+    rolling_parser.add_argument(
+        "--mode",
+        required=True,
+        choices=("workload_rule", "single_agent", "multi_agent", "catalog_oracle"),
+    )
+    rolling_parser.add_argument("--controller-id", required=True)
+    rolling_parser.add_argument("--agent-plan")
+    rolling_parser.add_argument("--result", required=True)
+    rolling_parser.add_argument("--metrics", required=True)
 
     compare_parser = subparsers.add_parser(
         "compare-policies", help="compare two canonical metrics reports without selecting a winner"
@@ -295,6 +315,41 @@ def main() -> int:
             "metrics_fingerprint": metrics["metrics_fingerprint"],
             "controller_fingerprint": metrics["predictive_control"][
                 "controller_fingerprint"
+            ],
+        }
+    elif args.command == "simulate-rolling":
+        if args.mode in {"single_agent", "multi_agent"} and not args.agent_plan:
+            parser.error("--agent-plan is required for single_agent and multi_agent modes")
+        if args.mode not in {"single_agent", "multi_agent"} and args.agent_plan:
+            parser.error("--agent-plan is valid only for an Agent mode")
+        simulation_result, metrics = run_rolling_arm(
+            project_root=Path.cwd(),
+            trace_path=_path(args.trace),
+            action_space_path=_path(args.action_space),
+            predictive_controller_path=_path(args.controller),
+            slo_path=_path(args.slo),
+            arm_id=args.controller_id,
+            mode=args.mode,
+            agent_plan=(
+                load_json_object(_path(args.agent_plan)) if args.agent_plan else None
+            ),
+            workload_history_trace_path=(
+                _path(args.workload_history_trace)
+                if args.workload_history_trace
+                else None
+            ),
+        )
+        result_path = _path(args.result)
+        metrics_path = _path(args.metrics)
+        _write_json(result_path, simulation_result)
+        _write_json(metrics_path, metrics)
+        result = {
+            "result": str(result_path),
+            "metrics": str(metrics_path),
+            "result_fingerprint": simulation_result["result_fingerprint"],
+            "metrics_fingerprint": metrics["metrics_fingerprint"],
+            "rolling_control_fingerprint": metrics["rolling_control"][
+                "control_fingerprint"
             ],
         }
     elif args.command == "compare-policies":

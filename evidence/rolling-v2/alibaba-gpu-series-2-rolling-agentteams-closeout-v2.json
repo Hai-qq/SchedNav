@@ -1,0 +1,55 @@
+{
+  "audit": {
+    "conclusion": "All 30 records, their deterministic repetition triples, the 15 rolling information/state-handoff boundaries, hard-SLO pass counts, and aggregate mean metrics verify exactly against the supplied evidence, and neither superiority gate is established because rolling-multi-agent ties the other four-pass arms.",
+    "deterministic_repetition_verified_count": 30,
+    "evidence_fingerprint_verified": true,
+    "hard_slo_pass_counts": {
+      "fixed-tenant-predictive": 2,
+      "ordinary-fifo": 4,
+      "posthoc-catalog-oracle": 4,
+      "rolling-multi-agent": 4,
+      "rolling-single-agent": 4,
+      "rolling-workload-rule": 4
+    },
+    "multi_agent_superiority_gate": "not_established",
+    "multi_agent_vs_ordinary_gate": "not_established",
+    "record_fingerprint_verified_count": 30,
+    "rolling_boundary_verified_count": 15
+  },
+  "decision": {
+    "approval_status": "approval_pending",
+    "eligible_deployable_arm_ids": [],
+    "multi_agent_superiority_gate": "not_established",
+    "multi_agent_vs_ordinary_gate": "not_established",
+    "production_change_applied": false,
+    "rationale": "After excluding the future-seeing posthoc-catalog-oracle, no retained arm achieves hard_slo_pass_count equal to the five-window count (max 4), and both superiority gates are not_established, so no arm is deployable.",
+    "recommended_arm_id": null,
+    "scheduling_superiority_claim": "not_established"
+  },
+  "evidence_fingerprint": "9a3359184460af16de5a3fcbad44e59fca7d1fca6af7bc8fb9b0154c97ef665e",
+  "human_approval": {
+    "production_change_applied": false,
+    "status": "approval_pending"
+  },
+  "llm_call_count": 2,
+  "model_id": "deepseek-v4-flash",
+  "project_id": "proj-20260811-042605",
+  "receipt_fingerprint": "a4f2c009200863c7845f5c45efef1aaf105819dc2d88ae10b3dbab718944db35",
+  "schema_version": "schednav.rolling-agentteams-closeout/v1",
+  "stages": {
+    "manager": {
+      "output_fingerprint": "6e68dc0c3707577409de6245a58a9a41032b8244d8632a5e9345963515ca68b9",
+      "role": "Manager",
+      "task_id": "task-20260811-214100",
+      "worker_id": "schednav-manager"
+    },
+    "slo_auditor": {
+      "context_isolation_fingerprint": "564ebd974c008cb518f396423da291efbc298a25b3e5df5bfa66090f05e4e4e4",
+      "output_fingerprint": "5f6edda7eae32f1c2173e0766a361f1dfaa5d9812bdc36a3271b0273a86c57bd",
+      "role": "SLO Auditor",
+      "task_id": "task-20260811-214000",
+      "worker_id": "slo-auditor"
+    }
+  },
+  "study_id": "rolling-ablation-v2"
+}

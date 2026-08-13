@@ -15,6 +15,7 @@
     "placement_strategy": {"const": "deterministic_best_fit"},
     "hp_preemption_delay_seconds": {"type": "integer", "minimum": 0},
     "spot_eviction_budget_rate": {"type": "number", "minimum": 0, "maximum": 1},
-    "preemption_victim_strategy": {"enum": ["longest_remaining", "lowest_checkpoint_loss"]}
+    "preemption_victim_strategy": {"enum": ["longest_remaining", "lowest_checkpoint_loss"]},
+    "predictive_admission_mode": {"enum": ["enforce", "bypass"]}
   }
 }

@@ -1,0 +1,35 @@
+{
+  "schema_version": "schednav.native-action-space/v1",
+  "name": "rolling-predictive-v3-risk-diverse",
+  "safety_baseline_action_id": "rolling-fifo-open",
+  "controlled_fields": [
+    "scheduler",
+    "spot_guarantee_seconds",
+    "checkpoint_interval_seconds",
+    "hp_preemption_delay_seconds",
+    "spot_eviction_budget_rate",
+    "preemption_victim_strategy",
+    "predictive_admission_mode"
+  ],
+  "fixed_execution_controls": {
+    "preemption_overhead_seconds": 80,
+    "placement_strategy": "deterministic_best_fit",
+    "predictive_model": "tenant-linear-gaussian-v1",
+    "predictive_model_switching": false
+  },
+  "profiles": [
+    "configs/policies/native-fifo.json",
+    "configs/policies/rolling-fifo-open.json",
+    "configs/policies/native-preemptive-g3600-b09-d0000.json",
+    "configs/policies/rolling-preemptive-open-d0000.json",
+    "configs/policies/rolling-preemptive-open-loss-aware.json"
+  ],
+  "forbidden": [
+    "job_id",
+    "node_id",
+    "gpu_id",
+    "placement",
+    "forecast_model_weights",
+    "arbitrary_python"
+  ]
+}

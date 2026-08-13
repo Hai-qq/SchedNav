@@ -1,0 +1,57 @@
+{
+  "audit": {
+    "conclusion": "All 30 record fingerprints, 30 deterministic repetition pairs, and 15 rolling boundary gates verify; per-arm hard-SLO pass counts and mean metrics match the aggregate, and both superiority gates are not_established on the supplied evidence.",
+    "deterministic_repetition_verified_count": 30,
+    "evidence_fingerprint_verified": true,
+    "hard_slo_pass_counts": {
+      "fixed-tenant-predictive": 1,
+      "ordinary-fifo": 5,
+      "posthoc-catalog-oracle": 5,
+      "rolling-multi-agent": 1,
+      "rolling-single-agent": 1,
+      "rolling-workload-rule": 1
+    },
+    "multi_agent_superiority_gate": "not_established",
+    "multi_agent_vs_ordinary_gate": "not_established",
+    "record_fingerprint_verified_count": 30,
+    "rolling_boundary_verified_count": 15
+  },
+  "decision": {
+    "approval_status": "approval_pending",
+    "eligible_deployable_arm_ids": [
+      "ordinary-fifo"
+    ],
+    "multi_agent_superiority_gate": "not_established",
+    "multi_agent_vs_ordinary_gate": "not_established",
+    "production_change_applied": false,
+    "rationale": "Only ordinary-fifo satisfies hard_slo_pass_count == window_count (5/5) after excluding posthoc-catalog-oracle; both superiority gates remain not_established.",
+    "recommended_arm_id": "ordinary-fifo",
+    "scheduling_superiority_claim": "not_established"
+  },
+  "evidence_fingerprint": "68599380f0b493990adba4a58afcba11e431d84cd3b67396bcd72f4aaf5b4508",
+  "human_approval": {
+    "production_change_applied": false,
+    "status": "approval_pending"
+  },
+  "llm_call_count": 2,
+  "model_id": "deepseek-v4-flash",
+  "project_id": "proj-20260810-062224",
+  "receipt_fingerprint": "8e25790e294f2c2f99b44e5229b6c6a5beb4167fc07aa09cb14a7559322fd47c",
+  "schema_version": "schednav.rolling-agentteams-closeout/v1",
+  "stages": {
+    "manager": {
+      "output_fingerprint": "4a4bdea9da2ef048becfe8d101088b0eeda1ca1ebdb0b0df2fdb5f229ae53af0",
+      "role": "Manager",
+      "task_id": "task-20260811-071100",
+      "worker_id": "schednav-manager"
+    },
+    "slo_auditor": {
+      "context_isolation_fingerprint": "82ea2fc9d1fd66121e50a6673e3b15015e723d33bdd0f2eebd15f2289a554ea8",
+      "output_fingerprint": "297a8dce5e3b5ffc07df3675dfa97cbe4de1097a4a96f023160cacac28e521b5",
+      "role": "SLO Auditor",
+      "task_id": "task-20260811-071001",
+      "worker_id": "slo-auditor"
+    }
+  },
+  "study_id": "rolling-ablation-v1"
+}

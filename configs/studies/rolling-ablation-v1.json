@@ -1,0 +1,107 @@
+{
+  "schema_version": "schednav.rolling-ablation-study/v1",
+  "study_id": "rolling-ablation-v1",
+  "freeze": {
+    "frozen_at": "2026-08-10T13:02:36.2918674+08:00",
+    "holdout_simulations_absent_at_freeze": true,
+    "development_windows": [
+      "2024-04-13",
+      "2024-04-22",
+      "2024-06-08",
+      "2024-06-12",
+      "2024-06-25",
+      "2024-07-05",
+      "2024-07-09"
+    ],
+    "contaminated_smoke_window": "2024-07-09",
+    "prompt_contract": "configs/agentteams/rolling-agent-prompts-v1.json",
+    "prompt_fingerprint": "751158e5a4a190f2686be9180f1bd89d6030109190fe336dcae1e79a7463f7be"
+  },
+  "data": {
+    "dataset": "Alibaba cluster-trace-v2026-spot-gpu",
+    "source_commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "gpu_model": "GPU-series-2",
+    "execution_trace": "HP history from origin plus evaluation-window HP/Spot arrivals",
+    "workload_history_trace": "separate four-hour HP/Spot history used only through cutoff filters",
+    "redistribute_raw_or_derived_jobs": false
+  },
+  "rolling_contract": {
+    "decision_interval_seconds": 14400,
+    "scenario_horizon_seconds": 14400,
+    "history_window_seconds": 14400,
+    "candidate_budget_per_deployable_decision": 3,
+    "inner_controller": "configs/controllers/tenant-predictive-spot-v1.json",
+    "action_space": "configs/action_spaces/rolling-predictive-v1.json",
+    "slo": "configs/slos/schednav-demo-slo-v1.json",
+    "future_arrivals_visible_to_deployable_controllers": false,
+    "state_handoff": "one simulator session preserves queue, allocation, remaining work, ledgers and predictive feedback across cutoffs",
+    "weighted_score": false
+  },
+  "arms": [
+    {
+      "arm_id": "ordinary-fifo",
+      "kind": "static",
+      "policy": "configs/policies/native-fifo.json",
+      "predictive_controller": null,
+      "candidate_budget": 0
+    },
+    {
+      "arm_id": "fixed-tenant-predictive",
+      "kind": "predictive-fixed-policy",
+      "policy": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+      "predictive_controller": "configs/controllers/tenant-predictive-spot-v1.json",
+      "candidate_budget": 0
+    },
+    {
+      "arm_id": "rolling-workload-rule",
+      "kind": "rolling",
+      "mode": "workload_rule",
+      "candidate_budget": 3
+    },
+    {
+      "arm_id": "rolling-single-agent",
+      "kind": "rolling",
+      "mode": "single_agent",
+      "candidate_budget": 3,
+      "model_id": "deepseek-v4-flash"
+    },
+    {
+      "arm_id": "rolling-multi-agent",
+      "kind": "rolling",
+      "mode": "multi_agent",
+      "candidate_budget": 3,
+      "framework": "AgentTeams",
+      "model_id": "deepseek-v4-flash"
+    },
+    {
+      "arm_id": "posthoc-catalog-oracle",
+      "kind": "non-deployable-upper-bound",
+      "mode": "catalog_oracle",
+      "candidate_budget": 5,
+      "actual_future_candidate_scenarios": true
+    }
+  ],
+  "holdout_windows": [
+    {"window_id": "2024-08-16", "start_seconds": 14515200, "end_seconds": 14601599},
+    {"window_id": "2024-08-17", "start_seconds": 14601600, "end_seconds": 14687999},
+    {"window_id": "2024-08-18", "start_seconds": 14688000, "end_seconds": 14774399},
+    {"window_id": "2024-08-19", "start_seconds": 14774400, "end_seconds": 14860799},
+    {"window_id": "2024-08-20", "start_seconds": 14860800, "end_seconds": 14947199}
+  ],
+  "execution": {
+    "repetitions_per_arm_per_window": 2,
+    "deterministic_repetitions_required": true,
+    "agent_candidate_plans_frozen_before_candidate_outcomes": true,
+    "fifo_baseline_is_same_window": true
+  },
+  "claim_gate": {
+    "multi_agent_superiority_requires": [
+      "no fewer hard-SLO-passing holdout windows than every deployable comparator",
+      "same three-candidate simulator budget as workload-rule and single-agent arms",
+      "a strictly better declared SLO hierarchy outcome than both same-budget comparators on aggregate holdout evidence",
+      "all Agent decisions bound to cutoff observation fingerprints before hidden future execution"
+    ],
+    "otherwise": "report that multi-agent scheduling superiority is not established"
+  },
+  "design_fingerprint": "97cad7f628d8cea7736af6226076743463a33ce8c8e92b1a9cf73502c9a9f952"
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": "schednav.host-bridge-config/v1",
+  "artifact_root": "artifacts",
+  "task_subdir": "agentteams-rolling-bridge-v2/tasks",
+  "max_workers": 1,
+  "operation_allowlist": ["advance_rolling_policy"],
+  "run_configs": {
+    "rolling-v2-2024-08-21": "configs/runs/rolling-v2-2024-08-21.json",
+    "rolling-v2-2024-08-22": "configs/runs/rolling-v2-2024-08-22.json",
+    "rolling-v2-2024-08-23": "configs/runs/rolling-v2-2024-08-23.json",
+    "rolling-v2-2024-08-24": "configs/runs/rolling-v2-2024-08-24.json",
+    "rolling-v2-2024-08-25": "configs/runs/rolling-v2-2024-08-25.json"
+  },
+  "run_sets": {
+    "rolling-holdout-v2": [
+      "rolling-v2-2024-08-21",
+      "rolling-v2-2024-08-22",
+      "rolling-v2-2024-08-23",
+      "rolling-v2-2024-08-24",
+      "rolling-v2-2024-08-25"
+    ]
+  },
+  "action_space": "configs/action_spaces/rolling-predictive-v2.json",
+  "controllers": {
+    "tenant-predictive-spot-v2": "configs/controllers/tenant-predictive-spot-v2.json"
+  },
+  "actions": {
+    "native-fifo": "configs/policies/native-fifo.json",
+    "rolling-fifo-open": "configs/policies/rolling-fifo-open.json",
+    "rolling-preemptive-open-d0000": "configs/policies/rolling-preemptive-open-d0000.json",
+    "rolling-preemptive-open-d0900": "configs/policies/rolling-preemptive-open-d0900.json",
+    "rolling-preemptive-open-loss-aware": "configs/policies/rolling-preemptive-open-loss-aware.json"
+  },
+  "slo_specs": {
+    "schednav-demo-slo-v1": "configs/slos/schednav-demo-slo-v1.json"
+  },
+  "baseline_metrics": {}
+}

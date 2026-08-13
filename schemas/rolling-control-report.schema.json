@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/rolling-control-report.schema.json",
+  "title": "SchedNav rolling control report",
+  "type": "object",
+  "required": ["schema_version", "controller_id", "controller_fingerprint", "mode", "evidence_window_seconds", "decision_count", "expected_decision_count", "candidate_budget_per_decision", "candidate_simulation_count", "llm_usage", "information_boundary", "state_handoff", "selected_action_sequence", "decisions", "weighted_score_used", "control_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.rolling-control-report/v1"},
+    "controller_id": {"type": "string"},
+    "controller_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mode": {"enum": ["workload_rule", "single_agent", "multi_agent", "multi_agent_masked", "catalog_oracle"]},
+    "model_id": {"type": ["string", "null"]},
+    "evidence_window_seconds": {"type": "object"},
+    "decision_count": {"type": "integer", "minimum": 0},
+    "expected_decision_count": {"type": "integer", "minimum": 0},
+    "candidate_budget_per_decision": {"type": "integer", "minimum": 3, "maximum": 5},
+    "baseline_action_id": {"type": "string", "minLength": 1},
+    "candidate_simulation_count": {"type": "integer", "minimum": 0},
+    "llm_usage": {"type": "object"},
+    "information_boundary": {"type": "object"},
+    "state_handoff": {"type": "object"},
+    "selected_action_sequence": {"type": "array", "items": {"type": "string"}},
+    "decisions": {"type": "array", "items": {"type": "object"}},
+    "weighted_score_used": {"const": false},
+    "control_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

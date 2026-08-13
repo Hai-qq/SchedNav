@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/agentteams-context-isolation.schema.json",
+  "title": "SchedNav AgentTeams context-isolation receipt",
+  "oneOf": [
+    {
+      "title": "Cleared reusable private room",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "task_id",
+        "worker_id",
+        "worker_private_room_id",
+        "project_room_id",
+        "scope",
+        "observation_fingerprint",
+        "clear_command",
+        "clear_acknowledged",
+        "clear_acknowledged_at",
+        "assignment_dispatched_at",
+        "assignment_context_verified",
+        "assignment_context_evidence",
+        "cross_window_context_visible",
+        "receipt_fingerprint"
+      ],
+      "properties": {
+        "schema_version": {"const": "schednav.agentteams-context-isolation/v1"},
+        "project_id": {"type": "string", "minLength": 1},
+        "task_id": {"type": "string", "minLength": 1},
+        "worker_id": {"type": "string", "minLength": 1},
+        "worker_private_room_id": {"type": "string", "minLength": 1},
+        "project_room_id": {"type": "string", "minLength": 1},
+        "scope": {"const": "one-controller-one-observation"},
+        "observation_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "clear_command": {"const": "/clear"},
+        "clear_acknowledged": {"const": true},
+        "clear_acknowledged_at": {"type": "string", "format": "date-time"},
+        "assignment_dispatched_at": {"type": "string", "format": "date-time"},
+        "assignment_context_verified": {"const": true},
+        "assignment_context_evidence": {"const": "worker-log-handle-agent-query"},
+        "cross_window_context_visible": {"const": false},
+        "receipt_fingerprint": {"$ref": "#/$defs/fingerprint"}
+      }
+    },
+    {
+      "title": "One-use fresh private room",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "task_id",
+        "worker_id",
+        "worker_private_room_id",
+        "project_room_id",
+        "scope",
+        "observation_fingerprint",
+        "isolation_method",
+        "fresh_room_created_for_task",
+        "fresh_room_verified_at",
+        "assignment_dispatched_at",
+        "assignment_context_verified",
+        "assignment_context_evidence",
+        "cross_window_context_visible",
+        "receipt_fingerprint"
+      ],
+      "properties": {
+        "schema_version": {"const": "schednav.agentteams-context-isolation/v2"},
+        "project_id": {"type": "string", "minLength": 1},
+        "task_id": {"type": "string", "minLength": 1},
+        "worker_id": {"type": "string", "minLength": 1},
+        "worker_private_room_id": {"type": "string", "minLength": 1},
+        "project_room_id": {"type": "string", "minLength": 1},
+        "scope": {"const": "one-controller-one-observation"},
+        "observation_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "isolation_method": {"const": "fresh-private-room-single-assignment"},
+        "fresh_room_created_for_task": {"const": true},
+        "fresh_room_verified_at": {"type": "string", "format": "date-time"},
+        "assignment_dispatched_at": {"type": "string", "format": "date-time"},
+        "assignment_context_verified": {"const": true},
+        "assignment_context_evidence": {"const": "fresh-private-room-single-assignment"},
+        "cross_window_context_visible": {"const": false},
+        "receipt_fingerprint": {"$ref": "#/$defs/fingerprint"}
+      }
+    }
+  ],
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

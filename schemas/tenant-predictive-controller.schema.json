@@ -73,6 +73,9 @@
     "queue_wait_threshold_seconds": {"type": "integer", "minimum": 1},
     "high_eviction_multiple": {"type": "number", "minimum": 1},
     "low_eviction_multiple": {"type": "number", "minimum": 0, "maximum": 1},
-    "runtime_inventory_cap": {"type": "boolean"}
+    "runtime_inventory_cap": {"type": "boolean"},
+    "quantile_calibration_method": {
+      "enum": ["validation-residual-nearest-rank"]
+    }
   }
 }

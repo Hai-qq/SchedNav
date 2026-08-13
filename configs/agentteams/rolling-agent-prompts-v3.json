@@ -1,0 +1,43 @@
+{
+  "schema_version": "schednav.rolling-agent-prompts/v1",
+  "prompt_id": "rolling-agent-prompts-v3",
+  "model_id": "deepseek-v4-flash",
+  "candidate_budget": 3,
+  "required_action_id": "rolling-fifo-open",
+  "allowed_action_ids": [
+    "native-fifo",
+    "rolling-fifo-open",
+    "native-preemptive-g3600-b09-d0000",
+    "rolling-preemptive-open-d0000",
+    "rolling-preemptive-open-loss-aware"
+  ],
+  "single_agent": {
+    "roles": ["Scheduling Strategist"],
+    "instruction": "Inspect only the supplied cutoff-safe rolling-observation/v2. Select exactly three distinct allowed action IDs including rolling-fifo-open. Use the short/previous/long state views, live HP queue age, forecast uncertainty, SLO progress and control-distance trade-off. Preserve a useful contrast among FIFO, predictive admission, immediate preemption and checkpoint-loss-aware preemption. Do not inspect future arrivals, invent parameters, predict a winner or perform placement. Return strict JSON with one bounded reason_code and the three IDs; deterministic simulation and SLO audit choose the action."
+  },
+  "multi_agent": {
+    "roles": ["Workload Analyst", "Scheduling Strategist"],
+    "analyst_instruction": "Inspect only the supplied cutoff-safe rolling-observation/v2. Return structured workload_regime, short-vs-long change, live HP queue/SLO risk, calibrated forecast risk, uncertainty, and recommended action characteristics. Explicitly distinguish urgent HP protection from ordinary Spot-heavy operation. Do not select a winner, inspect future arrivals, invent metrics or perform placement.",
+    "strategist_instruction": "Use the supplied cutoff-safe state view plus the supplied verified Workload Analyst receipt. Select exactly three distinct allowed action IDs including rolling-fifo-open. Use only evidence present in those two inputs and preserve a useful contrast among registered controls. Do not infer the experimental arm, predict a winner, inspect future arrivals, invent parameters or perform placement. Return strict JSON with one bounded reason_code and the three IDs; deterministic simulation and SLO audit choose the action."
+  },
+  "multi_agent_masked": {
+    "roles": ["Workload Analyst", "Scheduling Strategist"],
+    "analyst_instruction": "Return the fixed masked handoff object only: {\"masked\":true,\"content\":\"withheld-for-causal-ablation\"}. Do not summarize the observation or name an action.",
+    "strategist_instruction": "Use the supplied cutoff-safe state view plus the supplied verified Workload Analyst receipt. Select exactly three distinct allowed action IDs including rolling-fifo-open. Use only evidence present in those two inputs and preserve a useful contrast among registered controls. Do not infer the experimental arm, predict a winner, inspect future arrivals, invent parameters or perform placement. Return strict JSON with one bounded reason_code and the three IDs; deterministic simulation and SLO audit choose the action."
+  },
+  "causal_ablation": {
+    "comparison": "multi_agent versus multi_agent_masked",
+    "matched_resources": [
+      "two deepseek-v4-flash calls per decision",
+      "three candidate simulations per decision scenario",
+      "state-equivalent de-identified Strategist view, identical Strategist instruction, action catalog, simulator and SLO hierarchy"
+    ],
+    "changed_factor": "The Strategist receives structured Analyst content or the fixed mask; later state may diverge only as a downstream treatment effect."
+  },
+  "output_contract": {
+    "candidate_action_ids": "exactly three unique allowed IDs including rolling-fifo-open",
+    "reason_code": "one line, at most 256 characters",
+    "role_receipts": "AgentTeams project/task/worker identity and SHA-256 of each normalized stage output"
+  },
+  "prompt_fingerprint": "5192bbc1ac2e4154df1e0d2bd63a1d381d3d697cc88a3fcae01e406b2b37da11"
+}

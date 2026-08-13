@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/rolling-agentteams-closeout.schema.json",
+  "title": "SchedNav AgentTeams rolling-ablation closeout receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "study_id",
+    "project_id",
+    "model_id",
+    "evidence_fingerprint",
+    "stages",
+    "audit",
+    "decision",
+    "llm_call_count",
+    "human_approval",
+    "receipt_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.rolling-agentteams-closeout/v1"},
+    "study_id": {"type": "string", "minLength": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "model_id": {"const": "deepseek-v4-flash"},
+    "evidence_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slo_auditor", "manager"],
+      "properties": {
+        "slo_auditor": {"$ref": "#/$defs/stage"},
+        "manager": {"$ref": "#/$defs/stage"}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_fingerprint_verified",
+        "record_fingerprint_verified_count",
+        "deterministic_repetition_verified_count",
+        "rolling_boundary_verified_count",
+        "hard_slo_pass_counts",
+        "multi_agent_superiority_gate",
+        "multi_agent_vs_ordinary_gate",
+        "conclusion"
+      ],
+      "properties": {
+        "evidence_fingerprint_verified": {"const": true},
+        "record_fingerprint_verified_count": {"type": "integer", "minimum": 1},
+        "deterministic_repetition_verified_count": {"type": "integer", "minimum": 1},
+        "rolling_boundary_verified_count": {"type": "integer", "minimum": 1},
+        "hard_slo_pass_counts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "integer", "minimum": 0}
+        },
+        "multi_agent_superiority_gate": {"enum": ["supported", "not_established"]},
+        "multi_agent_vs_ordinary_gate": {"enum": ["supported", "not_established"]},
+        "analyst_causal_value_gate": {"enum": ["supported", "not_established"]},
+        "analyst_causal_pairwise_hierarchy": {"enum": ["better", "worse", "tie"]},
+        "analyst_causal_matched_resources": {"type": ["object", "null"]},
+        "conclusion": {"type": "string", "minLength": 1}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligible_deployable_arm_ids",
+        "recommended_arm_id",
+        "multi_agent_superiority_gate",
+        "multi_agent_vs_ordinary_gate",
+        "scheduling_superiority_claim",
+        "approval_status",
+        "production_change_applied",
+        "rationale"
+      ],
+      "properties": {
+        "eligible_deployable_arm_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "recommended_arm_id": {"type": ["string", "null"]},
+        "multi_agent_superiority_gate": {"enum": ["supported", "not_established"]},
+        "multi_agent_vs_ordinary_gate": {"enum": ["supported", "not_established"]},
+        "analyst_causal_value_claim": {"enum": ["supported", "not_established"]},
+        "scheduling_superiority_claim": {"enum": ["supported", "not_established"]},
+        "approval_status": {"const": "approval_pending"},
+        "production_change_applied": {"const": false},
+        "rationale": {"type": "string", "minLength": 1}
+      }
+    },
+    "llm_call_count": {"const": 2},
+    "human_approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "production_change_applied"],
+      "properties": {
+        "status": {"const": "approval_pending"},
+        "production_change_applied": {"const": false}
+      }
+    },
+    "receipt_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "role", "worker_id", "output_fingerprint"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "worker_id": {"type": "string", "minLength": 1},
+        "output_fingerprint": {"$ref": "#/$defs/fingerprint"},
+        "context_isolation_fingerprint": {"$ref": "#/$defs/fingerprint"}
+      }
+    }
+  }
+}

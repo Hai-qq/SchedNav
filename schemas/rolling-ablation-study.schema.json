@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/rolling-ablation-study.schema.json",
+  "title": "SchedNav frozen rolling ablation study",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "study_id", "freeze", "data", "rolling_contract", "arms", "holdout_windows", "execution", "claim_gate", "design_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.rolling-ablation-study/v1"},
+    "study_id": {"type": "string", "minLength": 1},
+    "freeze": {"type": "object"},
+    "data": {"type": "object"},
+    "rolling_contract": {"type": "object"},
+    "arms": {"type": "array", "minItems": 6, "maxItems": 7, "items": {"type": "object"}},
+    "holdout_windows": {"type": "array", "minItems": 5, "items": {"type": "object"}},
+    "execution": {"type": "object"},
+    "claim_gate": {"type": "object"},
+    "design_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

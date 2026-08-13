@@ -1,0 +1,116 @@
+{
+  "schema_version": "schednav.rolling-ablation-study/v1",
+  "study_id": "rolling-ablation-v2",
+  "freeze": {
+    "frozen_at": "2026-08-11T11:23:00.0747153+08:00",
+    "holdout_simulations_absent_at_freeze": true,
+    "development_windows": [
+      "2024-04-13",
+      "2024-04-22",
+      "2024-06-08",
+      "2024-06-12",
+      "2024-06-25",
+      "2024-07-05",
+      "2024-07-09",
+      "2024-08-16",
+      "2024-08-17",
+      "2024-08-18",
+      "2024-08-19",
+      "2024-08-20"
+    ],
+    "prior_formal_evidence": "evidence/rolling-v1/alibaba-gpu-series-2-rolling-ablation-v1.json",
+    "prompt_contract": "configs/agentteams/rolling-agent-prompts-v2.json",
+    "prompt_fingerprint": "22ee8c481c7a83cca49378ed2ccde07f3365864fdba741a69c09ba43843f638d",
+    "scenario_generator": "schednav.past-replay-scenario/v2",
+    "forecast_quantile_calibration": "validation-residual-nearest-rank",
+    "safety_baseline_action_id": "rolling-fifo-open"
+  },
+  "data": {
+    "dataset": "Alibaba cluster-trace-v2026-spot-gpu",
+    "source_commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "time_origin": "2024-03-01 00:00:00",
+    "gpu_model": "GPU-series-2",
+    "execution_trace": "HP history from origin plus evaluation-window HP/Spot arrivals",
+    "workload_history_trace": "separate four-hour HP/Spot history used only through cutoff filters",
+    "redistribute_raw_or_derived_jobs": false
+  },
+  "rolling_contract": {
+    "decision_interval_seconds": 14400,
+    "scenario_horizon_seconds": 14400,
+    "history_window_seconds": 14400,
+    "candidate_budget_per_deployable_decision": 3,
+    "inner_controller": "configs/controllers/tenant-predictive-spot-v2.json",
+    "action_space": "configs/action_spaces/rolling-predictive-v2.json",
+    "slo": "configs/slos/schednav-demo-slo-v1.json",
+    "future_arrivals_visible_to_deployable_controllers": false,
+    "state_handoff": "one simulator session preserves queue, allocation, remaining work, ledgers and predictive feedback across cutoffs",
+    "weighted_score": false
+  },
+  "arms": [
+    {
+      "arm_id": "ordinary-fifo",
+      "kind": "static",
+      "policy": "configs/policies/native-fifo.json",
+      "predictive_controller": null,
+      "candidate_budget": 0
+    },
+    {
+      "arm_id": "fixed-tenant-predictive",
+      "kind": "predictive-fixed-policy",
+      "policy": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+      "predictive_controller": "configs/controllers/tenant-predictive-spot-v2.json",
+      "candidate_budget": 0
+    },
+    {
+      "arm_id": "rolling-workload-rule",
+      "kind": "rolling",
+      "mode": "workload_rule",
+      "candidate_budget": 3
+    },
+    {
+      "arm_id": "rolling-single-agent",
+      "kind": "rolling",
+      "mode": "single_agent",
+      "candidate_budget": 3,
+      "model_id": "deepseek-v4-flash"
+    },
+    {
+      "arm_id": "rolling-multi-agent",
+      "kind": "rolling",
+      "mode": "multi_agent",
+      "candidate_budget": 3,
+      "framework": "AgentTeams",
+      "model_id": "deepseek-v4-flash"
+    },
+    {
+      "arm_id": "posthoc-catalog-oracle",
+      "kind": "non-deployable-upper-bound",
+      "mode": "catalog_oracle",
+      "candidate_budget": 5,
+      "actual_future_candidate_scenarios": true
+    }
+  ],
+  "holdout_windows": [
+    {"window_id": "2024-08-21", "start_seconds": 14947200, "end_seconds": 15033599},
+    {"window_id": "2024-08-22", "start_seconds": 15033600, "end_seconds": 15119999},
+    {"window_id": "2024-08-23", "start_seconds": 15120000, "end_seconds": 15206399},
+    {"window_id": "2024-08-24", "start_seconds": 15206400, "end_seconds": 15292799},
+    {"window_id": "2024-08-25", "start_seconds": 15292800, "end_seconds": 15379199}
+  ],
+  "execution": {
+    "repetitions_per_arm_per_window": 2,
+    "deterministic_repetitions_required": true,
+    "agent_candidate_plans_frozen_before_candidate_outcomes": true,
+    "fifo_baseline_is_same_window": true
+  },
+  "claim_gate": {
+    "multi_agent_superiority_requires": [
+      "no fewer hard-SLO-passing holdout windows than every deployable comparator",
+      "same three-candidate simulator budget as workload-rule and single-agent arms",
+      "a strictly better declared SLO hierarchy outcome than both same-budget comparators on aggregate holdout evidence",
+      "all Agent decisions bound to cutoff observation fingerprints before hidden future execution"
+    ],
+    "otherwise": "report that multi-agent scheduling superiority is not established"
+  },
+  "design_fingerprint": "a3ab5cf5ed1e6ebaee7d6d698339b3945bc32000585b77b3c4e4df51a5e9231e"
+}

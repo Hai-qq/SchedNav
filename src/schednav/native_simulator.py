@@ -5,6 +5,7 @@ from __future__ import annotations
 from bisect import insort_right
 from dataclasses import asdict, dataclass
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,7 @@ class SimulationPolicy:
     hp_preemption_delay_seconds: int = 0
     spot_eviction_budget_rate: float | None = None
     preemption_victim_strategy: str = "longest_remaining"
+    predictive_admission_mode: str = "enforce"
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "SimulationPolicy":
@@ -50,6 +52,7 @@ class SimulationPolicy:
             "hp_preemption_delay_seconds",
             "spot_eviction_budget_rate",
             "preemption_victim_strategy",
+            "predictive_admission_mode",
         }
         if not required.issubset(value) or not set(value).issubset(required | optional):
             raise ValueError(
@@ -74,6 +77,9 @@ class SimulationPolicy:
             ),
             preemption_victim_strategy=str(
                 value.get("preemption_victim_strategy", "longest_remaining")
+            ),
+            predictive_admission_mode=str(
+                value.get("predictive_admission_mode", "enforce")
             ),
         )
         policy.validate()
@@ -108,6 +114,10 @@ class SimulationPolicy:
                 "preemption_victim_strategy must be longest_remaining or "
                 "lowest_checkpoint_loss"
             )
+        if self.predictive_admission_mode not in {"enforce", "bypass"}:
+            raise ValueError(
+                "predictive_admission_mode must be enforce or bypass"
+            )
         if self.placement_strategy != "deterministic_best_fit":
             raise ValueError("Only deterministic_best_fit placement is supported")
 
@@ -120,6 +130,8 @@ class SimulationPolicy:
             value.pop("spot_eviction_budget_rate")
         if self.preemption_victim_strategy == "longest_remaining":
             value.pop("preemption_victim_strategy")
+        if self.predictive_admission_mode == "enforce":
+            value.pop("predictive_admission_mode")
         return value
 
     @property
@@ -141,6 +153,7 @@ class _JobState:
     run_start: float | None = None
     feedback_checkpoint_time: float | None = None
     allocation: dict[str, float] | None = None
+    run_guarantee_seconds: int | None = None
 
 
 def _allocate(
@@ -196,9 +209,19 @@ def simulate_trace(
     trace: CanonicalTrace,
     policy: SimulationPolicy,
     predictive_controller: PredictiveController | None = None,
+    rolling_controller: Any | None = None,
+    *,
+    initial_queue_wait_seconds_by_job_id: dict[str, float] | None = None,
 ) -> dict[str, Any]:
-    """Run one deterministic, drain-to-completion counterfactual simulation."""
+    """Run one deterministic, drain-to-completion counterfactual simulation.
+
+    A rolling controller may switch only the registered high-level policy at its
+    declared cutoffs.  The simulator state itself is never rebuilt: queues,
+    allocations, remaining work, ledgers, and predictive-controller state flow
+    across every decision boundary in the same event loop.
+    """
     policy.validate()
+    active_policy = policy
     nodes = {
         node.node_id: {
             "gpu_model": node.gpu_model,
@@ -212,8 +235,25 @@ def simulate_trace(
         model = str(node["gpu_model"])
         free_by_model[model] = free_by_model.get(model, 0.0) + float(node["free"])
     total_free = sum(free_by_model.values())
+    initial_queue_wait = {
+        str(job_id): float(seconds)
+        for job_id, seconds in (initial_queue_wait_seconds_by_job_id or {}).items()
+    }
+    known_job_ids = {job.job_id for job in trace.jobs}
+    if not set(initial_queue_wait).issubset(known_job_ids):
+        raise ValueError("Initial queue-wait state names an unknown job")
+    if any(
+        not math.isfinite(seconds) or seconds < 0
+        for seconds in initial_queue_wait.values()
+    ):
+        raise ValueError("Initial queue-wait seconds must be finite and non-negative")
     states = {
-        job.job_id: _JobState(job, job.duration_seconds, job.submit_time_seconds, index)
+        job.job_id: _JobState(
+            job,
+            job.duration_seconds,
+            job.submit_time_seconds - initial_queue_wait.get(job.job_id, 0.0),
+            index,
+        )
         for index, job in enumerate(trace.jobs)
     }
     arrivals = list(trace.jobs)
@@ -242,6 +282,8 @@ def simulate_trace(
         predictive_controller.quota_for_guarantee_seconds(
             policy.spot_guarantee_seconds
         )
+    if rolling_controller is not None:
+        rolling_controller.bind_evidence_window(evaluation_start, evaluation_end)
     evaluation_spot_ids = {
         job.job_id
         for job in arrivals
@@ -253,6 +295,7 @@ def simulate_trace(
     allocated_gpu_seconds = 0.0
     warmup_allocated_gpu_seconds = 0.0
     evaluation_allocated_gpu_seconds = 0.0
+    latest_predictive_observation: dict[str, Any] | None = None
 
     def enqueue(job_id: str) -> None:
         nonlocal queued_hp_count
@@ -283,7 +326,7 @@ def simulate_trace(
 
     def queue_key(job_id: str) -> tuple[Any, ...]:
         state = states[job_id]
-        if policy.scheduler == "priority_preemptive":
+        if active_policy.scheduler == "priority_preemptive":
             priority = 0 if state.job.service_class == "HP" else 1
             return (priority, state.enqueue_order, state.job.job_id)
         return (state.enqueue_order, state.job.job_id)
@@ -303,6 +346,11 @@ def simulate_trace(
             if count > 0:
                 pool = str(nodes[node_id]["gpu_model"])
                 allocations_by_pool.setdefault(pool, []).append(node_id)
+        guarantee_seconds = (
+            state.run_guarantee_seconds
+            if state.run_guarantee_seconds is not None
+            else active_policy.spot_guarantee_seconds
+        )
         if getattr(predictive_controller, "resource_pool_scoped", False):
             for pool, node_ids in allocations_by_pool.items():
                 predictive_controller.observe_spot_run_end(
@@ -310,7 +358,7 @@ def simulate_trace(
                     evicted=evicted,
                     resource_pool=pool,
                     event_weight=float(len(node_ids)),
-                    guarantee_seconds=policy.spot_guarantee_seconds,
+                    guarantee_seconds=guarantee_seconds,
                     event_kind=event_kind,
                 )
         else:
@@ -318,7 +366,7 @@ def simulate_trace(
                 event_time,
                 evicted=evicted,
                 event_weight=float(max(1, len(allocation))),
-                guarantee_seconds=policy.spot_guarantee_seconds,
+                guarantee_seconds=guarantee_seconds,
                 event_kind=event_kind,
             )
 
@@ -326,7 +374,12 @@ def simulate_trace(
         if state.job.service_class != "Spot" or state.run_start is None:
             return
         uninterrupted = end_time - state.run_start
-        success = outcome == "completed" or uninterrupted + EPSILON >= policy.spot_guarantee_seconds
+        guarantee_seconds = (
+            state.run_guarantee_seconds
+            if state.run_guarantee_seconds is not None
+            else active_policy.spot_guarantee_seconds
+        )
+        success = outcome == "completed" or uninterrupted + EPSILON >= guarantee_seconds
         spot_runs.append(
             {
                 "job_id": state.job.job_id,
@@ -335,7 +388,7 @@ def simulate_trace(
                 "end_time_seconds": end_time,
                 "end_reason": outcome,
                 "uninterrupted_seconds": uninterrupted,
-                "guarantee_seconds": policy.spot_guarantee_seconds,
+                "guarantee_seconds": guarantee_seconds,
                 "guarantee_succeeded": success,
             }
         )
@@ -376,9 +429,13 @@ def simulate_trace(
             if (
                 predictive_controller is not None
                 and state.job.service_class == "Spot"
+                and active_policy.predictive_admission_mode == "enforce"
                 and not (
                     getattr(predictive_controller, "control_window_only", False)
-                    and (now < evaluation_start - EPSILON or now > evaluation_end + EPSILON)
+                    and (
+                        now < evaluation_start - EPSILON
+                        or now >= evaluation_end - EPSILON
+                    )
                 )
                 and not predictive_controller.allows_spot(
                     state.job.gpu_count,
@@ -390,7 +447,7 @@ def simulate_trace(
                         and state.job.gpu_model != "*"
                         else running_spot_gpus()
                     ),
-                    policy.spot_guarantee_seconds,
+                    active_policy.spot_guarantee_seconds,
                     resource_pool=state.job.gpu_model,
                 )
             ):
@@ -409,6 +466,11 @@ def simulate_trace(
             )
             state.run_count += 1
             state.allocation = allocation
+            state.run_guarantee_seconds = (
+                active_policy.spot_guarantee_seconds
+                if state.job.service_class == "Spot"
+                else None
+            )
             running.add(job_id)
             started_ids.append(job_id)
         if started_ids:
@@ -421,7 +483,7 @@ def simulate_trace(
 
     def preempt_for_hp() -> bool:
         nonlocal next_enqueue_order
-        if policy.scheduler != "priority_preemptive" or queued_hp_count == 0:
+        if active_policy.scheduler != "priority_preemptive" or queued_hp_count == 0:
             return False
         changed = False
         candidate_cache: dict[str, list[_JobState]] = {}
@@ -432,7 +494,7 @@ def simulate_trace(
                 continue
             if (
                 now + EPSILON
-                < pending.queued_since + policy.hp_preemption_delay_seconds
+                < pending.queued_since + active_policy.hp_preemption_delay_seconds
             ):
                 continue
             if eligible_free(pending.job) >= pending.job.gpu_count:
@@ -446,15 +508,15 @@ def simulate_trace(
                     and states[job_id].run_start is not None
                     and now + EPSILON
                     >= float(states[job_id].run_start)
-                    + policy.spot_guarantee_seconds
+                    + float(states[job_id].run_guarantee_seconds or 0)
                     and _shares_eligible_model(pending.job, states[job_id], nodes)
                 ]
-                if policy.preemption_victim_strategy == "lowest_checkpoint_loss":
+                if active_policy.preemption_victim_strategy == "lowest_checkpoint_loss":
                     candidate_cache[model] = sorted(
                         eligible_victims,
                         key=lambda state: (
                             (now - float(state.run_start))
-                            % policy.checkpoint_interval_seconds,
+                            % active_policy.checkpoint_interval_seconds,
                             -state.remaining,
                             state.job.submit_time_seconds,
                             state.job.job_id,
@@ -483,7 +545,7 @@ def simulate_trace(
                     break
                 victim = candidates[offset]
                 offset += 1
-                if policy.spot_eviction_budget_rate is not None:
+                if active_policy.spot_eviction_budget_rate is not None:
                     all_spot_run_starts = sum(
                         state.run_count
                         for state in states.values()
@@ -492,7 +554,7 @@ def simulate_trace(
                     all_projected_rate = (
                         (len(preemption_events) + 1) / (all_spot_run_starts + 1)
                     )
-                    if all_projected_rate > policy.spot_eviction_budget_rate + EPSILON:
+                    if all_projected_rate > active_policy.spot_eviction_budget_rate + EPSILON:
                         break
                     evaluation_spot_run_starts = sum(
                         state.run_count
@@ -510,12 +572,12 @@ def simulate_trace(
                         )
                         if (
                             evaluation_projected_rate
-                            > policy.spot_eviction_budget_rate + EPSILON
+                            > active_policy.spot_eviction_budget_rate + EPSILON
                         ):
                             break
                 run_seconds = now - float(victim.run_start)
-                rollback = run_seconds % policy.checkpoint_interval_seconds
-                overhead = float(policy.preemption_overhead_seconds)
+                rollback = run_seconds % active_policy.checkpoint_interval_seconds
+                overhead = float(active_policy.preemption_overhead_seconds)
                 victim.remaining += rollback + overhead
                 close_spot_run(victim, now, "preempted")
                 preemption_events.append(
@@ -532,6 +594,7 @@ def simulate_trace(
                 victim.allocation = None
                 victim.run_start = None
                 victim.feedback_checkpoint_time = None
+                victim.run_guarantee_seconds = None
                 victim.preemptions += 1
                 victim.queued_since = now
                 victim.enqueue_order = next_enqueue_order
@@ -541,6 +604,154 @@ def simulate_trace(
                 changed = True
             candidate_offsets[model] = offset
         return changed
+
+    def build_rolling_snapshot() -> dict[str, Any]:
+        visible_jobs = arrivals[:arrival_index]
+        completed_evaluation_hp = [
+            states[job_id]
+            for job_id in completed
+            if states[job_id].job.service_class == "HP"
+            and evaluation_start
+            <= states[job_id].job.submit_time_seconds
+            <= now + EPSILON
+        ]
+        carryover = []
+        private_handoff_state = []
+        for job_id in sorted(set(queue) | running):
+            state = states[job_id]
+            carryover.append(
+                {
+                    "job_id": state.job.job_id,
+                    "service_class": state.job.service_class,
+                    "gpu_count": state.job.gpu_count,
+                    "gpu_model": state.job.gpu_model,
+                    "tenant_id": state.job.tenant_id,
+                    "status": "running" if job_id in running else "queued",
+                    "current_queue_wait_seconds": (
+                        now - state.queued_since if job_id in queue else 0.0
+                    ),
+                    "current_run_elapsed_seconds": (
+                        now - float(state.run_start)
+                        if state.run_start is not None
+                        else 0.0
+                    ),
+                    "run_guarantee_seconds": state.run_guarantee_seconds,
+                    "allocated_gpus": sum((state.allocation or {}).values()),
+                }
+            )
+            private_handoff_state.append(
+                {
+                    "job_id": state.job.job_id,
+                    "remaining_seconds": state.remaining,
+                    "queued_since_seconds": state.queued_since,
+                    "accumulated_queue_seconds": state.queue_seconds,
+                    "run_start_seconds": state.run_start,
+                    "allocation": dict(sorted((state.allocation or {}).items())),
+                    "preemptions": state.preemptions,
+                    "run_count": state.run_count,
+                }
+            )
+        snapshot: dict[str, Any] = {
+            "schema_version": "schednav.scheduler-state-snapshot/v1",
+            "cutoff_time_seconds": float(now),
+            "trace_id": trace.trace_id,
+            "visible_prefix_fingerprint": canonical_sha256(
+                [
+                    {
+                        "job_id": job.job_id,
+                        "submit_time_seconds": job.submit_time_seconds,
+                        "duration_seconds": job.duration_seconds,
+                        "gpu_count": job.gpu_count,
+                        "service_class": job.service_class,
+                        "gpu_model": job.gpu_model,
+                        "tenant_id": job.tenant_id,
+                    }
+                    for job in visible_jobs
+                ]
+            ),
+            "information_boundary": {
+                "maximum_visible_submit_time_seconds": (
+                    max(job.submit_time_seconds for job in visible_jobs)
+                    if visible_jobs
+                    else None
+                ),
+                "future_arrivals_visible": False,
+                "visible_arrival_count": len(visible_jobs),
+            },
+            "cluster": {
+                "capacity_gpus": trace.capacity_gpus,
+                "free_gpus": total_free,
+                "free_gpus_by_pool": dict(sorted(free_by_model.items())),
+            },
+            "queue": {
+                "job_count": len(queue),
+                "hp_job_count": queued_hp_count,
+                "spot_job_count": len(queue) - queued_hp_count,
+                "requested_gpus": sum(states[job_id].job.gpu_count for job_id in queue),
+                "hp_requested_gpus": sum(
+                    states[job_id].job.gpu_count
+                    for job_id in queue
+                    if states[job_id].job.service_class == "HP"
+                ),
+                "spot_requested_gpus": sum(
+                    states[job_id].job.gpu_count
+                    for job_id in queue
+                    if states[job_id].job.service_class == "Spot"
+                ),
+                "maximum_hp_wait_seconds": max(
+                    (
+                        states[job_id].queue_seconds
+                        + now
+                        - states[job_id].queued_since
+                        for job_id in queue
+                        if states[job_id].job.service_class == "HP"
+                    ),
+                    default=0.0,
+                ),
+                "maximum_spot_wait_seconds": max(
+                    (
+                        states[job_id].queue_seconds
+                        + now
+                        - states[job_id].queued_since
+                        for job_id in queue
+                        if states[job_id].job.service_class == "Spot"
+                    ),
+                    default=0.0,
+                ),
+            },
+            "running": {
+                "job_count": len(running),
+                "spot_gpus": running_spot_gpus(),
+                "spot_gpus_by_pool": dict(sorted(running_spot_gpus_by_pool().items())),
+            },
+            "active_policy_action_id": active_policy.action_id,
+            "active_policy_fingerprint": active_policy.fingerprint,
+            "state_handoff_fingerprint": canonical_sha256(private_handoff_state),
+            "carryover_jobs": carryover,
+            "ledger_counts": {
+                "completed_jobs": len(completed),
+                "preemption_events": len(preemption_events),
+                "spot_runs": len(spot_runs),
+            },
+            "slo_progress": {
+                "cutoff_safe": True,
+                "hp_completed_job_count": len(completed_evaluation_hp),
+                "hp_completed_queue_seconds": sorted(
+                    round(float(state.queue_seconds), 6)
+                    for state in completed_evaluation_hp
+                ),
+                "hp_completed_jct_seconds": sorted(
+                    round(
+                        float(state.completion) - state.job.submit_time_seconds,
+                        6,
+                    )
+                    for state in completed_evaluation_hp
+                    if state.completion is not None
+                ),
+            },
+        }
+        snapshot["snapshot_fingerprint"] = canonical_sha256(snapshot)
+        return snapshot
 
     while len(completed) < len(states):
         while arrival_index < len(arrivals) and arrivals[arrival_index].submit_time_seconds <= now + EPSILON:
@@ -585,7 +796,7 @@ def simulate_trace(
                     now - state.queued_since,
                 )
             running_by_pool = running_spot_gpus_by_pool()
-            predictive_controller.update(
+            latest_predictive_observation = predictive_controller.update(
                 now,
                 hp_outstanding_requested_gpus=outstanding_hp_requested_gpus,
                 spot_backlog_gpus=sum(
@@ -601,6 +812,21 @@ def simulate_trace(
                 idle_gpus_by_pool=dict(free_by_model),
                 maximum_spot_queue_wait_seconds_by_pool=maximum_spot_wait_by_pool,
             )
+        if rolling_controller is not None and rolling_controller.is_decision_due(now):
+            selected_policy = rolling_controller.decide(
+                now=now,
+                scheduler_snapshot=build_rolling_snapshot(),
+                predictive_observation=latest_predictive_observation,
+            )
+            if not isinstance(selected_policy, SimulationPolicy):
+                raise TypeError("Rolling controller must return a SimulationPolicy")
+            selected_policy.validate()
+            active_policy = selected_policy
+            queue.sort(key=queue_key)
+            if predictive_controller is not None:
+                predictive_controller.quota_for_guarantee_seconds(
+                    active_policy.spot_guarantee_seconds
+                )
         start_jobs()
         if preempt_for_hp():
             start_jobs()
@@ -609,41 +835,51 @@ def simulate_trace(
         if arrival_index < len(arrivals):
             event_times.append(arrivals[arrival_index].submit_time_seconds)
         event_times.extend(now + states[job_id].remaining for job_id in running)
-        if policy.scheduler == "priority_preemptive" and queued_hp_count > 0:
+        if active_policy.scheduler == "priority_preemptive" and queued_hp_count > 0:
             event_times.extend(
-                states[job_id].queued_since + policy.hp_preemption_delay_seconds
+                states[job_id].queued_since + active_policy.hp_preemption_delay_seconds
                 for job_id in queue
                 if states[job_id].job.service_class == "HP"
-                and states[job_id].queued_since + policy.hp_preemption_delay_seconds
+                and states[job_id].queued_since + active_policy.hp_preemption_delay_seconds
                 > now + EPSILON
             )
             event_times.extend(
-                float(states[job_id].run_start) + policy.spot_guarantee_seconds
+                float(states[job_id].run_start)
+                + float(states[job_id].run_guarantee_seconds or 0)
                 for job_id in running
                 if states[job_id].job.service_class == "Spot"
                 and states[job_id].run_start is not None
-                and float(states[job_id].run_start) + policy.spot_guarantee_seconds > now + EPSILON
+                and float(states[job_id].run_start)
+                + float(states[job_id].run_guarantee_seconds or 0)
+                > now + EPSILON
             )
         if predictive_controller is not None:
             event_times.append(predictive_controller.next_update_time)
+            if (
+                getattr(predictive_controller, "control_window_only", False)
+                and now < evaluation_end - EPSILON
+            ):
+                event_times.append(evaluation_end)
             if (
                 getattr(
                     predictive_controller,
                     "periodic_guarantee_feedback",
                     False,
                 )
-                and policy.spot_guarantee_seconds > 0
             ):
                 event_times.extend(
                     float(states[job_id].feedback_checkpoint_time)
-                    + policy.spot_guarantee_seconds
+                    + float(states[job_id].run_guarantee_seconds or 0)
                     for job_id in running
                     if states[job_id].job.service_class == "Spot"
                     and states[job_id].feedback_checkpoint_time is not None
                     and float(states[job_id].feedback_checkpoint_time)
-                    + policy.spot_guarantee_seconds
+                    + float(states[job_id].run_guarantee_seconds or 0)
                     > now + EPSILON
+                    and float(states[job_id].run_guarantee_seconds or 0) > 0
                 )
+        if rolling_controller is not None and rolling_controller.next_decision_time < float("inf"):
+            event_times.append(rolling_controller.next_decision_time)
         future = [value for value in event_times if value > now + EPSILON]
         if not future:
             pending = sorted(set(queue) | running)
@@ -673,7 +909,6 @@ def simulate_trace(
                 "periodic_guarantee_feedback",
                 False,
             )
-            and policy.spot_guarantee_seconds > 0
         ):
             for job_id in sorted(running):
                 state = states[job_id]
@@ -684,10 +919,13 @@ def simulate_trace(
                     continue
                 while (
                     state.feedback_checkpoint_time
-                    + policy.spot_guarantee_seconds
+                    + float(state.run_guarantee_seconds or 0)
                     <= now + EPSILON
+                    and float(state.run_guarantee_seconds or 0) > 0
                 ):
-                    state.feedback_checkpoint_time += policy.spot_guarantee_seconds
+                    state.feedback_checkpoint_time += float(
+                        state.run_guarantee_seconds or 0
+                    )
                     record_controller_feedback(
                         state,
                         state.feedback_checkpoint_time,
@@ -705,6 +943,7 @@ def simulate_trace(
             state.allocation = None
             state.run_start = None
             state.feedback_checkpoint_time = None
+            state.run_guarantee_seconds = None
             state.completion = now
             if state.job.service_class == "HP":
                 outstanding_hp_requested_gpus = max(
@@ -714,17 +953,34 @@ def simulate_trace(
             completed.add(job_id)
 
     simulation_end = now
+    result_policy = (
+        rolling_controller.policy_descriptor()
+        if rolling_controller is not None
+        else policy.to_dict()
+    )
+    result_policy_fingerprint = (
+        rolling_controller.fingerprint
+        if rolling_controller is not None
+        else policy.fingerprint
+    )
+    engine: dict[str, Any] = {"name": "schednav-sim", "version": "1"}
+    if initial_queue_wait:
+        engine["initial_queue_wait"] = {
+            "job_count": len(initial_queue_wait),
+            "maximum_seconds": max(initial_queue_wait.values()),
+            "state_fingerprint": canonical_sha256(initial_queue_wait),
+        }
     result: dict[str, Any] = {
         "schema_version": RESULT_SCHEMA,
-        "engine": {"name": "schednav-sim", "version": "1"},
+        "engine": engine,
         "trace": {
             "trace_id": trace.trace_id,
             "trace_fingerprint": trace.fingerprint,
             "time_origin": trace.time_origin,
             "source": trace.source,
         },
-        "policy": policy.to_dict(),
-        "policy_fingerprint": policy.fingerprint,
+        "policy": result_policy,
+        "policy_fingerprint": result_policy_fingerprint,
         "window_seconds": {
             "evaluation_start": evaluation_start,
             "evaluation_end": evaluation_end,
@@ -782,6 +1038,8 @@ def simulate_trace(
     }
     if predictive_controller is not None:
         result["predictive_control"] = predictive_controller.finalize()
+    if rolling_controller is not None:
+        result["rolling_control"] = rolling_controller.finalize()
     result["result_fingerprint"] = canonical_sha256(result)
     return result
 
@@ -930,6 +1188,32 @@ def build_metrics_report(result: dict[str, Any]) -> dict[str, Any]:
             "eta": control["eta"],
             "spot_quota_gpus": control["spot_quota_gpus"],
             "forecast_evaluation": control["forecast_evaluation"],
+        }
+        if "admission_diagnostics" in control:
+            report["predictive_control"]["admission_diagnostics"] = control[
+                "admission_diagnostics"
+            ]
+    if "rolling_control" in result:
+        control = result["rolling_control"]
+        report["rolling_control"] = {
+            "available": True,
+            "controller_id": control["controller_id"],
+            "controller_fingerprint": control["controller_fingerprint"],
+            "control_fingerprint": control["control_fingerprint"],
+            "mode": control["mode"],
+            "model_id": control["model_id"],
+            "evidence_window_seconds": control["evidence_window_seconds"],
+            "decision_count": control["decision_count"],
+            "expected_decision_count": control["expected_decision_count"],
+            "candidate_budget_per_decision": control[
+                "candidate_budget_per_decision"
+            ],
+            "baseline_action_id": control.get("baseline_action_id", "native-fifo"),
+            "candidate_simulation_count": control["candidate_simulation_count"],
+            "llm_usage": control["llm_usage"],
+            "information_boundary": control["information_boundary"],
+            "state_handoff": control["state_handoff"],
+            "selected_action_sequence": control["selected_action_sequence"],
         }
     report["metrics_fingerprint"] = canonical_sha256(report)
     return report

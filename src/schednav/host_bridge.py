@@ -35,6 +35,10 @@ from .native_trace import load_canonical_trace
 from .native_workload import analyze_canonical_workload
 from .policy_portfolio import compare_policy_portfolio
 from .policy_rank import rank_audited_policies
+from .rolling_experiment import (
+    load_rolling_action_space,
+    run_incremental_agent_attempt,
+)
 from .slo import audit_slo
 
 
@@ -71,6 +75,11 @@ READABLE_ARTIFACT_SCHEMAS = {
     "schednav.spot-quota-plan/v1",
     "schednav.predictive-control-report/v1",
     "schednav.predictive-run/v1",
+    "schednav.rolling-attempt/v1",
+    "schednav.rolling-planning-checkpoint/v1",
+    "schednav.rolling-agent-plan/v1",
+    "schednav.rolling-control-report/v1",
+    "schednav.rolling-run/v1",
 }
 TASK_OPERATIONS = {
     "analyze_workload",
@@ -83,6 +92,7 @@ TASK_OPERATIONS = {
     "analyze_run_set",
     "simulate_run_set",
     "audit_run_set",
+    "advance_rolling_policy",
 }
 
 
@@ -172,6 +182,12 @@ class BridgeCatalog:
     slo_specs: dict[str, Path]
     baseline_metrics: dict[str, Path]
     operation_allowlist: tuple[str, ...] | None
+    rolling_scenario_set_id: str
+    rolling_minimum_action_hold_seconds: int
+    rolling_decision_interval_seconds: int
+    rolling_scenario_horizon_seconds: int
+    rolling_history_window_seconds: int
+    rolling_candidate_budget: int
     max_workers: int
 
     @classmethod
@@ -194,7 +210,17 @@ class BridgeCatalog:
                 "slo_specs",
                 "baseline_metrics",
             },
-            {"run_sets", "controllers", "operation_allowlist"},
+            {
+                "run_sets",
+                "controllers",
+                "operation_allowlist",
+                "rolling_scenario_set_id",
+                "rolling_minimum_action_hold_seconds",
+                "rolling_decision_interval_seconds",
+                "rolling_scenario_horizon_seconds",
+                "rolling_history_window_seconds",
+                "rolling_candidate_budget",
+            },
         )
         if value["schema_version"] != CATALOG_SCHEMA:
             raise BridgeRequestError(f"Expected schema_version={CATALOG_SCHEMA}")
@@ -263,6 +289,38 @@ class BridgeCatalog:
             if any(member not in run_configs for member in members):
                 raise BridgeRequestError("A run set references an unknown run config")
             run_sets[run_set_id] = members
+        rolling_scenario_set_id = str(
+            value.get("rolling_scenario_set_id", "single-calibrated-p90")
+        )
+        if rolling_scenario_set_id not in {
+            "single-calibrated-p90",
+            "dual-forecast-replay-v1",
+        }:
+            raise BridgeRequestError("Unsupported rolling_scenario_set_id")
+        rolling_minimum_action_hold_seconds = int(
+            value.get("rolling_minimum_action_hold_seconds", 0)
+        )
+        if not 0 <= rolling_minimum_action_hold_seconds <= 86400:
+            raise BridgeRequestError(
+                "rolling_minimum_action_hold_seconds must be between 0 and 86400"
+            )
+        rolling_decision_interval_seconds = int(
+            value.get("rolling_decision_interval_seconds", 14400)
+        )
+        rolling_scenario_horizon_seconds = int(
+            value.get("rolling_scenario_horizon_seconds", 14400)
+        )
+        rolling_history_window_seconds = int(
+            value.get("rolling_history_window_seconds", 14400)
+        )
+        rolling_candidate_budget = int(value.get("rolling_candidate_budget", 3))
+        if (
+            rolling_decision_interval_seconds <= 0
+            or rolling_scenario_horizon_seconds <= 0
+            or rolling_history_window_seconds < rolling_scenario_horizon_seconds
+            or not 3 <= rolling_candidate_budget <= 5
+        ):
+            raise BridgeRequestError("Rolling bridge timing or budget is invalid")
         return cls(
             project_root=project_root,
             artifact_root=artifact_root,
@@ -279,6 +337,14 @@ class BridgeCatalog:
                 value["baseline_metrics"], "baseline_metrics", allow_empty=True
             ),
             operation_allowlist=operation_allowlist,
+            rolling_scenario_set_id=rolling_scenario_set_id,
+            rolling_minimum_action_hold_seconds=(
+                rolling_minimum_action_hold_seconds
+            ),
+            rolling_decision_interval_seconds=rolling_decision_interval_seconds,
+            rolling_scenario_horizon_seconds=rolling_scenario_horizon_seconds,
+            rolling_history_window_seconds=rolling_history_window_seconds,
+            rolling_candidate_budget=rolling_candidate_budget,
             max_workers=max_workers,
         )
 
@@ -339,6 +405,7 @@ class BridgeService:
             "analyze_run_set": self._analyze_run_set,
             "simulate_run_set": self._simulate_run_set,
             "audit_run_set": self._audit_run_set,
+            "advance_rolling_policy": self._advance_rolling_policy,
         }
         if catalog.operation_allowlist is not None:
             missing = set(catalog.operation_allowlist) - set(available_handlers)
@@ -484,6 +551,65 @@ class BridgeService:
                 "action_id": action_id,
                 "controller_id": controller_id,
             }
+        if operation == "advance_rolling_policy":
+            _require_exact_keys(
+                arguments,
+                {
+                    "run_config_id",
+                    "controller_id",
+                    "slo_spec_id",
+                    "rolling_controller_id",
+                    "mode",
+                    "source_project_id",
+                    "decisions",
+                },
+            )
+            run_config_id = _require_safe_id(
+                arguments["run_config_id"], "run_config_id"
+            )
+            controller_id = _require_safe_id(
+                arguments["controller_id"], "controller_id"
+            )
+            rolling_controller_id = _require_safe_id(
+                arguments["rolling_controller_id"], "rolling_controller_id"
+            )
+            slo_spec_id = _require_safe_id(
+                arguments["slo_spec_id"], "slo_spec_id"
+            )
+            source_project_id = _require_safe_id(
+                arguments["source_project_id"], "source_project_id"
+            )
+            mode = str(arguments["mode"])
+            if mode not in {
+                "single_agent",
+                "multi_agent",
+                "multi_agent_masked",
+            }:
+                raise BridgeRequestError(
+                    "advance_rolling_policy mode is unsupported"
+                )
+            self.catalog.select(
+                self.catalog.run_configs, run_config_id, "run_config_id"
+            )
+            self.catalog.select(
+                self.catalog.controllers, controller_id, "controller_id"
+            )
+            self.catalog.select(self.catalog.slo_specs, slo_spec_id, "slo_spec_id")
+            _policies, baseline_action_id = load_rolling_action_space(
+                self.catalog.project_root, self.catalog.action_space
+            )
+            decisions = self._validate_rolling_decisions(
+                arguments["decisions"], mode, baseline_action_id
+            )
+            return {
+                "run_config_id": run_config_id,
+                "controller_id": controller_id,
+                "slo_spec_id": slo_spec_id,
+                "rolling_controller_id": rolling_controller_id,
+                "mode": mode,
+                "source_project_id": source_project_id,
+                "decisions": decisions,
+            }
         if operation == "compare_policies":
             _require_exact_keys(arguments, {"metrics_refs"})
             refs = self._validate_ref_list(arguments["metrics_refs"], "metrics_refs")
@@ -589,6 +715,124 @@ class BridgeService:
             }
         raise BridgeRequestError("Unsupported operation")
 
+    def _validate_rolling_decisions(
+        self, raw: Any, mode: str, baseline_action_id: str = "native-fifo"
+    ) -> list[dict[str, Any]]:
+        if not isinstance(raw, list) or len(raw) > 12:
+            raise BridgeRequestError("decisions must be a list with at most 12 entries")
+        normalized: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        expected_roles = (
+            {"Scheduling Strategist"}
+            if mode == "single_agent"
+            else {"Workload Analyst", "Scheduling Strategist"}
+        )
+        role_aliases = {
+            "Scheduling Strategist": "Scheduling Strategist",
+            "scheduling-strategist": "Scheduling Strategist",
+            "Workload Analyst": "Workload Analyst",
+            "workload-analyst": "Workload Analyst",
+        }
+        worker_by_role = {
+            "Scheduling Strategist": "scheduling-strategist",
+            "Workload Analyst": "workload-analyst",
+        }
+        for item in raw:
+            if not isinstance(item, dict):
+                raise BridgeRequestError("Every rolling decision must be an object")
+            _require_exact_keys(
+                item,
+                {
+                    "observation_fingerprint",
+                    "candidate_action_ids",
+                    "reason_code",
+                    "agent_stage_receipts",
+                    "llm_call_count",
+                    "prompt_tokens",
+                    "completion_tokens",
+                },
+            )
+            observation = str(item["observation_fingerprint"])
+            if not re.fullmatch(r"[0-9a-f]{64}", observation) or observation in seen:
+                raise BridgeRequestError(
+                    "Rolling observation fingerprints must be unique SHA-256 values"
+                )
+            seen.add(observation)
+            raw_actions = item["candidate_action_ids"]
+            if not isinstance(raw_actions, list) or len(raw_actions) != 3:
+                raise BridgeRequestError(
+                    "Every deployable rolling decision must contain exactly three actions"
+                )
+            action_ids = [
+                _require_safe_id(action_id, "candidate_action_id")
+                for action_id in raw_actions
+            ]
+            if len(set(action_ids)) != 3 or baseline_action_id not in action_ids:
+                raise BridgeRequestError(
+                    "Rolling actions must be distinct and include the action-space "
+                    "safety baseline"
+                )
+            for action_id in action_ids:
+                self.catalog.select(self.catalog.actions, action_id, "action_id")
+            reason_code = str(item["reason_code"])
+            if not reason_code or len(reason_code) > 256 or any(
+                character in reason_code for character in "\r\n"
+            ):
+                raise BridgeRequestError("reason_code must be one bounded line")
+            raw_receipts = item["agent_stage_receipts"]
+            if not isinstance(raw_receipts, list) or not raw_receipts:
+                raise BridgeRequestError("agent_stage_receipts must be a non-empty list")
+            receipts: list[dict[str, str]] = []
+            for receipt in raw_receipts:
+                if not isinstance(receipt, dict):
+                    raise BridgeRequestError("Every role receipt must be an object")
+                _require_exact_keys(
+                    receipt, {"role", "worker_id", "task_id", "output_fingerprint"}
+                )
+                raw_role = str(receipt["role"])
+                role = role_aliases.get(raw_role)
+                if role is None:
+                    raise BridgeRequestError("Unknown rolling AgentTeams role")
+                worker_id = _require_safe_id(receipt["worker_id"], "worker_id")
+                if worker_id != worker_by_role[role]:
+                    raise BridgeRequestError(
+                        "Rolling role receipt does not match its registered Worker"
+                    )
+                task_id = _require_safe_id(receipt["task_id"], "task_id")
+                output_fingerprint = str(receipt["output_fingerprint"])
+                if not re.fullmatch(r"[0-9a-f]{64}", output_fingerprint):
+                    raise BridgeRequestError("output_fingerprint must be SHA-256")
+                receipts.append(
+                    {
+                        "role": role,
+                        "worker_id": worker_id,
+                        "task_id": task_id,
+                        "output_fingerprint": output_fingerprint,
+                    }
+                )
+            if not expected_roles.issubset({receipt["role"] for receipt in receipts}):
+                raise BridgeRequestError("A rolling decision is missing a required role receipt")
+            counts = {}
+            for field in ("llm_call_count", "prompt_tokens", "completion_tokens"):
+                count = int(item[field])
+                if count < 0:
+                    raise BridgeRequestError(f"{field} must be non-negative")
+                counts[field] = count
+            if counts["llm_call_count"] < len(expected_roles):
+                raise BridgeRequestError(
+                    "llm_call_count must cover every required AgentTeams stage"
+                )
+            normalized.append(
+                {
+                    "observation_fingerprint": observation,
+                    "candidate_action_ids": action_ids,
+                    "reason_code": reason_code,
+                    "agent_stage_receipts": receipts,
+                    **counts,
+                }
+            )
+        return normalized
+
     def _validate_ref(self, raw: Any, field: str) -> str:
         if not isinstance(raw, str):
             raise BridgeRequestError(f"{field} must be a string")
@@ -655,7 +899,11 @@ class BridgeService:
             raise BridgeRequestError(
                 "Run configs must use schema_version=schednav.native-run-config/v1"
             )
-        _require_exact_keys(value, {"schema_version", "trace_manifest"})
+        _require_exact_keys(
+            value,
+            {"schema_version", "trace_manifest"},
+            {"workload_history_trace_manifest"},
+        )
         relative = Path(str(value["trace_manifest"]))
         if relative.is_absolute() or ".." in relative.parts:
             raise BridgeRequestError("trace_manifest must be a safe project-relative path")
@@ -663,6 +911,29 @@ class BridgeService:
         if not _is_relative_to(trace_path, self.catalog.project_root) or not trace_path.is_file():
             raise BridgeRequestError("trace_manifest does not identify a canonical trace")
         return trace_path, load_canonical_trace(trace_path)
+
+    def _workload_history_trace_from_config(
+        self, config_path: Path
+    ) -> Path | None:
+        value = _load_json_object(config_path)
+        raw = value.get("workload_history_trace_manifest")
+        if raw is None:
+            return None
+        relative = Path(str(raw))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise BridgeRequestError(
+                "workload_history_trace_manifest must be project-relative"
+            )
+        trace_path = (self.catalog.project_root / relative).resolve()
+        if (
+            not _is_relative_to(trace_path, self.catalog.project_root)
+            or not trace_path.is_file()
+        ):
+            raise BridgeRequestError(
+                "workload_history_trace_manifest does not identify a canonical trace"
+            )
+        load_canonical_trace(trace_path)
+        return trace_path
 
     def _analyze_workload(
         self,
@@ -818,6 +1089,112 @@ class BridgeService:
             "metrics": self.catalog.artifact_ref(metrics_path),
             "predictive_control_report": self.catalog.artifact_ref(control_path),
         }
+
+    def _advance_rolling_policy(
+        self,
+        arguments: dict[str, Any],
+        task_dir: Path,
+        _task_id: str,
+    ) -> dict[str, Any]:
+        run_config_path = self.catalog.select(
+            self.catalog.run_configs,
+            arguments["run_config_id"],
+            "run_config_id",
+        )
+        trace_path, _trace = self._trace_from_config(run_config_path)
+        controller_path = self.catalog.select(
+            self.catalog.controllers,
+            arguments["controller_id"],
+            "controller_id",
+        )
+        attempt = run_incremental_agent_attempt(
+            project_root=self.catalog.project_root,
+            trace_path=trace_path,
+            action_space_path=self.catalog.action_space,
+            predictive_controller_path=controller_path,
+            slo_path=self.catalog.select(
+                self.catalog.slo_specs,
+                arguments["slo_spec_id"],
+                "slo_spec_id",
+            ),
+            rolling_controller_id=arguments["rolling_controller_id"],
+            mode=arguments["mode"],
+            source_project_id=arguments["source_project_id"],
+            decisions=arguments["decisions"],
+            workload_history_trace_path=self._workload_history_trace_from_config(
+                run_config_path
+            ),
+            scenario_set_id=self.catalog.rolling_scenario_set_id,
+            minimum_action_hold_seconds=(
+                self.catalog.rolling_minimum_action_hold_seconds
+            ),
+            decision_interval_seconds=(
+                self.catalog.rolling_decision_interval_seconds
+            ),
+            scenario_horizon_seconds=(
+                self.catalog.rolling_scenario_horizon_seconds
+            ),
+            history_window_seconds=(
+                self.catalog.rolling_history_window_seconds
+            ),
+            candidate_budget=self.catalog.rolling_candidate_budget,
+        )
+        receipt = {
+            key: value
+            for key, value in attempt.items()
+            if key
+            not in {
+                "checkpoint",
+                "agent_plan",
+                "simulation_result",
+                "metrics",
+                "slo_audit",
+                "fifo_baseline_result",
+                "fifo_baseline_metrics",
+            }
+        }
+        receipt["source_attempt_fingerprint"] = receipt.pop("attempt_fingerprint")
+        receipt["receipt_fingerprint"] = canonical_sha256(receipt)
+        artifacts = {
+            "rolling_attempt": self._write_result(
+                task_dir, "rolling-attempt.json", receipt
+            )
+        }
+        if attempt["status"] == "decision_required":
+            artifacts["rolling_checkpoint"] = self._write_result(
+                task_dir,
+                "rolling-checkpoint.json",
+                attempt["checkpoint"],
+            )
+            return artifacts
+
+        artifacts.update(
+            {
+                "agent_plan": self._write_result(
+                    task_dir, "rolling-agent-plan.json", attempt["agent_plan"]
+                ),
+                "simulation_result": self._write_result(
+                    task_dir, "simulation-result.json", attempt["simulation_result"]
+                ),
+                "metrics": self._write_result(
+                    task_dir, "metrics.json", attempt["metrics"]
+                ),
+                "slo_audit": self._write_result(
+                    task_dir, "slo-audit.json", attempt["slo_audit"]
+                ),
+                "fifo_baseline_metrics": self._write_result(
+                    task_dir,
+                    "fifo-baseline-metrics.json",
+                    attempt["fifo_baseline_metrics"],
+                ),
+                "rolling_control_report": self._write_result(
+                    task_dir,
+                    "rolling-control-report.json",
+                    attempt["simulation_result"]["rolling_control"],
+                ),
+            }
+        )
+        return artifacts
 
     def _compare_policies(
         self,
@@ -1543,6 +1920,94 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                         "simulations_ref": {"type": "string"},
                         "slo_spec_id": {"type": "string"},
                         "baseline_action_id": {"type": "string"},
+                    },
+                },
+            },
+            {
+                "name": "advance_rolling_policy",
+                "description": (
+                    "Replay fingerprint-bound AgentTeams choices, stop at the next "
+                    "cutoff-safe observation, or complete one state-preserving rolling run."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": [
+                        "idempotency_key",
+                        "run_config_id",
+                        "controller_id",
+                        "slo_spec_id",
+                        "rolling_controller_id",
+                        "mode",
+                        "source_project_id",
+                        "decisions",
+                    ],
+                    "properties": {
+                        **common,
+                        "run_config_id": {"type": "string"},
+                        "controller_id": {"type": "string"},
+                        "slo_spec_id": {"type": "string"},
+                        "rolling_controller_id": {"type": "string"},
+                        "mode": {
+                            "type": "string",
+                            "enum": [
+                                "single_agent",
+                                "multi_agent",
+                                "multi_agent_masked",
+                            ],
+                        },
+                        "source_project_id": {"type": "string"},
+                        "decisions": {
+                            "type": "array",
+                            "maxItems": 12,
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": [
+                                    "observation_fingerprint",
+                                    "candidate_action_ids",
+                                    "reason_code",
+                                    "agent_stage_receipts",
+                                    "llm_call_count",
+                                    "prompt_tokens",
+                                    "completion_tokens",
+                                ],
+                                "properties": {
+                                    "observation_fingerprint": {"type": "string"},
+                                    "candidate_action_ids": {
+                                        "type": "array",
+                                        "minItems": 3,
+                                        "maxItems": 3,
+                                        "uniqueItems": True,
+                                        "items": {"type": "string"},
+                                    },
+                                    "reason_code": {"type": "string"},
+                                    "agent_stage_receipts": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": False,
+                                            "required": [
+                                                "role",
+                                                "worker_id",
+                                                "task_id",
+                                                "output_fingerprint",
+                                            ],
+                                            "properties": {
+                                                "role": {"type": "string"},
+                                                "worker_id": {"type": "string"},
+                                                "task_id": {"type": "string"},
+                                                "output_fingerprint": {"type": "string"},
+                                            },
+                                        },
+                                    },
+                                    "llm_call_count": {"type": "integer", "minimum": 0},
+                                    "prompt_tokens": {"type": "integer", "minimum": 0},
+                                    "completion_tokens": {"type": "integer", "minimum": 0},
+                                },
+                            },
+                        },
                     },
                 },
             },

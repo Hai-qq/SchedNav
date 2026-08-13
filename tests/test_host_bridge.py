@@ -126,6 +126,105 @@ class HostBridgeTests(unittest.TestCase):
         finally:
             service.close()
 
+    def test_rolling_receipts_normalize_role_ids_and_bind_registered_workers(self):
+        value = json.loads(self.config_path.read_text(encoding="utf-8"))
+        value["actions"] = {
+            action_id: "configs/action.json"
+            for action_id in (
+                "native-fifo",
+                "rolling-fifo-open",
+                "rolling-preemptive-open-d0000",
+            )
+        }
+        self.config_path.write_text(json.dumps(value), encoding="utf-8")
+        service = BridgeService(BridgeCatalog.load(self.project_root, self.config_path))
+        decision = {
+            "observation_fingerprint": "a" * 64,
+            "candidate_action_ids": [
+                "native-fifo",
+                "rolling-fifo-open",
+                "rolling-preemptive-open-d0000",
+            ],
+            "reason_code": "cutoff-safe bounded selection",
+            "agent_stage_receipts": [
+                {
+                    "role": "scheduling-strategist",
+                    "worker_id": "scheduling-strategist",
+                    "task_id": "task-rolling-0001",
+                    "output_fingerprint": "b" * 64,
+                }
+            ],
+            "llm_call_count": 1,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+        }
+        try:
+            normalized = service._validate_rolling_decisions(
+                [decision], "single_agent"
+            )
+            self.assertEqual(
+                normalized[0]["agent_stage_receipts"][0]["role"],
+                "Scheduling Strategist",
+            )
+            decision["llm_call_count"] = 0
+            with self.assertRaisesRegex(BridgeRequestError, "AgentTeams stage"):
+                service._validate_rolling_decisions([decision], "single_agent")
+            decision["llm_call_count"] = 1
+            decision["agent_stage_receipts"][0]["worker_id"] = "workload-analyst"
+            with self.assertRaisesRegex(BridgeRequestError, "registered Worker"):
+                service._validate_rolling_decisions([decision], "single_agent")
+        finally:
+            service.close()
+
+    def test_rolling_decisions_use_the_declared_safety_baseline(self):
+        value = json.loads(self.config_path.read_text(encoding="utf-8"))
+        value["actions"] = {
+            action_id: "configs/action.json"
+            for action_id in (
+                "native-fifo",
+                "rolling-fifo-open",
+                "rolling-preemptive-open-d0000",
+            )
+        }
+        self.config_path.write_text(json.dumps(value), encoding="utf-8")
+        service = BridgeService(BridgeCatalog.load(self.project_root, self.config_path))
+        decision = {
+            "observation_fingerprint": "a" * 64,
+            "candidate_action_ids": [
+                "rolling-fifo-open",
+                "native-fifo",
+                "rolling-preemptive-open-d0000",
+            ],
+            "reason_code": "declared-safe-baseline",
+            "agent_stage_receipts": [
+                {
+                    "role": "Scheduling Strategist",
+                    "worker_id": "scheduling-strategist",
+                    "task_id": "task-rolling-0002",
+                    "output_fingerprint": "b" * 64,
+                }
+            ],
+            "llm_call_count": 1,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+        }
+        try:
+            normalized = service._validate_rolling_decisions(
+                [decision], "single_agent", "rolling-fifo-open"
+            )
+            self.assertEqual(normalized[0]["candidate_action_ids"], decision["candidate_action_ids"])
+            decision["candidate_action_ids"] = [
+                "native-fifo",
+                "rolling-preemptive-open-d0000",
+                "rolling-preemptive-open-d0900",
+            ]
+            with self.assertRaisesRegex(BridgeRequestError, "safety baseline"):
+                service._validate_rolling_decisions(
+                    [decision], "single_agent", "rolling-fifo-open"
+                )
+        finally:
+            service.close()
+
     def test_operation_allowlist_removes_legacy_future_visible_tools(self):
         value = json.loads(self.config_path.read_text(encoding="utf-8"))
         value["operation_allowlist"] = ["forecast_demand"]
@@ -588,6 +687,7 @@ class HostBridgeTests(unittest.TestCase):
                     "analyze_run_set",
                     "simulate_run_set",
                     "audit_run_set",
+                    "advance_rolling_policy",
                     "get_task",
                     "read_artifact",
                 },

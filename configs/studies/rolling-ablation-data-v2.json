@@ -1,0 +1,61 @@
+{
+  "data_fingerprint": "3ba6099fce646ddf7825d11f909a6c62e6f774ddd6c09e3837451566da79c025",
+  "dataset": {
+    "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "gpu_model": "GPU-series-2",
+    "job_info_sha256": "f921e1932ae13196e204fdb0351d6697a7a0ef2e82e00ae123ed20e873284fb2",
+    "name": "Alibaba cluster-trace-v2026-spot-gpu",
+    "node_info_sha256": "35ef4d6288061265f2f9a207ef3df79bb1301cb9c0646a62087449e176781895",
+    "time_origin": "2024-03-01 00:00:00"
+  },
+  "design_fingerprint": "a3ab5cf5ed1e6ebaee7d6d698339b3945bc32000585b77b3c4e4df51a5e9231e",
+  "execution_contract": {
+    "include_warmup_spot": false,
+    "purpose": "HP history from source origin plus evaluation-window HP and Spot arrivals",
+    "warmup_start_seconds": 0
+  },
+  "schema_version": "schednav.rolling-ablation-data/v1",
+  "study_id": "rolling-ablation-v2",
+  "windows": [
+    {
+      "execution_job_count": 21513,
+      "execution_trace_fingerprint": "ec9a30d156b9899f04b2c617f6ad3174d0e25fe20c4f34e433292401a4b9b7ad",
+      "history_job_count": 215,
+      "history_trace_fingerprint": "0ee31d0ac54676ccc4e88a5a39d09d21cdbd615613756ab379b160f97a444aea",
+      "window_id": "2024-08-21"
+    },
+    {
+      "execution_job_count": 21616,
+      "execution_trace_fingerprint": "c0a3de45d591d0441487f01679ff47844d286394a228f7528ed671f7fcc4751f",
+      "history_job_count": 202,
+      "history_trace_fingerprint": "85fcb32546047514cf558773d0e3c5e3955f4202b81b67794ce279db88273ca0",
+      "window_id": "2024-08-22"
+    },
+    {
+      "execution_job_count": 21741,
+      "execution_trace_fingerprint": "607cf06689924b6d7f19a03aca24799c87f29aab25d01073b38e00e0d06a28f6",
+      "history_job_count": 187,
+      "history_trace_fingerprint": "ec75d43f24241907903f06c938229c43a4d13fe1aedf5ff646a459d685b41550",
+      "window_id": "2024-08-23"
+    },
+    {
+      "execution_job_count": 21760,
+      "execution_trace_fingerprint": "0a9490c7b1deb19f0ca1d600454ba6f1d0b1c5d9ff213a0199e9657276e753fc",
+      "history_job_count": 90,
+      "history_trace_fingerprint": "411bb7ac0a07c8e710972d200d7bdebbb4262feddf0b1559c7e75b268fb07891",
+      "window_id": "2024-08-24"
+    },
+    {
+      "execution_job_count": 21810,
+      "execution_trace_fingerprint": "ce97a5ec767ac9f1288aebeca83b71d84c12c1dede0db600905c6f9765e70587",
+      "history_job_count": 92,
+      "history_trace_fingerprint": "6f3942360085dda694b0b140906d01c7ec789743624fd2b8797fe296b1d56152",
+      "window_id": "2024-08-25"
+    }
+  ],
+  "workload_history_contract": {
+    "include_warmup_spot": true,
+    "lookback_seconds": 14400,
+    "purpose": "past-only HP and Spot workload signals through each rolling cutoff"
+  }
+}

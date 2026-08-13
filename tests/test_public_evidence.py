@@ -11,6 +11,241 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class PublicEvidenceTests(unittest.TestCase):
+    def test_rolling_receipt_preserves_the_negative_multi_agent_result(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "rolling-v1"
+            / "alibaba-gpu-series-2-rolling-ablation-v1.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("evidence_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(
+            receipt["schema_version"], "schednav.rolling-ablation-evidence/v1"
+        )
+        self.assertEqual(receipt["window_count"], 5)
+        self.assertEqual(receipt["record_count"], 30)
+        self.assertEqual(receipt["agentteams"]["plan_count"], 10)
+        self.assertEqual(
+            receipt["agentteams"]["model_id"], "deepseek-v4-flash"
+        )
+        self.assertEqual(
+            receipt["arms"]["ordinary-fifo"]["hard_slo_pass_count"], 5
+        )
+        self.assertEqual(
+            receipt["arms"]["rolling-multi-agent"]["hard_slo_pass_count"], 1
+        )
+        self.assertEqual(
+            receipt["arms"]["rolling-single-agent"]["mean_metrics"],
+            receipt["arms"]["rolling-multi-agent"]["mean_metrics"],
+        )
+        self.assertEqual(
+            receipt["arms"]["rolling-workload-rule"]["mean_metrics"],
+            receipt["arms"]["rolling-multi-agent"]["mean_metrics"],
+        )
+        self.assertEqual(
+            receipt["multi_agent_superiority_gate"], "not_established"
+        )
+        self.assertEqual(
+            receipt["multi_agent_vs_ordinary_gate"], "not_established"
+        )
+
+    def test_rolling_agentteams_closeout_keeps_human_approval_pending(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "rolling-v1"
+            / "alibaba-gpu-series-2-rolling-agentteams-closeout-v1.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("receipt_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(
+            receipt["schema_version"],
+            "schednav.rolling-agentteams-closeout/v1",
+        )
+        self.assertEqual(receipt["model_id"], "deepseek-v4-flash")
+        self.assertEqual(receipt["audit"]["record_fingerprint_verified_count"], 30)
+        self.assertEqual(
+            receipt["audit"]["deterministic_repetition_verified_count"], 30
+        )
+        self.assertEqual(receipt["audit"]["rolling_boundary_verified_count"], 15)
+        self.assertEqual(
+            receipt["decision"]["eligible_deployable_arm_ids"],
+            ["ordinary-fifo"],
+        )
+        self.assertEqual(
+            receipt["decision"]["recommended_arm_id"], "ordinary-fifo"
+        )
+        self.assertEqual(
+            receipt["decision"]["scheduling_superiority_claim"],
+            "not_established",
+        )
+        self.assertEqual(receipt["human_approval"]["status"], "approval_pending")
+        self.assertFalse(receipt["human_approval"]["production_change_applied"])
+
+    def test_rolling_v2_receipt_preserves_the_fifo_tie_and_real_call_counts(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "rolling-v2"
+            / "alibaba-gpu-series-2-rolling-ablation-v2.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("evidence_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(receipt["study_id"], "rolling-ablation-v2")
+        self.assertEqual(receipt["record_count"], 30)
+        self.assertEqual(receipt["window_count"], 5)
+        self.assertEqual(receipt["agentteams"]["plan_count"], 10)
+        self.assertEqual(receipt["agentteams"]["model_id"], "deepseek-v4-flash")
+        self.assertEqual(
+            {
+                arm_id: value["hard_slo_pass_count"]
+                for arm_id, value in receipt["arms"].items()
+            },
+            {
+                "fixed-tenant-predictive": 2,
+                "ordinary-fifo": 4,
+                "posthoc-catalog-oracle": 4,
+                "rolling-multi-agent": 4,
+                "rolling-single-agent": 4,
+                "rolling-workload-rule": 4,
+            },
+        )
+        fifo_metrics = receipt["arms"]["ordinary-fifo"]["mean_metrics"]
+        for arm_id in (
+            "posthoc-catalog-oracle",
+            "rolling-multi-agent",
+            "rolling-single-agent",
+            "rolling-workload-rule",
+        ):
+            self.assertEqual(receipt["arms"][arm_id]["mean_metrics"], fifo_metrics)
+        self.assertEqual(
+            receipt["multi_agent_pairwise_hierarchy"],
+            {
+                "fixed-tenant-predictive": "better",
+                "ordinary-fifo": "tie",
+                "rolling-single-agent": "tie",
+                "rolling-workload-rule": "tie",
+            },
+        )
+        self.assertEqual(
+            receipt["arms"]["rolling-single-agent"]["llm_call_count"], 31
+        )
+        self.assertEqual(
+            receipt["arms"]["rolling-multi-agent"]["llm_call_count"], 61
+        )
+        self.assertEqual(receipt["multi_agent_superiority_gate"], "not_established")
+        self.assertEqual(receipt["multi_agent_vs_ordinary_gate"], "not_established")
+
+    def test_rolling_v2_closeout_recommends_no_ineligible_arm(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "rolling-v2"
+            / "alibaba-gpu-series-2-rolling-agentteams-closeout-v2.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("receipt_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(receipt["project_id"], "proj-20260811-042605")
+        self.assertEqual(receipt["model_id"], "deepseek-v4-flash")
+        self.assertEqual(receipt["audit"]["record_fingerprint_verified_count"], 30)
+        self.assertEqual(
+            receipt["audit"]["deterministic_repetition_verified_count"], 30
+        )
+        self.assertEqual(receipt["audit"]["rolling_boundary_verified_count"], 15)
+        self.assertEqual(receipt["decision"]["eligible_deployable_arm_ids"], [])
+        self.assertIsNone(receipt["decision"]["recommended_arm_id"])
+        self.assertEqual(
+            receipt["decision"]["scheduling_superiority_claim"],
+            "not_established",
+        )
+        self.assertEqual(receipt["human_approval"]["status"], "approval_pending")
+        self.assertFalse(receipt["human_approval"]["production_change_applied"])
+
+    def test_rolling_v3_receipt_preserves_the_negative_matched_handoff_result(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "rolling-v3"
+            / "alibaba-gpu-series-2-rolling-ablation-v3.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("evidence_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(receipt["study_id"], "rolling-ablation-v3")
+        self.assertEqual(receipt["record_count"], 35)
+        self.assertEqual(receipt["window_count"], 5)
+        self.assertEqual(receipt["agentteams"]["plan_count"], 15)
+        self.assertEqual(receipt["agentteams"]["model_id"], "deepseek-v4-flash")
+        self.assertEqual(
+            {
+                arm_id: value["hard_slo_pass_count"]
+                for arm_id, value in receipt["arms"].items()
+            },
+            {
+                "fixed-tenant-predictive": 2,
+                "ordinary-fifo": 5,
+                "posthoc-catalog-oracle": 5,
+                "rolling-multi-agent": 3,
+                "rolling-multi-agent-masked": 4,
+                "rolling-single-agent": 3,
+                "rolling-workload-rule": 4,
+            },
+        )
+        self.assertEqual(
+            receipt["arms"]["rolling-multi-agent"]["mean_metrics"],
+            receipt["arms"]["rolling-single-agent"]["mean_metrics"],
+        )
+        self.assertEqual(receipt["arms"]["rolling-multi-agent"]["llm_call_count"], 120)
+        self.assertEqual(
+            receipt["arms"]["rolling-multi-agent-masked"]["llm_call_count"],
+            120,
+        )
+        self.assertEqual(receipt["analyst_causal_pairwise_hierarchy"], "worse")
+        self.assertEqual(receipt["analyst_causal_value_gate"], "not_established")
+        self.assertEqual(receipt["multi_agent_superiority_gate"], "not_established")
+        self.assertEqual(receipt["multi_agent_vs_ordinary_gate"], "not_established")
+
+    def test_rolling_v3_closeout_recommends_only_the_all_window_fallback(self):
+        path = (
+            PROJECT_ROOT
+            / "evidence"
+            / "rolling-v3"
+            / "alibaba-gpu-series-2-rolling-agentteams-closeout-v3.json"
+        )
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        supplied = receipt.pop("receipt_fingerprint")
+
+        self.assertEqual(canonical_sha256(receipt), supplied)
+        self.assertEqual(receipt["project_id"], "proj-20260812-190350")
+        self.assertEqual(receipt["model_id"], "deepseek-v4-flash")
+        self.assertEqual(receipt["audit"]["record_fingerprint_verified_count"], 35)
+        self.assertEqual(
+            receipt["audit"]["deterministic_repetition_verified_count"], 35
+        )
+        self.assertEqual(receipt["audit"]["rolling_boundary_verified_count"], 20)
+        self.assertEqual(
+            receipt["decision"]["eligible_deployable_arm_ids"], ["ordinary-fifo"]
+        )
+        self.assertEqual(receipt["decision"]["recommended_arm_id"], "ordinary-fifo")
+        self.assertEqual(
+            receipt["decision"]["analyst_causal_value_claim"], "not_established"
+        )
+        self.assertEqual(
+            receipt["decision"]["scheduling_superiority_claim"], "not_established"
+        )
+        self.assertEqual(receipt["human_approval"]["status"], "approval_pending")
+        self.assertFalse(receipt["human_approval"]["production_change_applied"])
+
     def test_predictive_multiwindow_receipt_preserves_negative_holdout_result(self):
         path = (
             PROJECT_ROOT

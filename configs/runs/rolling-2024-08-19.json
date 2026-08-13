@@ -1,0 +1,5 @@
+{
+  "schema_version": "schednav.native-run-config/v1",
+  "trace_manifest": "datasets/local/rolling-ablation-v1/windows/2024-08-19/execution/trace.json",
+  "workload_history_trace_manifest": "datasets/local/rolling-ablation-v1/windows/2024-08-19/history/trace.json"
+}

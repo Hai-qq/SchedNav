@@ -26,7 +26,7 @@ For a registered multi-window batch, the same roles exchange `run_set_id` and co
 
 For the adaptive v3 holdout, candidate selection is a separate pre-simulation project. Workload Analyst verifies a frozen `schednav.adaptive-study-design/v1`; Scheduling Strategist emits `schednav.controller-selections/v1` covering each declared holdout window with 3–5 catalog actions and FIFO. Only after Manager validation does the deterministic experiment run. This ordering prevents evaluation metrics from leaking into Agent candidate generation.
 
-For predictive control, the Manager declares a cutoff and cataloged controller. Workload Analyst calls `forecast_demand`, then passes only the resulting `schednav.predictive-observation-bundle/v1` reference to Scheduling Strategist. The bundle excludes later arrivals and the full trace fingerprint. Simulation Agent calls `simulate_predictive_policy`; SLO Auditor sees completed metrics only after the replay finishes. The current operation evaluates a fixed policy/controller pair from trace origin and does not perform a live policy switch at the forecast cutoff. `configs/agentteams/host-bridge-predictive-v1.json` registers both the dependency-free aggregate controller and `tenant-predictive-spot-v1`, plus a `tenant-predictive-local` trace/v2 run. Its operation allowlist does not expose `analyze_workload`, static `simulate_policy` or run-set operations to that project. The host Python environment must install `.[forecast]` before selecting the tenant controller. A true outer rolling decision still requires a common pre-cutoff scheduler-state snapshot and deterministic state handoff for every candidate.
+For fixed-policy predictive control, the Manager declares a cutoff and cataloged controller. Workload Analyst calls `forecast_demand`, then passes only the resulting `schednav.predictive-observation-bundle/v1` reference to Scheduling Strategist. The bundle excludes later arrivals and the full trace fingerprint. Simulation Agent calls `simulate_predictive_policy`; SLO Auditor sees completed metrics only after the replay finishes. `configs/agentteams/host-bridge-predictive-v1.json` registers both the dependency-free aggregate controller and `tenant-predictive-spot-v1`, plus a `tenant-predictive-local` trace/v2 run. Its operation allowlist does not expose `analyze_workload`, static `simulate_policy` or run-set operations to that project. The host Python environment must install `.[forecast]` before selecting the tenant controller. The separate rolling path now adds common cutoff snapshots, past-only candidate scenarios and deterministic same-session state handoff; it remains historical shadow replay rather than a live cluster switch.
 
 ## Model contract
 
@@ -162,7 +162,7 @@ This run verifies the real Manager/Worker handoff, cutoff-safe artifact boundary
 
 That project used the lightweight aggregate controller. The subsequent tenant-aware increment keeps the same AgentTeams roles, Skills and bridge operations; no new agent framework or free-form model action was introduced. Bounded bridge tasks `f994e65b1db6463b9de801f2e3889fde` (`forecast_demand`) and `dca77dbd7aaf4882b951292487f89b79` (`simulate_predictive_policy`) both succeeded with `tenant-predictive-local + tenant-predictive-spot-v1`; their forecast and metrics fingerprints exactly match the direct deterministic runs. The checked-in [tenant-predictive receipt](../evidence/predictive-v1/alibaba-gpu-series-2-2024-04-12-tenant-predictive.json) records this bridge proof together with two deterministic forecasts and two deterministic closed-loop replays. It passes seven of eight hard SLOs and is rejected for allocation non-degradation. This is execution evidence for the new deterministic worker tool path, not a claim that a second live AgentTeams room has already produced a better policy.
 
-The subsequent 11-window predictive calibration/holdout study was executed by the deterministic runner, not by an Agent. It evaluates FIFO, guarded-static, aggregate-predictive and tenant-predictive arms twice per window and writes a selection lock before holdout. Calibration produced `no_eligible_arm`; holdout then recorded 5/5 hard-SLO passes for FIFO and guarded-static, 1/5 for tenant-predictive and 0/5 for aggregate-predictive. The [public receipt](../evidence/predictive-v2/alibaba-gpu-series-2-predictive-multiwindow-v1.json) therefore constrains future AgentTeams behavior: tenant prediction remains a shadow hypothesis, the Auditor must reject its allocation regressions, and Manager cannot claim that multi-agent orchestration has improved scheduling performance. A future outer rolling project must generate its choice from past-only state, preserve state handoff, and beat these frozen controls on unseen windows.
+The subsequent 11-window predictive calibration/holdout study was executed by the deterministic runner, not by an Agent. It evaluates FIFO, guarded-static, aggregate-predictive and tenant-predictive arms twice per window and writes a selection lock before holdout. Calibration produced `no_eligible_arm`; holdout then recorded 5/5 hard-SLO passes for FIFO and guarded-static, 1/5 for tenant-predictive and 0/5 for aggregate-predictive. The [public receipt](../evidence/predictive-v2/alibaba-gpu-series-2-predictive-multiwindow-v1.json) therefore constrains AgentTeams behavior: tenant prediction remains a shadow hypothesis, the Auditor must reject its allocation regressions, and Manager cannot claim that multi-agent orchestration has improved scheduling performance. The completed outer rolling study follows that rule with past-only state and exact handoff, but also fails to beat FIFO; its evidence is documented below.
 
 ## Verified predictive multi-window evidence gate
 
@@ -175,6 +175,115 @@ Project `proj-20260809-160234` separately exercised the complete Manager/Worker 
 5. Manager retained the human gate as `approval_pending` and wrote the only evidence-supported decision: `no_calibration_eligible_arm`, `selected=[]`; holdout results remain diagnostic and cannot modify the frozen selection.
 
 The gate consumed a 249-file local evidence set whose manifest covered every file except the manifest itself. Raw rows, per-job results, task workspaces, rooms and the Manager decision record remain local runtime evidence; the repository publishes only the compact receipt and these reproducibility facts.
+
+## Verified rolling decision workflow
+
+Project `proj-20260810-062224` completed the full outer rolling loop with every
+LLM stage fixed to `deepseek-v4-flash`:
+
+1. Five `single_agent` and five `multi_agent` controllers each advanced through
+   six four-hour cutoffs. Every decision task was bound to one cutoff observation
+   and dispatched after a private-room context clear.
+2. Workload Analyst produced 30 structured multi-Agent analyses. Scheduling
+   Strategist produced 30 single-Agent and 30 multi-Agent candidate decisions.
+   Every candidate set contained exactly three registered actions including
+   FIFO; the collector recomputed all 90 normalized-stage byte hashes.
+3. Simulation Agent advanced the ten frozen decision prefixes in six waves,
+   preserved simulator and predictor state, and revealed actual future arrivals
+   only after each action was fixed. The resulting five-window study ran every
+   complete arm/window twice and recorded identical repetition fingerprints.
+4. SLO Auditor task `task-20260811-071001` independently verified 30/30 record
+   fingerprints, 30/30 deterministic repetition pairs and 15/15 deployable
+   rolling boundary/state-handoff records. It reproduced hard-SLO pass counts
+   of 5/5 for ordinary FIFO and 1/5 for the fixed predictor, workload rule,
+   single-Agent and multi-Agent arms.
+5. Manager task `task-20260811-071100` consumed the Auditor's byte-hashed output,
+   excluded the future-aware oracle and applied the declared hierarchy. Only
+   `ordinary-fifo` passed every evaluated window, so it is the bounded fallback
+   recommendation. Both Agent-superiority gates remain `not_established`.
+
+The project is `completed / approval_pending`; no production change was applied.
+The Agent layer has therefore demonstrated structured delegation, context
+isolation, bounded action enforcement, deterministic handoff, audit and safe
+fallback—not better scheduling performance. The public
+[rolling ablation receipt](../evidence/rolling-v1/alibaba-gpu-series-2-rolling-ablation-v1.json)
+and [AgentTeams closeout receipt](../evidence/rolling-v1/alibaba-gpu-series-2-rolling-agentteams-closeout-v1.json)
+bind the aggregate evidence, Auditor and Manager outputs without publishing raw
+Trace rows or model conversations.
+
+## Verified rolling v2 decision workflow
+
+Project `proj-20260811-042605` repeated the full workflow on the separately
+frozen 2024-08-21 through 2024-08-25 holdout with the v2 past-shaped candidate
+evaluator:
+
+1. Five single-Agent and five multi-Agent controllers each completed six
+   cutoff-safe decisions. The exported plan manifest binds 90 normalized
+   stages—30 single-Agent Strategist stages and 30 Analyst + 30 Strategist
+   multi-Agent stages—to fingerprint
+   `5a32176b7c4234b1462644e7536fb59df615677c6062dd03c939595e346320ac`.
+2. The final-wave generic runner completed all ten bridge calls but could not
+   satisfy its obsolete requirement for a next-window checkpoint after the
+   sixth and final decision. Terminal recovery task `task-20260811-212000`
+   reused those exact ten successful results, made zero new advance calls,
+   read no large simulation result into Agent context, and produced ten
+   terminal receipts plus summary fingerprint
+   `063d630828fc5cd28acd629b1e9ebd99bcd65459f14f6483a7540ad2700ed934`.
+   No wave-07 checkpoint was fabricated.
+3. The deterministic experiment produced 30 arm/window records with two
+   identical repetitions each. FIFO, workload rule, single Agent and multi
+   Agent each passed 4/5 windows; fixed prediction passed 2/5. Their detailed
+   aggregate values are bound by the public v2 ablation receipt.
+4. SLO Auditor task `task-20260811-214000` verified all 30 record fingerprints,
+   all 30 repetition pairs and all 15 deployable rolling boundaries. Manager
+   task `task-20260811-214100` consumed its byte receipt, excluded the
+   future-aware oracle and found no deployable arm that passed 5/5 windows.
+
+The final decision is `eligible=[]`, `recommended=null`, both superiority gates
+are `not_established`, and the project is `completed / approval_pending` with no
+production change. The public [v2 ablation receipt](../evidence/rolling-v2/alibaba-gpu-series-2-rolling-ablation-v2.json)
+and [v2 AgentTeams closeout receipt](../evidence/rolling-v2/alibaba-gpu-series-2-rolling-agentteams-closeout-v2.json)
+bind this result without publishing Trace rows, task workspaces or model
+conversations.
+
+## Verified rolling v3 matched-handoff workflow
+
+Project `proj-20260812-190350` completed the matched Analyst-handoff ablation on
+the separately frozen 2024-08-26 through 2024-08-30 holdout:
+
+1. Five single-Agent, five full multi-Agent and five masked multi-Agent
+   controllers each completed 12 two-hour decisions with exact state handoff.
+   The plan collector verified 300 normalized `deepseek-v4-flash` stages and
+   manifest fingerprint
+   `5043abc0e5f5dffafe24af05f1dc0a9d26236c3b39b1b7d69efdac734453c53a`.
+2. Full and masked multi-Agent arms used identical Strategist instructions,
+   five windows, 120 accepted model calls and 360 candidate simulations. The
+   only intended handoff difference was structured Analyst content versus the
+   fixed mask. Every accepted task was bound to one observation; wave 05 onward
+   used a fresh one-use private room because delayed completion messages made
+   reusable-room clears insufficient.
+3. The deterministic hidden-future execution produced 35 records with two
+   identical repetitions each. FIFO passed 5/5 windows, workload rule and
+   masked multi-Agent 4/5, single-Agent and full multi-Agent 3/5, and fixed
+   prediction 2/5. Full multi-Agent therefore tied single-Agent and ranked
+   worse than its matched masked control.
+4. SLO Auditor task `task-v3-20260813-closeout-audit` verified 35/35 record
+   fingerprints, 35/35 repetition pairs, 20/20 rolling arm/window chains and
+   all aggregate/causal fields. Manager task
+   `task-v3-20260813-closeout-manager` consumed its byte receipt, excluded the
+   future-aware oracle and returned
+   `eligible=[ordinary-fifo] / recommended=ordinary-fifo`.
+
+The project is `completed / approval_pending`; no production change was
+applied. `multi_agent_superiority_gate`, `multi_agent_vs_ordinary_gate` and
+`analyst_causal_value_gate` are all `not_established`. The result establishes
+the executable multi-role evidence and safety-control path, but it does not
+establish scheduling-performance value from adding Agents. Because non-Agent
+holdout outcomes were visible before the matched-prompt amendment, the Analyst
+comparison is explicitly exploratory rather than fully blinded. The public
+[v3 ablation receipt](../evidence/rolling-v3/alibaba-gpu-series-2-rolling-ablation-v3.json)
+and [v3 AgentTeams closeout receipt](../evidence/rolling-v3/alibaba-gpu-series-2-rolling-agentteams-closeout-v3.json)
+bind the aggregate evidence, Auditor and Manager outputs.
 
 ## Bundle build
 

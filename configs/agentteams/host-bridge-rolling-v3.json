@@ -1,0 +1,44 @@
+{
+  "schema_version": "schednav.host-bridge-config/v1",
+  "artifact_root": "artifacts",
+  "task_subdir": "agentteams-rolling-bridge-v3/tasks",
+  "max_workers": 1,
+  "operation_allowlist": ["advance_rolling_policy"],
+  "rolling_scenario_set_id": "dual-forecast-replay-v1",
+  "rolling_minimum_action_hold_seconds": 14400,
+  "rolling_decision_interval_seconds": 7200,
+  "rolling_scenario_horizon_seconds": 14400,
+  "rolling_history_window_seconds": 14400,
+  "rolling_candidate_budget": 3,
+  "run_configs": {
+    "rolling-v3-2024-08-26": "configs/runs/rolling-v3-2024-08-26.json",
+    "rolling-v3-2024-08-27": "configs/runs/rolling-v3-2024-08-27.json",
+    "rolling-v3-2024-08-28": "configs/runs/rolling-v3-2024-08-28.json",
+    "rolling-v3-2024-08-29": "configs/runs/rolling-v3-2024-08-29.json",
+    "rolling-v3-2024-08-30": "configs/runs/rolling-v3-2024-08-30.json"
+  },
+  "run_sets": {
+    "rolling-holdout-v3": [
+      "rolling-v3-2024-08-26",
+      "rolling-v3-2024-08-27",
+      "rolling-v3-2024-08-28",
+      "rolling-v3-2024-08-29",
+      "rolling-v3-2024-08-30"
+    ]
+  },
+  "action_space": "configs/action_spaces/rolling-predictive-v3.json",
+  "controllers": {
+    "tenant-predictive-spot-v2": "configs/controllers/tenant-predictive-spot-v2.json"
+  },
+  "actions": {
+    "native-fifo": "configs/policies/native-fifo.json",
+    "rolling-fifo-open": "configs/policies/rolling-fifo-open.json",
+    "native-preemptive-g3600-b09-d0000": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+    "rolling-preemptive-open-d0000": "configs/policies/rolling-preemptive-open-d0000.json",
+    "rolling-preemptive-open-loss-aware": "configs/policies/rolling-preemptive-open-loss-aware.json"
+  },
+  "slo_specs": {
+    "schednav-demo-slo-v1": "configs/slos/schednav-demo-slo-v1.json"
+  },
+  "baseline_metrics": {}
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/rolling-planning-checkpoint.schema.json",
+  "title": "SchedNav cutoff-safe rolling planning checkpoint",
+  "type": "object",
+  "required": ["schema_version", "controller_id", "controller_fingerprint", "mode", "completed_decision_count", "completed_decision_fingerprints", "latest_completed_decision", "pending_observation", "pending_observation_fingerprint", "information_boundary", "checkpoint_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.rolling-planning-checkpoint/v1"},
+    "controller_id": {"type": "string"},
+    "controller_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mode": {"enum": ["single_agent", "multi_agent"]},
+    "completed_decision_count": {"type": "integer", "minimum": 0},
+    "completed_decision_fingerprints": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "latest_completed_decision": {"type": ["object", "null"]},
+    "pending_observation": {"type": "object"},
+    "pending_observation_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "information_boundary": {"type": "object"},
+    "checkpoint_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

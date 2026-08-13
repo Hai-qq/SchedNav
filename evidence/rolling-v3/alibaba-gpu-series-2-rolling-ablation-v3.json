@@ -1,0 +1,181 @@
+{
+  "agentteams": {
+    "framework": "AgentTeams",
+    "model_id": "deepseek-v4-flash",
+    "plan_count": 15,
+    "plan_manifest_fingerprint": "5043abc0e5f5dffafe24af05f1dc0a9d26236c3b39b1b7d69efdac734453c53a",
+    "project_id": "proj-20260812-190350",
+    "token_count_status": "unavailable"
+  },
+  "analyst_causal_matched_resources": {
+    "candidate_simulation_count_equal": true,
+    "llm_call_count_equal": true,
+    "masked_handoff": {
+      "candidate_simulation_count": 360,
+      "llm_call_count": 120,
+      "window_count": 5
+    },
+    "multi_agent": {
+      "candidate_simulation_count": 360,
+      "llm_call_count": 120,
+      "window_count": 5
+    },
+    "window_count_equal": true
+  },
+  "analyst_causal_pairwise_hierarchy": "worse",
+  "analyst_causal_value_gate": "not_established",
+  "arms": {
+    "fixed-tenant-predictive": {
+      "candidate_simulation_count": 0,
+      "hard_slo_pass_count": 2,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.6876477134582804,
+        "spot_eviction_rate_per_run": 0.011940298507462687,
+        "spot_jct_p95_seconds": 36901.89
+      },
+      "record_fingerprints": [
+        "ca7abe5e9cefc9ec9f44ef684a55939ea4b0c382bc8aee947027e66bd4b6e5c3",
+        "7f866798886b6479e577aa7eb8d5d4242f7f2bf0114e3fe5054a10e5311b7ffa",
+        "01543563b103762578a2ced843fbb7bc94340f442d4a76f47588df721191b662",
+        "32aa0db72f901d11db0ab9619c2e0426c814ec07ffc12c2626b290ee4ab3ea27",
+        "ffe8d5aa7121395ac59898e7b7bea4bb41728e8641348b4050c6d40efc350739"
+      ],
+      "window_count": 5
+    },
+    "ordinary-fifo": {
+      "candidate_simulation_count": 0,
+      "hard_slo_pass_count": 5,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.6917281151174526,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 33987.520000000004
+      },
+      "record_fingerprints": [
+        "769b14394a4f895ff84464aec2e10084913ef8d2c9a13348e9cbb3d27737bfe0",
+        "d82cdf55665749602856359d1638bb3466063b7b9fbd962a6baa72dd3e51e8ff",
+        "fbd86f1ae133986ee68449ea9edfeb9a9ae49f965befc5b4972edbb59b4152cc",
+        "9c4028c0634b5a2c70093a40d173d24a4152f4dbe8c07b9009dd29c2f42c41dd",
+        "f9216d9e8807fb39a77349db64050bdbf3fefa5bf25adb5efc72a454239fc904"
+      ],
+      "window_count": 5
+    },
+    "posthoc-catalog-oracle": {
+      "candidate_simulation_count": 300,
+      "hard_slo_pass_count": 5,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.6917281151174526,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 33987.520000000004
+      },
+      "record_fingerprints": [
+        "426b497470625a2eabd35882e0e00c0d0f2687fe32a9d858223846e3c62eddd7",
+        "b617907437b53140856add07dfb63dcfdbf21916ff4c90132537daf6e5db7d66",
+        "b7508a319a047b83a95187d38d022c87f18ed3c9f1b416e60b37ebdaaad267ff",
+        "dbb1a221c68a6af56d3f53311cd564eb4b6e4c0e370cfb48068cce541bfec632",
+        "81ae0abf42bf567a511be0122d33bc8ddbb8010c064a0663e125d31099ad811a"
+      ],
+      "window_count": 5
+    },
+    "rolling-multi-agent": {
+      "candidate_simulation_count": 360,
+      "hard_slo_pass_count": 3,
+      "llm_call_count": 120,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.6916570309803601,
+        "spot_eviction_rate_per_run": 0.013953488372093023,
+        "spot_jct_p95_seconds": 33987.520000000004
+      },
+      "record_fingerprints": [
+        "077a5ea61262150ab5994fda7a8ef693d62222b5727b5e3b90f3c725d451c456",
+        "0ae563f220abffe82d3d1bcfae6b2c7546475860a5aa7412a882e508e86e034c",
+        "c0304bf42e4fdab935908cf7a10ce0bffa20e157bca83b52e7c949b5854cd3ef",
+        "e46b9bea58da6f76197c24a536185eee657daa58c9d248fa35d2a55d81099315",
+        "2384d69d3801fa0b735a9a2cd38f7f19064a71684ffda4b0012305cd20ae929b"
+      ],
+      "window_count": 5
+    },
+    "rolling-multi-agent-masked": {
+      "candidate_simulation_count": 360,
+      "hard_slo_pass_count": 4,
+      "llm_call_count": 120,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.6916685980731031,
+        "spot_eviction_rate_per_run": 0.023953488372093025,
+        "spot_jct_p95_seconds": 34035.48
+      },
+      "record_fingerprints": [
+        "d346fcf0e4f34b9deb87005b5470a6a9abd8858ce9e45e64c34ee0e2934eb770",
+        "ebf7fa053df9c7067cf454fcc0f42d09447c3aa0c046f3c36d11744759f4f860",
+        "2dd45178a9704a059410bf503061dc1f8d435be82c689912e076179c4cb5041c",
+        "f4c065516baefe1dd508afe0a8e2c77202089d6034fbd1614c1be366597b4256",
+        "4d35e2b2c155a5dd45c31fbff801be8efb147a9618f29cdd753e99c9930bf4b0"
+      ],
+      "window_count": 5
+    },
+    "rolling-single-agent": {
+      "candidate_simulation_count": 360,
+      "hard_slo_pass_count": 3,
+      "llm_call_count": 60,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.6916570309803601,
+        "spot_eviction_rate_per_run": 0.013953488372093023,
+        "spot_jct_p95_seconds": 33987.520000000004
+      },
+      "record_fingerprints": [
+        "f38f869fd1e9c24793f75d0c939d23adb03e09319c7f3fd08f816473d7add5eb",
+        "9c91429978ea2d71eb70ad1a36a55a2c60a8fe3f0680bdbc2b7acd0b47732d46",
+        "3689c9c5b9dbf6bec545ca0834ac41174829836c7d4435a671b9127a85ac5c64",
+        "c288dc179e3eb9b620b095707b656dca3dbadca217b0b608c699377f7514c266",
+        "762636605b15cd3ea0879c6a38455a8bce8add7e814ecf0395c99dc20a8ccca4"
+      ],
+      "window_count": 5
+    },
+    "rolling-workload-rule": {
+      "candidate_simulation_count": 360,
+      "hard_slo_pass_count": 4,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.6916685980731031,
+        "spot_eviction_rate_per_run": 0.023953488372093025,
+        "spot_jct_p95_seconds": 34035.48
+      },
+      "record_fingerprints": [
+        "7fe21daebed2889ded904d18176b98d83e86dce2a30b738b5f7d7a0e7953e154",
+        "b2e47475daf0f9fd13a64d41bcd5fe48efe0bc0ef55afab906dbeee1e33f41fd",
+        "976f5826f637fb24d00b812928d1a13a629d602d339847fca5916848fb97b6a2",
+        "2d5b2eca67e35fa8a10fe64cedfaa8c5951750d2ff33a76c964b29c1c7979d95",
+        "d8594fedc6233da0ec86ab049fecfcbfc279a4a531fe9ad7960643954b15925a"
+      ],
+      "window_count": 5
+    }
+  },
+  "data_fingerprint": "5ab0416a234ecdae53a8ba318b74a0e1f644a09524c58edd01339241929b2fe4",
+  "definition": "More hard-SLO-passing windows ranks first; with equal counts, allocation differences below one percentage point defer to Spot p95 JCT, then eviction.",
+  "design_fingerprint": "7f3613ed20041beafa7fe2a37a3775274ecae484d7e9f47ed45900f7a08e96aa",
+  "evidence_fingerprint": "ccb6ec30822da0dfe54382aeff27815754d371e33c6f6dac22d5f266e047fd15",
+  "holdout_window_ids": [
+    "2024-08-26",
+    "2024-08-27",
+    "2024-08-28",
+    "2024-08-29",
+    "2024-08-30"
+  ],
+  "implementation_fingerprint": "ef1d5b4f5426844d0b0d438d507d55a3ae3acdb7e34580ce126d77febae4ca96",
+  "multi_agent_pairwise_hierarchy": {
+    "fixed-tenant-predictive": "better",
+    "ordinary-fifo": "worse",
+    "rolling-multi-agent-masked": "worse",
+    "rolling-single-agent": "tie",
+    "rolling-workload-rule": "worse"
+  },
+  "multi_agent_superiority_gate": "not_established",
+  "multi_agent_vs_ordinary_gate": "not_established",
+  "prompt_fingerprint": "5192bbc1ac2e4154df1e0d2bd63a1d381d3d697cc88a3fcae01e406b2b37da11",
+  "record_count": 35,
+  "schema_version": "schednav.rolling-ablation-evidence/v1",
+  "study_id": "rolling-ablation-v3",
+  "window_count": 5
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/rolling-run.schema.json",
+  "title": "SchedNav rolling run specification",
+  "type": "object",
+  "required": ["schema_version", "trace_manifest", "trace_fingerprint", "action_space", "rolling_controller_id", "rolling_controller_fingerprint", "predictive_controller", "information_boundary", "run_fingerprint"],
+  "properties": {
+    "schema_version": {"const": "schednav.rolling-run/v1"},
+    "trace_manifest": {"type": "string"},
+    "trace_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "action_space": {"type": "string"},
+    "rolling_controller_id": {"type": "string"},
+    "rolling_controller_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "predictive_controller": {"type": "string"},
+    "information_boundary": {"type": "object"},
+    "run_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

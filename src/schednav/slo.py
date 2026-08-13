@@ -21,9 +21,13 @@ OPERATORS: dict[str, Callable[[float, float], bool]] = {
 
 def _verified_metrics(path: Path) -> tuple[dict[str, Any], bool]:
     report = json.loads(path.read_text(encoding="utf-8"))
+    return report, _metrics_fingerprint_valid(report)
+
+
+def _metrics_fingerprint_valid(report: dict[str, Any]) -> bool:
     supplied = report.get("metrics_fingerprint")
     payload = {key: value for key, value in report.items() if key != "metrics_fingerprint"}
-    return report, isinstance(supplied, str) and canonical_sha256(payload) == supplied
+    return isinstance(supplied, str) and canonical_sha256(payload) == supplied
 
 
 def _population(report: dict[str, Any]) -> dict[str, int] | None:
@@ -50,6 +54,47 @@ def audit_slo(
 ) -> dict[str, Any]:
     metrics, metrics_valid = _verified_metrics(metrics_path)
     slo = json.loads(slo_path.read_text(encoding="utf-8"))
+    baseline: dict[str, Any] | None = None
+    baseline_valid = False
+    if baseline_metrics_path is not None:
+        baseline, baseline_valid = _verified_metrics(baseline_metrics_path)
+    return _audit_slo_reports(
+        metrics,
+        metrics_valid,
+        slo,
+        baseline,
+        baseline_valid,
+    )
+
+
+def audit_slo_reports(
+    metrics: dict[str, Any],
+    slo: dict[str, Any],
+    baseline: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Audit already-loaded reports without filesystem round trips.
+
+    Rolling candidate forks use this entry point so every candidate is checked
+    against the same in-memory scenario FIFO baseline before the real future is
+    resumed.  Fingerprints are verified exactly as in :func:`audit_slo`.
+    """
+
+    return _audit_slo_reports(
+        metrics,
+        _metrics_fingerprint_valid(metrics),
+        slo,
+        baseline,
+        _metrics_fingerprint_valid(baseline) if baseline is not None else False,
+    )
+
+
+def _audit_slo_reports(
+    metrics: dict[str, Any],
+    metrics_valid: bool,
+    slo: dict[str, Any],
+    baseline: dict[str, Any] | None,
+    baseline_valid: bool,
+) -> dict[str, Any]:
     if slo.get("schema_version") != "schednav.slo-spec/v1":
         raise ValueError("Unsupported SLO schema")
     if not isinstance(slo.get("name"), str) or not slo["name"].strip():
@@ -59,10 +104,6 @@ def audit_slo(
         raise ValueError("SLO spec requires at least one constraint")
 
     baseline_required = any(isinstance(item.get("threshold"), dict) for item in constraints)
-    baseline: dict[str, Any] | None = None
-    baseline_valid = False
-    if baseline_metrics_path is not None:
-        baseline, baseline_valid = _verified_metrics(baseline_metrics_path)
     baseline_compatible = baseline is not None and _baseline_compatible(metrics, baseline)
 
     seen_ids: set[str] = set()

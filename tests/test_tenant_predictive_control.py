@@ -93,7 +93,16 @@ class TenantPredictiveControlTests(unittest.TestCase):
         self.assertEqual(config.high_eviction_multiple, 1.5)
         self.assertEqual(config.low_eviction_multiple, 0.5)
         self.assertTrue(config.runtime_inventory_cap)
+        self.assertIsNone(config.quantile_calibration_method)
+        self.assertNotIn("quantile_calibration_method", config.to_dict())
         self.assertEqual(config.minimum_training_hours, 844)
+        calibrated = TenantPredictiveControllerConfig.load(
+            root / "configs" / "controllers" / "tenant-predictive-spot-v2.json"
+        )
+        self.assertEqual(
+            calibrated.quantile_calibration_method,
+            "validation-residual-nearest-rank",
+        )
         schema = json.loads(
             (root / "schemas" / "tenant-predictive-controller.schema.json").read_text(
                 encoding="utf-8"
@@ -179,6 +188,39 @@ class TenantPredictiveControlTests(unittest.TestCase):
                 resource_pool="missing",
             )
 
+    def test_zero_quota_idle_backlog_is_reported_without_changing_admission(self):
+        controller = TenantPredictiveSpotController(
+            _config(), {"A": 8}, 0, "2024-03-01 00:00:00"
+        )
+        controller.bind_evidence_window(0, 300)
+        for now in (0, 300):
+            controller.update(
+                now,
+                hp_outstanding_requested_gpus=0,
+                spot_backlog_gpus=4,
+                running_spot_gpus=0,
+                hp_running_requested_gpus_by_series={},
+                demand_series_metadata={},
+                spot_backlog_gpus_by_pool={"A": 4},
+                running_spot_gpus_by_pool={"A": 0},
+                idle_gpus_by_pool={"A": 8},
+                maximum_spot_queue_wait_seconds_by_pool={"A": now},
+            )
+
+        report = controller.finalize()
+        diagnostic = report["admission_diagnostics"]
+        self.assertEqual(diagnostic["pool_update_count"], 2)
+        self.assertEqual(
+            diagnostic["zero_quota_with_idle_backlog_pool_update_count"], 2
+        )
+        self.assertEqual(
+            diagnostic[
+                "estimated_idle_gpu_seconds_during_zero_quota_with_backlog"
+            ],
+            4800,
+        )
+        self.assertFalse(controller.allows_spot(1, 0, 3600, resource_pool="A"))
+
     def test_offline_cutoff_must_align_with_a_quota_decision(self):
         with TemporaryDirectory() as temporary:
             trace_path = write_canonical_trace(
@@ -199,7 +241,9 @@ class TenantPredictiveControlTests(unittest.TestCase):
         "optional forecast dependencies are not installed",
     )
     def test_trainable_bundle_is_deterministic_and_future_blind(self):
-        config = _config()
+        config = _config(
+            quantile_calibration_method="validation-residual-nearest-rank"
+        )
         with TemporaryDirectory() as temporary:
             root = Path(temporary)
             nodes = [TraceNode("n1", "A", 8)]
@@ -257,6 +301,20 @@ class TenantPredictiveControlTests(unittest.TestCase):
             self.assertEqual(
                 {point["resource_pool"] for point in first["demand_forecast"]["points"]},
                 {"A"},
+            )
+            self.assertTrue(
+                all(
+                    point["quantile_calibration_method"]
+                    == "validation-residual-nearest-rank"
+                    for point in first["demand_forecast"]["points"]
+                )
+            )
+            training = model["training"]["quantile_calibration"]
+            self.assertEqual(
+                training["method"], "validation-residual-nearest-rank"
+            )
+            self.assertGreater(
+                training["by_resource_pool"]["A"]["sample_count"], 0
             )
 
     @unittest.skipUnless(

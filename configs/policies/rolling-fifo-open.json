@@ -1,0 +1,10 @@
+{
+  "schema_version": "schednav.simulation-policy/v1",
+  "action_id": "rolling-fifo-open",
+  "scheduler": "fifo",
+  "spot_guarantee_seconds": 3600,
+  "checkpoint_interval_seconds": 3600,
+  "preemption_overhead_seconds": 80,
+  "placement_strategy": "deterministic_best_fit",
+  "predictive_admission_mode": "bypass"
+}

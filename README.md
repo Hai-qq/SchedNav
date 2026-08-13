@@ -9,7 +9,7 @@ SchedNav 是一个面向 GPU 集群的多智能体调度决策系统。它内置
 
 Agent 不直接决定 Job → GPU/Node placement。具体队列推进、抢占、资源核算和节点分配全部由 `schednav-sim` 执行；LLM 只能选择仓库中声明的高层 Policy Action。
 
-仓库中已发布的 V1 实验仍是 historical trace-driven policy optimization。代码同时提供一个只读取决策截止时刻及以前状态的预测控制内环：按租户和 GPU 资源池观测 HP 需求、训练概率模型、生成 Spot 配额并根据真实保障事件反馈调节，可做无未来泄漏的 rolling replay / shadow evaluation。当前 11 窗口 calibration/holdout 证据显示该预测控制器仍偏保守，因此它尚不能替代合格的静态策略，更不等同于已经接入真实集群的在线调度系统。
+仓库既支持 historical trace-driven policy optimization，也已实现只读取决策截止时刻及以前状态的滚动 shadow replay：内环按租户和 GPU 资源池预测 HP 需求、生成 Spot 配额并依据已发生的保障事件反馈；外环按冻结 study 的间隔让有界 Agent 或规则选择候选高层策略（当前 v3 每两小时决策、变更动作至少保持四小时），在冻结动作后才揭示下一段真实 Trace。已发布多窗口证据完整验证了这条因果链，但预测与 Agent 控制尚未击败普通 FIFO，因此它仍不是已接入真实集群的在线调度系统，也不能被表述为性能更优。
 
 ## Why SchedNav
 
@@ -18,6 +18,10 @@ Agent 不直接决定 Job → GPU/Node placement。具体队列推进、抢占�
 - **有限 Action Space**：Agent 不能提交 Job、Node、GPU ID 或任意代码；
 - **Simulator-in-the-loop**：候选策略必须在同一 Trace fingerprint 和窗口上真实运行；
 - **Tenant-aware predictive loop**：一分钟观测、每日重训、P90 预留、五分钟配额与保障事件反馈全部由第一方确定性代码执行；
+- **Cutoff-past calibration**：可选的 per-pool P90 修正只从已冻结 validation residual 计算，不读取 holdout 或 cutoff 后目标；
+- **Stateful rolling loop**：每个 cutoff 只暴露过去状态，冻结候选后再执行隐藏未来，并在同一 simulator session 中保留队列、allocation、剩余工作、预测器与事件账本；
+- **Versioned safety baseline**：每个 rolling Action Space 声明必选安全动作，Agent 从 observation 读取该动作，不能跨版本写死 `native-fifo`；
+- **Past-shaped scenarios**：聚合 P90 需求只按 cutoff 前可见的 HP Job 尺寸确定性拆分，不再作为一条集群规模的 gang Job；
 - **Chronological holdout**：预测研究在任何隐藏窗口运行前锁定校准结论，并把无合格候选作为正式结果保留；
 - **Hard-SLO-first**：先淘汰违反硬约束的策略，再按显式层级排序，不使用 LLM 自由加权分；
 - **结构化证据**：Trace、Policy、SimulationResult、MetricsReport、SLOAudit 和 Ranking 都具有版本化 schema 与 fingerprint；
@@ -64,7 +68,7 @@ Trace Window
   → Recommendation / Human Approval
 ```
 
-预测控制模式则在每个滚动截止时刻重复 `按租户/资源池观测当前状态 → 预测未来 HP 需求分布 → 计算 Spot 配额 → 由 simulator 执行 → 用已发生的保障事件反馈`。预测器看不到截止时刻后的 Job；未来真实值只会在到达后用于事后评分。
+预测控制模式在每个滚动截止时刻重复 `按租户/资源池观测当前状态 → 预测未来 HP 需求分布 → 计算 Spot 配额 → 生成三个有界候选 → 过去数据构造的情景评估 → 冻结高层动作 → simulator 执行下一段真实 Trace → 用已发生的保障事件反馈`。v3 同时用 calibrated-P90 决策情景与 recent-history stress 情景，并避免把仍在运行的 HP carry-over 再算成未来新增需求。预测器和 Agent 都看不到截止时刻后的 Job；未来真实值只在动作冻结后进入执行与评分。
 
 ## Built-in simulator
 
@@ -77,7 +81,9 @@ Trace Window
 - HP 抢占延迟与同时约束全量/评估人口的 Spot eviction budget；
 - 可选的 longest-remaining / lowest-checkpoint-loss 抢占受害者规则；
 - 仅基于历史观测、按租户和 GPU 资源池拆分的 HP 概率预测，P90 容量预留与按保障时长计算的 Spot quota；
+- 可选的 validation-residual nearest-rank P90 校准，校准偏移与覆盖率证据进入模型 fingerprint；
 - 每分钟需求观测、每 5 分钟 quota 更新、每日 warm-start 重训，以及基于保障周期完成/作业完成/抢占事件的有界 \(\eta\) 反馈；
+- 零配额但同时存在空闲 GPU 与 Spot backlog 的采样次数、队列等待和 idle-GPU-seconds 暴露诊断；
 - deterministic best-fit 多节点 allocation；
 - drain-to-completion；
 - Job、Spot run、guarantee 和 preemption 事件账本；
@@ -210,6 +216,12 @@ schednav simulate-predictive `
 
 进一步的[预测多窗口回执](evidence/predictive-v2/alibaba-gpu-series-2-predictive-multiwindow-v1.json)复用预先分层选出的真实日期，剔除唯一不足 844 小时训练历史的窗口，并按时间顺序切成 6 个 calibration 与 5 个 holdout。四条对照链、每窗两次运行共 88 次仿真均确定性复现。校准阶段没有任何 arm 在 6/6 窗口通过全部硬 SLO，因此 selection lock 为空；这个结论在运行 holdout 前已固化。holdout 中 FIFO 与 guarded-static 均为 5/5，tenant-predictive 为 1/5，aggregate-predictive 为 0/5。tenant 分解优于 aggregate，但两者 allocation 均低于 FIFO，不能声明预测控制或多 Agent 已带来性能优势。
 
+第一版[滚动对照回执](evidence/rolling-v1/alibaba-gpu-series-2-rolling-ablation-v1.json)把同一预测/反馈能力放进完整外层决策闭环，在 5 个连续 holdout 日上比较普通 FIFO、固定预测、同预算规则、单 Agent、多 Agent 和非部署 oracle。每个滚动 arm 有 6 个 cutoff、每次 3 个候选，并在同一 simulator session 中连续执行；每个完整 arm/window 重复两次。FIFO 通过 5/5 窗口，固定预测、规则、单 Agent 和多 Agent 均为 1/5；后三者的聚合 allocation、Spot p95 JCT 与 eviction 完全相同。独立 Auditor 和 Manager 的[收口回执](evidence/rolling-v1/alibaba-gpu-series-2-rolling-agentteams-closeout-v1.json)因此保留 `multi_agent_superiority_gate=not_established`，只把 FIFO 记为当前评估范围的安全回退，最终状态为 `approval_pending`。
+
+新的[滚动 v2 回执](evidence/rolling-v2/alibaba-gpu-series-2-rolling-ablation-v2.json)使用单独冻结的 2024-08-21 至 2024-08-25 窗口和新的 implementation fingerprint：预测需求按 cutoff 前可见的 HP Job 形状拆分，P90 校准只使用过去 validation residual，滚动安全动作保持 FIFO 排队与 placement、仅绕过当段过度保守的 Spot admission gate。30 条 arm/window 记录均有两次确定性重复。普通 FIFO、同预算规则、单 Agent、多 Agent 和非部署 oracle 都通过 4/5，平均 allocation 70.9875%、Spot p95 JCT 35,722.03s、eviction 0；固定预测通过 2/5，平均 allocation 70.0856%。多 Agent 因而优于固定预测，但与普通 FIFO 和两个同预算控制完全并列，两个 superiority gate 仍是 `not_established`。独立 Auditor 与 Manager 的[v2 收口回执](evidence/rolling-v2/alibaba-gpu-series-2-rolling-agentteams-closeout-v2.json)进一步确认：没有任何可部署 arm 通过全部 5 个窗口，因此合格集合为空、推荐为 `null`，项目保留 `approval_pending` 且没有应用生产变更。
+
+[滚动 v3 回执](evidence/rolling-v3/alibaba-gpu-series-2-rolling-ablation-v3.json)把决策间隔缩短为 2 小时、加入双过去场景与 4 小时最小持有期，并增加同预算 Analyst 因果对照。5 个新 holdout 日、7 个 arm 共形成 35 条记录，每条均两次确定性复现；15 个 Agent controller 各连续完成 12 次隐藏未来决策，共验收 300 个 `deepseek-v4-flash` 阶段。普通 FIFO 通过 5/5；规则和遮蔽 Analyst 的多 Agent 为 4/5；单 Agent和完整多 Agent均为 3/5；固定预测为 2/5。完整多 Agent 与单 Agent 指标相同，并在匹配的 120 次模型调用、360 次候选仿真预算下劣于 4/5 的遮蔽 Analyst 对照，因此 `multi_agent_superiority_gate`、`multi_agent_vs_ordinary_gate` 和 `analyst_causal_value_gate` 全部是 `not_established`。独立 Auditor 与 Manager 的[v3 收口回执](evidence/rolling-v3/alibaba-gpu-series-2-rolling-agentteams-closeout-v3.json)只推荐 `ordinary-fifo` 作为当前评估范围的安全回退，仍为 `approval_pending`，没有生产变更。由于非 Agent holdout 结果在提示词冻结前已对开发者可见，这个 full-vs-masked 结果明确标为探索性匹配对照，而不是完全盲化的确认性因果试验。
+
 多窗口结果更接近真实结论：每个窗口先过 8 项硬 SLO，再按 allocation → Spot p95 JCT → eviction 分层决策，保留并列和无合格策略状态。12 窗口 v2 研究用于策略保护机制对比；当前 v3 进一步覆盖全部 112 个合格窗口，并采用 67/45 的时间顺序 calibration/holdout 切分。
 
 在 45 个 holdout 窗口中，FIFO/校准集最佳固定策略只在 40 个窗口通过全部硬 SLO。AgentTeams 候选控制器在 41 个窗口找到合格策略，并以 185 个候选评估在 41/41 个可行窗口覆盖至少一个五动作正式分层最优动作；其待人工裁决前沿相对 FIFO 的平均 allocation uplift 为 +0.209～+0.257 个百分点。三候选 workload rule 使用 135 个评估并覆盖 39/41 个正式前沿，穷举目录则需要 225 个评估。候选搜索质量与仿真成本会同时报告，完整方法、限制与 fingerprint 见 [Adaptive Holdout Evaluation](docs/adaptive-holdout-evaluation.md)。
@@ -230,7 +242,11 @@ SchedNav 映射为 1 个 Manager + 4 个 Worker，并通过受限 MCP bridge 调
 
 新的 11 窗口预测研究仍由确定性 runner 完成 88 次仿真；AgentTeams 没有重新运行仿真或生成新的性能数字。随后，独立的只读证据门禁项目 `proj-20260809-160234` 让四个 Worker 串行复核窗口边界、冻结 arms、重复确定性、完整指纹链和 SLO 结论，检查分别以 44/44、54/54、39/39 + 9/9、30/30 通过。Manager 将项目保留在 `approval_pending`，裁决为 `no_calibration_eligible_arm / selected=[]`，没有推荐 winner。
 
-这给 Agent 层增加了一个必须遵守的证据边界：当前租户预测 profile 只能作为 shadow 候选，SLO Auditor 必须淘汰 allocation 退化的结果，Manager 不能因模型生成了 P90 quota 就推荐部署。后续外层 rolling policy decision 需要以这个负结果为基线，并另行证明 Agent 在只看过去状态时能可靠回退到合格策略。
+第一版完整外层 rolling 项目 `proj-20260810-062224` 已在这条证据边界上完成：5 个单 Agent 与 5 个多 Agent controller 各做 6 次未来不可见决策，Simulation Agent 连续推进真实 Trace，SLO Auditor 再核验 30/30 记录、30/30 重复和 15/15 滚动边界，Manager 只按硬 SLO 与声明层级决策。项目最终为 `completed / approval_pending`；由于多 Agent 与同预算规则、单 Agent 并列且仅通过 1/5 窗口，Manager 没有声明 Agent 优越性，而是保留普通 FIFO 回退。
+
+滚动 v2 项目 `proj-20260811-042605` 又完成了 90 个隔离的 Agent 规划阶段，并把 10 个已成功的最终 bridge 结果在不重跑仿真的情况下聚合为终端证据。SLO Auditor 任务 `task-20260811-214000` 复核 30/30 记录、30/30 重复和 15/15 滚动边界；Manager 任务 `task-20260811-214100` 排除 future-aware oracle 后得到 `eligible=[] / recommended=null`。项目最终仍为 `completed / approval_pending`，没有生产变更。完整语义与限制见 [Rolling Policy Control](docs/rolling-control.md)。
+
+滚动 v3 项目 `proj-20260812-190350` 完成了 15 个 Agent controller × 12 个决策波次：单 Agent 60 次 Strategist 调用，完整与遮蔽多 Agent各 60 次 Analyst + 60 次 Strategist 调用，总计 300 个验签阶段。Simulation Agent 保持每个 controller 的单一连续状态，最终 SLO Auditor 复核 35/35 记录、35/35 重复和 20/20 滚动 arm/window 链；Manager 得到 `eligible=[ordinary-fifo] / recommended=ordinary-fifo`。完整多 Agent 只有 3/5 窗口通过，与单 Agent 持平且低于 4/5 的同预算遮蔽 Analyst 对照，所以该项目验证的是可审计的多角色控制平面和安全否决能力，不是多 Agent 的性能优势。
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\src).Path
@@ -268,7 +284,7 @@ python .\scripts\build_agentteams_bundle.py --project-root .
 ## Scope
 
 - 已发布的 V1 证据是历史 Trace 上的反事实策略优化；
-- 预测控制内环支持按租户/资源池的 cutoff-safe 训练、概率预测、quota、反馈与 rolling replay / shadow evaluation；11 窗口证据表明当前 profile allocation 偏保守，尚无性能优势、真实集群 adapter、在线部署或外层滚动策略切换的生产证明；
+- 预测控制内环与有界外层滚动策略切换均已在未来不可见的 historical shadow replay 中完成；最新 v2 五窗口对照中，多 Agent、单 Agent、规则与 FIFO 均为 4/5 且聚合指标完全并列，固定预测为 2/5，没有 arm 通过 5/5，因此尚无多 Agent 性能优势、真实集群 adapter 或在线部署证明；
 - 不引入 RL；
 - 不让 LLM 决定细粒度 placement；
 - 不跨不同 Trace 直接比较绝对指标；

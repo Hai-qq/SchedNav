@@ -1,0 +1,145 @@
+{
+  "agentteams": {
+    "framework": "AgentTeams",
+    "model_id": "deepseek-v4-flash",
+    "plan_count": 10,
+    "plan_manifest_fingerprint": "5a32176b7c4234b1462644e7536fb59df615677c6062dd03c939595e346320ac",
+    "project_id": "proj-20260811-042605",
+    "token_count_status": "unavailable"
+  },
+  "arms": {
+    "fixed-tenant-predictive": {
+      "candidate_simulation_count": 0,
+      "hard_slo_pass_count": 2,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.700855816627735,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 40739.4
+      },
+      "record_fingerprints": [
+        "c5b6bb509ce662f3d61cb66ea422a21b089312460d53e013004a3cd6a439c243",
+        "57139bdcd29640306669f0d83e60bf51b9e6f258c74aa9e12bc63800def339b0",
+        "6e5333a73b9d422b0858abaec2d4cb4ef4c3108f61bdc44d85fbee982d236aff",
+        "e9ab7bd35377d1a99ed7f121cb9b80d32ed975abb7f77a442472a4448e30f615",
+        "dba67c3bfc54f73fa84b977e872884566a908e0b727c575ce3454614f9c3360d"
+      ],
+      "window_count": 5
+    },
+    "ordinary-fifo": {
+      "candidate_simulation_count": 0,
+      "hard_slo_pass_count": 4,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.7098750514435599,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 35722.03
+      },
+      "record_fingerprints": [
+        "ba87b9c2a220b78938c8ce64262df9a8c32a486ab29f6fc19cbde8ac30075536",
+        "abe9f3ec8c11e75dc91fd5638c319b43a59e0e6f6ae842d3b1ff83e3d8ef53d3",
+        "b9ddd3db143b5a176c479a2f0c408b87eb0ae4ce40a481483d19b6f3c1baaaaf",
+        "d67a6626105f817c5604f9b0efc5397ada92a245f192857aeea22a0e2ea809a9",
+        "75efae92bf90f1f501de1110f3adb6a86c0fc26f04563a47f89dc3d850d5e95b"
+      ],
+      "window_count": 5
+    },
+    "posthoc-catalog-oracle": {
+      "candidate_simulation_count": 150,
+      "hard_slo_pass_count": 4,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.7098750514435599,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 35722.03
+      },
+      "record_fingerprints": [
+        "b5a33db237e85e1041c35a6bbecb1082d9bfb77fd9da3bbe2c92a64383b55e8e",
+        "6188951347be17bd929bde90ec26338c0103b5d59c6fd0a430ea3b5d6dde0aa2",
+        "bf0d1bc10fc8aec27a1229738620eee121cd539fc53f9eaa5309db300f20e46b",
+        "4bf8e63d1c2a912c6222d27f1b7772e8fc6c0ab4df6323cc3f80181bcfa40246",
+        "82ba7819ba3362369134045f92c43976d5133193b7a85aaa4844a54bd6bc5383"
+      ],
+      "window_count": 5
+    },
+    "rolling-multi-agent": {
+      "candidate_simulation_count": 90,
+      "hard_slo_pass_count": 4,
+      "llm_call_count": 61,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.7098750514435599,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 35722.03
+      },
+      "record_fingerprints": [
+        "246a4957eff1b2d0f9449aaddff5714dcdf57ea04c1e8f68130d7f3a3b709e0f",
+        "55365fd4cf00593830edaf2f0e32db9c0db1ed281774fc597ceb5273eb446141",
+        "073ffea33087b12bfa58ead331b2a28fb6dcb3f837d813e40c09f4cd6658d595",
+        "148a9e4b0ea199ac4c91740c03baf9a3f498e075a19efffc6aac439fe2941a7a",
+        "3b43a8d4c52dfe62db60538aaa28b0e1038c0fd832511bbe1c120d56514aedf9"
+      ],
+      "window_count": 5
+    },
+    "rolling-single-agent": {
+      "candidate_simulation_count": 90,
+      "hard_slo_pass_count": 4,
+      "llm_call_count": 31,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.7098750514435599,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 35722.03
+      },
+      "record_fingerprints": [
+        "e272cb45bb0be4866c16fb2ebfbc82929ef2ff0f3bb3a6a641d5104ebe82124b",
+        "022013d79b2d4f4c7155ee14cff80d3b264b022d1dd7c6e5bceeb1b3e71c5b85",
+        "cf3a419bbe4fa294470788e4608de39210daf581f1cd94b30fd5eba98938a224",
+        "7dd88db4c5d0c7943422ece40d639c89753e9ee34472f290041fc2e1127d865b",
+        "d504608df74045da2fba6889d9d2fccda528dadc410cd43215ca2a8743d28034"
+      ],
+      "window_count": 5
+    },
+    "rolling-workload-rule": {
+      "candidate_simulation_count": 90,
+      "hard_slo_pass_count": 4,
+      "llm_call_count": 0,
+      "mean_metrics": {
+        "allocation_rate_mean": 0.7098750514435599,
+        "spot_eviction_rate_per_run": 0.0,
+        "spot_jct_p95_seconds": 35722.03
+      },
+      "record_fingerprints": [
+        "6c4dd5e15125c6d63dd5cc7f89185d6b84b03d4c62869cb2b9622615ea7b946b",
+        "ed2a2409f27219e59612d82fb27b4780e33971902d0b2ba4eeb68e802254bc74",
+        "86c940c4bb2a3f577d55228317298959ac6734afa39c0f2d6d70804efe374f54",
+        "1caf68b7339f9c62334bf7679c879f93176ec3a7cbcac330d8b81281d5a6e58e",
+        "9a52424eb8fb8ef25f6c10ab77e2e5dd7c64e521235527b5cb45b81b32a53fd4"
+      ],
+      "window_count": 5
+    }
+  },
+  "data_fingerprint": "3ba6099fce646ddf7825d11f909a6c62e6f774ddd6c09e3837451566da79c025",
+  "definition": "More hard-SLO-passing windows ranks first; with equal counts, allocation differences below one percentage point defer to Spot p95 JCT, then eviction.",
+  "design_fingerprint": "a3ab5cf5ed1e6ebaee7d6d698339b3945bc32000585b77b3c4e4df51a5e9231e",
+  "evidence_fingerprint": "9a3359184460af16de5a3fcbad44e59fca7d1fca6af7bc8fb9b0154c97ef665e",
+  "holdout_window_ids": [
+    "2024-08-21",
+    "2024-08-22",
+    "2024-08-23",
+    "2024-08-24",
+    "2024-08-25"
+  ],
+  "implementation_fingerprint": "05b694fbacd64c43e92fbd1c3f51152a9c8c4a943a060894f01a3e7021b34fcd",
+  "multi_agent_pairwise_hierarchy": {
+    "fixed-tenant-predictive": "better",
+    "ordinary-fifo": "tie",
+    "rolling-single-agent": "tie",
+    "rolling-workload-rule": "tie"
+  },
+  "multi_agent_superiority_gate": "not_established",
+  "multi_agent_vs_ordinary_gate": "not_established",
+  "prompt_fingerprint": "22ee8c481c7a83cca49378ed2ccde07f3365864fdba741a69c09ba43843f638d",
+  "record_count": 30,
+  "schema_version": "schednav.rolling-ablation-evidence/v1",
+  "study_id": "rolling-ablation-v2",
+  "window_count": 5
+}

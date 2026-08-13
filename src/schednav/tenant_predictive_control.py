@@ -72,6 +72,7 @@ class TenantPredictiveControllerConfig:
     high_eviction_multiple: float
     low_eviction_multiple: float
     runtime_inventory_cap: bool
+    quantile_calibration_method: str | None = None
     model: str = MODEL_ID
 
     @classmethod
@@ -109,10 +110,11 @@ class TenantPredictiveControllerConfig:
             "low_eviction_multiple",
             "runtime_inventory_cap",
         }
-        if set(value) != required:
+        optional = {"quantile_calibration_method"}
+        if required - set(value) or set(value) - required - optional:
             raise ValueError(
-                "Tenant predictive controller fields must be exactly "
-                f"{sorted(required)}"
+                "Tenant predictive controller fields are invalid; required="
+                f"{sorted(required)}, optional={sorted(optional)}"
             )
         if value["schema_version"] != TENANT_CONTROLLER_SCHEMA:
             raise ValueError(f"Expected schema_version={TENANT_CONTROLLER_SCHEMA}")
@@ -154,6 +156,11 @@ class TenantPredictiveControllerConfig:
             high_eviction_multiple=float(value["high_eviction_multiple"]),
             low_eviction_multiple=float(value["low_eviction_multiple"]),
             runtime_inventory_cap=bool(value["runtime_inventory_cap"]),
+            quantile_calibration_method=(
+                str(value["quantile_calibration_method"])
+                if value.get("quantile_calibration_method") is not None
+                else None
+            ),
         )
         config.validate()
         return config
@@ -225,6 +232,11 @@ class TenantPredictiveControllerConfig:
             raise ValueError("high_eviction_multiple must be at least one")
         if not 0.0 <= self.low_eviction_multiple <= 1.0:
             raise ValueError("low_eviction_multiple must be between zero and one")
+        if self.quantile_calibration_method not in {
+            None,
+            "validation-residual-nearest-rank",
+        }:
+            raise ValueError("Unsupported quantile_calibration_method")
 
     @property
     def minimum_training_hours(self) -> int:
@@ -232,6 +244,8 @@ class TenantPredictiveControllerConfig:
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
+        if value["quantile_calibration_method"] is None:
+            value.pop("quantile_calibration_method")
         value["schema_version"] = TENANT_CONTROLLER_SCHEMA
         value["guarantee_horizons_hours"] = list(self.guarantee_horizons_hours)
         return {"schema_version": value.pop("schema_version"), **value}
@@ -446,6 +460,7 @@ class TenantLinearGaussianEstimator:
         self.training_generation = 0
         self.model_fingerprint: str | None = None
         self.training_summary: dict[str, Any] = {}
+        self.quantile_calibration_by_pool: dict[str, float] = {}
 
     def _prepare_matrix(
         self,
@@ -585,6 +600,89 @@ class TenantLinearGaussianEstimator:
             + 0.5 * math.log(2 * math.pi)
         )
 
+    def _validation_quantile_calibration(
+        self,
+        validation_starts: list[int],
+        aligned: dict[int, Any],
+        first_timestamp: float,
+    ) -> dict[str, Any]:
+        """Calibrate the aggregate pool quantile on cutoff-past validation data."""
+
+        if self.config.quantile_calibration_method is None:
+            self.quantile_calibration_by_pool = {}
+            return {}
+        np, torch, _nn, _functional = _optional_runtime()
+        assert self.model is not None and self.business_index is not None
+        indices_by_pool: dict[str, list[int]] = {}
+        for index, key in enumerate(self.series):
+            indices_by_pool.setdefault(
+                self.series_metadata[key]["pool"], []
+            ).append(index)
+        residuals_by_pool: dict[str, list[float]] = {
+            pool: [] for pool in indices_by_pool
+        }
+        self.model.eval()
+        with torch.no_grad():
+            for offset in range(0, len(validation_starts), self.config.batch_size):
+                batch = validation_starts[
+                    offset : offset + self.config.batch_size
+                ]
+                x, time_index, target = self._sample_arrays(
+                    batch, aligned, first_timestamp
+                )
+                mean, sigma = self.model(
+                    torch.from_numpy(x),
+                    torch.from_numpy(time_index),
+                    self.business_index,
+                )
+                means = mean.detach().cpu().numpy()
+                sigmas = sigma.detach().cpu().numpy()
+                z = NormalDist().inv_cdf(self.config.guarantee_probability)
+                for pool, indices in indices_by_pool.items():
+                    pool_mean = means[:, :, indices].sum(axis=2)
+                    pool_sigma = np.sqrt((sigmas[:, :, indices] ** 2).sum(axis=2))
+                    actual = target[:, :, indices].sum(axis=2)
+                    raw_quantile = pool_mean + z * pool_sigma
+                    residuals_by_pool[pool].extend(
+                        float(value)
+                        for value in (actual - raw_quantile).reshape(-1)
+                        if math.isfinite(float(value))
+                    )
+        report: dict[str, Any] = {
+            "method": self.config.quantile_calibration_method,
+            "guarantee_probability": self.config.guarantee_probability,
+            "by_resource_pool": {},
+        }
+        offsets: dict[str, float] = {}
+        for pool, residuals in residuals_by_pool.items():
+            ordered = sorted(residuals)
+            if not ordered:
+                raise ValueError("Validation quantile calibration has no residuals")
+            rank = min(
+                len(ordered) - 1,
+                max(
+                    0,
+                    math.ceil(self.config.guarantee_probability * len(ordered)) - 1,
+                ),
+            )
+            correction = round(float(ordered[rank]), 6)
+            offsets[pool] = correction
+            report["by_resource_pool"][pool] = {
+                "sample_count": len(ordered),
+                "nearest_rank": rank + 1,
+                "quantile_offset_gpus": correction,
+                "raw_coverage": round(
+                    sum(value <= 0.0 for value in ordered) / len(ordered), 9
+                ),
+                "calibrated_coverage": round(
+                    sum(value <= correction + EPSILON for value in ordered)
+                    / len(ordered),
+                    9,
+                ),
+            }
+        self.quantile_calibration_by_pool = offsets
+        return report
+
     def fit(
         self,
         history: list[tuple[float, dict[str, float]]],
@@ -684,6 +782,9 @@ class TenantLinearGaussianEstimator:
                 group["lr"] = next_learning_rate
         self.model.load_state_dict(best_state)
         self.model.eval()
+        quantile_calibration = self._validation_quantile_calibration(
+            validation_starts, aligned, first
+        )
         self.trained_at = float(trained_at)
         self.training_generation += 1
         self.model_fingerprint = self._fingerprint_model()
@@ -697,6 +798,8 @@ class TenantLinearGaussianEstimator:
             "epochs_completed": epochs_completed,
             "best_validation_gaussian_nll": round(best_validation, 9),
         }
+        if quantile_calibration:
+            self.training_summary["quantile_calibration"] = quantile_calibration
         return dict(self.training_summary)
 
     def _fingerprint_model(self) -> str:
@@ -712,6 +815,11 @@ class TenantLinearGaussianEstimator:
             "trained_at_seconds": self.trained_at,
             "training_generation": self.training_generation,
         }
+        if self.config.quantile_calibration_method is not None:
+            metadata["quantile_calibration_by_pool"] = {
+                key: self.quantile_calibration_by_pool[key]
+                for key in sorted(self.quantile_calibration_by_pool)
+            }
         digest.update(
             json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode("utf-8")
         )
@@ -770,21 +878,37 @@ class TenantLinearGaussianEstimator:
                         for index in indices
                     ]
                 )
+                raw_quantile = pool_mean + z * pool_sigma
+                calibration_offset = self.quantile_calibration_by_pool.get(pool, 0.0)
+                guarantee_quantile = max(0.0, raw_quantile + calibration_offset)
+                point = {
+                    "horizon_step": step + 1,
+                    "target_time_seconds": float(cutoff_seconds + (step + 1) * 3600),
+                    "mu_gpus": round(pool_mean, 6),
+                    "sigma_gpus": round(pool_sigma, 6),
+                    "guarantee_quantile_gpus": round(guarantee_quantile, 6),
+                }
+                if self.config.quantile_calibration_method is not None:
+                    point.update(
+                        {
+                            "raw_guarantee_quantile_gpus": round(raw_quantile, 6),
+                            "quantile_calibration_offset_gpus": round(
+                                calibration_offset, 6
+                            ),
+                            "quantile_calibration_method": (
+                                self.config.quantile_calibration_method
+                            ),
+                        }
+                    )
                 pool_steps.setdefault(pool, []).append(
-                    {
-                        "horizon_step": step + 1,
-                        "target_time_seconds": float(cutoff_seconds + (step + 1) * 3600),
-                        "mu_gpus": round(pool_mean, 6),
-                        "sigma_gpus": round(pool_sigma, 6),
-                        "guarantee_quantile_gpus": round(pool_mean + z * pool_sigma, 6),
-                    }
+                    point
                 )
         points = [
             {"resource_pool": pool, **point}
             for pool in sorted(pool_steps)
             for point in pool_steps[pool]
         ]
-        return points, {
+        model_info = {
             "model": MODEL_ID,
             "model_fingerprint": self.model_fingerprint,
             "trained_at_seconds": self.trained_at,
@@ -792,6 +916,15 @@ class TenantLinearGaussianEstimator:
             "training": dict(self.training_summary),
             "aggregation": "tenant means sum; independent tenant variances sum",
         }
+        if self.config.quantile_calibration_method is not None:
+            model_info["quantile_calibration"] = {
+                "method": self.config.quantile_calibration_method,
+                "offset_gpus_by_resource_pool": {
+                    key: self.quantile_calibration_by_pool[key]
+                    for key in sorted(self.quantile_calibration_by_pool)
+                },
+            }
+        return points, model_info
 
 
 class TenantPredictiveSpotController:
@@ -1076,6 +1209,25 @@ class TenantPredictiveSpotController:
             },
         }
         snapshot["snapshot_fingerprint"] = canonical_sha256(snapshot)
+        shortest_horizon = min(self.config.guarantee_horizons_hours)
+        admission_diagnostics = {}
+        backlog_by_pool = spot_backlog_gpus_by_pool or {}
+        for pool in self.capacity_by_pool:
+            quota = self._quota_by_pool[pool][shortest_horizon]
+            idle = float(idle_by_pool.get(pool, 0.0))
+            backlog = float(backlog_by_pool.get(pool, 0.0))
+            maximum_wait = float(queue_wait.get(pool, 0.0))
+            admission_diagnostics[pool] = {
+                "shortest_guarantee_horizon_hours": shortest_horizon,
+                "spot_quota_gpus": quota,
+                "idle_gpus": round(idle, 6),
+                "running_spot_gpus": round(float(running_by_pool.get(pool, 0.0)), 6),
+                "spot_backlog_gpus": round(backlog, 6),
+                "maximum_spot_queue_wait_seconds": round(maximum_wait, 6),
+                "zero_quota_with_idle_backlog": (
+                    quota == 0 and idle > EPSILON and backlog > EPSILON
+                ),
+            }
         decision = {
             "schema_version": DECISION_SCHEMA,
             "cutoff_time_seconds": float(now),
@@ -1091,6 +1243,7 @@ class TenantPredictiveSpotController:
             "eta_by_resource_pool": quota_plan["eta_by_resource_pool"],
             "spot_quota_gpus_by_guarantee_hour": aggregate_quotas,
             "spot_quota_gpus_by_resource_pool_and_guarantee_hour": quotas_for_report,
+            "admission_diagnostics_by_resource_pool": admission_diagnostics,
         }
         decision["decision_fingerprint"] = canonical_sha256(decision)
         self._latest = {
@@ -1202,6 +1355,18 @@ class TenantPredictiveSpotController:
             ].values()
             for value in quotas.values()
         ]
+        admission_samples = [
+            value
+            for decision in self._decisions
+            for value in decision.get(
+                "admission_diagnostics_by_resource_pool", {}
+            ).values()
+        ]
+        zero_quota_idle_backlog = [
+            value
+            for value in admission_samples
+            if value.get("zero_quota_with_idle_backlog") is True
+        ]
         report: dict[str, Any] = {
             "schema_version": CONTROL_REPORT_SCHEMA,
             "controller_id": self.config.controller_id,
@@ -1258,6 +1423,36 @@ class TenantPredictiveSpotController:
                 "minimum": min(quota_values) if quota_values else None,
                 "maximum": max(quota_values) if quota_values else None,
                 "by_resource_pool": self._quota_by_pool,
+            },
+            "admission_diagnostics": {
+                "pool_update_count": len(admission_samples),
+                "zero_quota_with_idle_backlog_pool_update_count": len(
+                    zero_quota_idle_backlog
+                ),
+                "zero_quota_with_idle_backlog_fraction": round(
+                    len(zero_quota_idle_backlog) / len(admission_samples), 9
+                )
+                if admission_samples
+                else None,
+                "estimated_idle_gpu_seconds_during_zero_quota_with_backlog": round(
+                    sum(float(value["idle_gpus"]) for value in zero_quota_idle_backlog)
+                    * self.config.quota_update_interval_seconds,
+                    6,
+                ),
+                "maximum_spot_queue_wait_seconds_during_zero_quota": (
+                    max(
+                        float(value["maximum_spot_queue_wait_seconds"])
+                        for value in zero_quota_idle_backlog
+                    )
+                    if zero_quota_idle_backlog
+                    else 0.0
+                ),
+                "definition": (
+                    "Sampled diagnostic: shortest-horizon Spot quota is zero while "
+                    "the same resource pool has idle GPUs and queued Spot demand. "
+                    "The GPU-seconds value is a quota-update-interval exposure estimate, "
+                    "not an assertion that every queued job was placeable."
+                ),
             },
             "feedback_events": {
                 pool: {

@@ -18,7 +18,7 @@
     "controlled_fields": {
       "type": "array",
       "minItems": 3,
-      "maxItems": 6,
+      "maxItems": 7,
       "uniqueItems": true,
       "items": {
         "enum": [
@@ -27,7 +27,8 @@
           "checkpoint_interval_seconds",
           "hp_preemption_delay_seconds",
           "spot_eviction_budget_rate",
-          "preemption_victim_strategy"
+          "preemption_victim_strategy",
+          "predictive_admission_mode"
         ]
       }
     },
@@ -37,9 +38,12 @@
       "required": ["preemption_overhead_seconds", "placement_strategy"],
       "properties": {
         "preemption_overhead_seconds": {"type": "integer", "minimum": 0},
-        "placement_strategy": {"const": "deterministic_best_fit"}
+        "placement_strategy": {"const": "deterministic_best_fit"},
+        "predictive_model": {"type": "string", "minLength": 1},
+        "predictive_model_switching": {"type": "boolean"}
       }
     },
+    "safety_baseline_action_id": {"type": "string", "minLength": 1},
     "profiles": {
       "type": "array",
       "minItems": 3,

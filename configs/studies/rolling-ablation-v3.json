@@ -1,0 +1,152 @@
+{
+  "schema_version": "schednav.rolling-ablation-study/v1",
+  "study_id": "rolling-ablation-v3",
+  "freeze": {
+    "frozen_at": "2026-08-12T18:06:07.7009861+08:00",
+    "holdout_simulations_absent_at_freeze": true,
+    "development_windows": [
+      "2024-04-13",
+      "2024-04-22",
+      "2024-06-08",
+      "2024-06-12",
+      "2024-06-25",
+      "2024-07-05",
+      "2024-07-09",
+      "2024-08-16",
+      "2024-08-17",
+      "2024-08-18",
+      "2024-08-19",
+      "2024-08-20",
+      "2024-08-21",
+      "2024-08-22",
+      "2024-08-23",
+      "2024-08-24",
+      "2024-08-25"
+    ],
+    "development_result": "The frozen v3 rule controller passed 5/5 rolling-v2 development windows; this result is exploratory and is not counted as v3 holdout evidence.",
+    "prior_formal_evidence": "evidence/rolling-v2/alibaba-gpu-series-2-rolling-ablation-v2.json",
+    "prompt_contract": "configs/agentteams/rolling-agent-prompts-v3.json",
+    "prompt_fingerprint": "5192bbc1ac2e4154df1e0d2bd63a1d381d3d697cc88a3fcae01e406b2b37da11",
+    "causal_prompt_amendment": {
+      "amended_at": "2026-08-12T19:30:38.9690292+08:00",
+      "before_first_formal_llm_stage": true,
+      "non_agent_holdout_outcomes_visible": true,
+      "reason": "Make the full-handoff and masked-handoff Strategist instructions identical and provide a de-identified state-equivalent view, leaving only Analyst receipt content as the intended direct treatment.",
+      "claim_scope": "The matched Analyst comparison is transparent exploratory evidence, not a fully blinded confirmatory causal claim."
+    },
+    "scenario_generator": "schednav.past-replay-scenario/v3",
+    "forecast_quantile_calibration": "validation-residual-nearest-rank",
+    "safety_baseline_action_id": "rolling-fifo-open",
+    "prior_static_visibility": "The dates occur in the previously published all-window static benchmark; no rolling-v3 execution or Agent plan for these windows existed at freeze."
+  },
+  "data": {
+    "dataset": "Alibaba cluster-trace-v2026-spot-gpu",
+    "source_commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "time_origin": "2024-03-01 00:00:00",
+    "gpu_model": "GPU-series-2",
+    "execution_trace": "HP history from origin plus evaluation-window HP/Spot arrivals",
+    "workload_history_trace": "separate four-hour HP/Spot history used only through cutoff filters",
+    "redistribute_raw_or_derived_jobs": false
+  },
+  "rolling_contract": {
+    "decision_interval_seconds": 7200,
+    "scenario_horizon_seconds": 14400,
+    "history_window_seconds": 14400,
+    "minimum_action_hold_seconds": 14400,
+    "candidate_budget_per_deployable_decision": 3,
+    "candidate_scenario_set_id": "dual-forecast-replay-v1",
+    "candidate_scenario_roles": {
+      "calibrated-p90": "decision evidence",
+      "recent-history-replay": "stress evidence used only after the declared SLO hierarchy is tied"
+    },
+    "inner_controller": "configs/controllers/tenant-predictive-spot-v2.json",
+    "action_space": "configs/action_spaces/rolling-predictive-v3.json",
+    "slo": "configs/slos/schednav-demo-slo-v1.json",
+    "future_arrivals_visible_to_deployable_controllers": false,
+    "state_handoff": "one simulator session preserves queue, allocation, remaining work, ledgers and predictive feedback across cutoffs",
+    "candidate_state": "short, previous-short and four-hour workload views plus live queue/SLO progress and calibrated forecast risk",
+    "weighted_score": false
+  },
+  "arms": [
+    {
+      "arm_id": "ordinary-fifo",
+      "kind": "static",
+      "policy": "configs/policies/native-fifo.json",
+      "predictive_controller": null,
+      "candidate_budget": 0
+    },
+    {
+      "arm_id": "fixed-tenant-predictive",
+      "kind": "predictive-fixed-policy",
+      "policy": "configs/policies/native-preemptive-g3600-b09-d0000.json",
+      "predictive_controller": "configs/controllers/tenant-predictive-spot-v2.json",
+      "candidate_budget": 0
+    },
+    {
+      "arm_id": "rolling-workload-rule",
+      "kind": "rolling",
+      "mode": "workload_rule",
+      "candidate_budget": 3
+    },
+    {
+      "arm_id": "rolling-single-agent",
+      "kind": "rolling",
+      "mode": "single_agent",
+      "candidate_budget": 3,
+      "model_id": "deepseek-v4-flash"
+    },
+    {
+      "arm_id": "rolling-multi-agent",
+      "kind": "rolling",
+      "mode": "multi_agent",
+      "candidate_budget": 3,
+      "framework": "AgentTeams",
+      "model_id": "deepseek-v4-flash",
+      "analyst_handoff": "structured"
+    },
+    {
+      "arm_id": "rolling-multi-agent-masked",
+      "kind": "causal-ablation",
+      "mode": "multi_agent_masked",
+      "candidate_budget": 3,
+      "framework": "AgentTeams",
+      "model_id": "deepseek-v4-flash",
+      "analyst_handoff": "fixed-mask",
+      "llm_call_budget_matches": "rolling-multi-agent"
+    },
+    {
+      "arm_id": "posthoc-catalog-oracle",
+      "kind": "non-deployable-upper-bound",
+      "mode": "catalog_oracle",
+      "candidate_budget": 5,
+      "actual_future_candidate_scenarios": true
+    }
+  ],
+  "holdout_windows": [
+    {"window_id": "2024-08-26", "start_seconds": 15379200, "end_seconds": 15465599},
+    {"window_id": "2024-08-27", "start_seconds": 15465600, "end_seconds": 15551999},
+    {"window_id": "2024-08-28", "start_seconds": 15552000, "end_seconds": 15638399},
+    {"window_id": "2024-08-29", "start_seconds": 15638400, "end_seconds": 15724799},
+    {"window_id": "2024-08-30", "start_seconds": 15724800, "end_seconds": 15811199}
+  ],
+  "execution": {
+    "repetitions_per_arm_per_window": 2,
+    "deterministic_repetitions_required": true,
+    "agent_candidate_plans_frozen_before_candidate_outcomes": true,
+    "fifo_baseline_is_same_window": true
+  },
+  "claim_gate": {
+    "multi_agent_superiority_requires": [
+      "no fewer hard-SLO-passing holdout windows than every deployable comparator",
+      "the same three-candidate and two-scenario simulator budget as workload-rule, single-agent and masked-handoff arms",
+      "a strictly better declared SLO hierarchy outcome than workload-rule, single-agent and masked-handoff arms",
+      "all Agent decisions bound to cutoff observation fingerprints before hidden future execution"
+    ],
+    "analyst_causal_value_requires": [
+      "full-handoff multi-agent is strictly better than matched-call masked-handoff multi-agent",
+      "the only intended difference is the Analyst content visible to the Strategist"
+    ],
+    "otherwise": "report that multi-agent scheduling superiority or Analyst causal value is not established"
+  },
+  "design_fingerprint": "7f3613ed20041beafa7fe2a37a3775274ecae484d7e9f47ed45900f7a08e96aa"
+}

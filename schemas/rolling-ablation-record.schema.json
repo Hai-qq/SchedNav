@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Hai-qq/SchedNav/schemas/rolling-ablation-record.schema.json",
+  "title": "SchedNav deterministic rolling-ablation arm record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "design_fingerprint",
+    "implementation_fingerprint",
+    "window_id",
+    "trace_fingerprint",
+    "arm_id",
+    "repetition_count",
+    "deterministic_repetitions",
+    "repetitions",
+    "hard_slo_passed",
+    "failed_hard_constraints",
+    "metrics",
+    "rolling",
+    "agent_plan_fingerprint",
+    "record_fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "schednav.rolling-ablation-record/v1"},
+    "design_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "implementation_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "window_id": {"type": "string", "minLength": 1},
+    "trace_fingerprint": {"$ref": "#/$defs/fingerprint"},
+    "arm_id": {"type": "string", "minLength": 1},
+    "repetition_count": {"type": "integer", "minimum": 2},
+    "deterministic_repetitions": {"const": true},
+    "repetitions": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repetition", "result_fingerprint", "metrics_fingerprint", "audit_fingerprint"],
+        "properties": {
+          "repetition": {"type": "integer", "minimum": 1},
+          "result_fingerprint": {"$ref": "#/$defs/fingerprint"},
+          "metrics_fingerprint": {"$ref": "#/$defs/fingerprint"},
+          "audit_fingerprint": {"$ref": "#/$defs/fingerprint"}
+        }
+      }
+    },
+    "hard_slo_passed": {"type": "boolean"},
+    "failed_hard_constraints": {"type": "array", "items": {"type": "string"}},
+    "metrics": {"type": "object"},
+    "rolling": {"type": ["object", "null"]},
+    "agent_plan_fingerprint": {
+      "oneOf": [{"$ref": "#/$defs/fingerprint"}, {"type": "null"}]
+    },
+    "record_fingerprint": {"$ref": "#/$defs/fingerprint"}
+  },
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

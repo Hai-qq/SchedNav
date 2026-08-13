@@ -1,0 +1,61 @@
+{
+  "schema_version": "schednav.rolling-ablation-data/v1",
+  "study_id": "rolling-ablation-v1",
+  "design_fingerprint": "97cad7f628d8cea7736af6226076743463a33ce8c8e92b1a9cf73502c9a9f952",
+  "dataset": {
+    "name": "Alibaba cluster-trace-v2026-spot-gpu",
+    "commit": "0d0f3f1efdbf1add6a7bcc63676eafbd1eb11f71",
+    "node_info_sha256": "35ef4d6288061265f2f9a207ef3df79bb1301cb9c0646a62087449e176781895",
+    "job_info_sha256": "f921e1932ae13196e204fdb0351d6697a7a0ef2e82e00ae123ed20e873284fb2",
+    "time_origin": "2024-03-01 00:00:00",
+    "gpu_model": "GPU-series-2"
+  },
+  "execution_contract": {
+    "warmup_start_seconds": 0,
+    "include_warmup_spot": false,
+    "purpose": "HP history from source origin plus evaluation-window HP and Spot arrivals"
+  },
+  "workload_history_contract": {
+    "lookback_seconds": 14400,
+    "include_warmup_spot": true,
+    "purpose": "past-only HP and Spot workload signals through each rolling cutoff"
+  },
+  "windows": [
+    {
+      "window_id": "2024-08-16",
+      "execution_trace_fingerprint": "03e5df59a0f222104df77f5b5f1554fce02ef3997a748722de05e1d61701c931",
+      "history_trace_fingerprint": "c8a187d73f6c79c4397370055e40f2fa95205db84d2805b1206ca1295541e1ec",
+      "execution_job_count": 20987,
+      "history_job_count": 153
+    },
+    {
+      "window_id": "2024-08-17",
+      "execution_trace_fingerprint": "8395e775f73731f05f0989c2433f668d64ff749af11d3c8b55e1e329c015da2e",
+      "history_trace_fingerprint": "088addd7e6dbbc3e6fefc77902c15320cb9e678408a863f424e0b237664f0e31",
+      "execution_job_count": 20978,
+      "history_job_count": 53
+    },
+    {
+      "window_id": "2024-08-18",
+      "execution_trace_fingerprint": "228428aa1bca0f5bd903565b2ea5c16b8483454ee804f24d16b5fbe24282cd59",
+      "history_trace_fingerprint": "3f45bd2d4764c7c170a9b07772a3b067cafa6e27cc9d820904a994bd4f3ce04e",
+      "execution_job_count": 21012,
+      "history_job_count": 51
+    },
+    {
+      "window_id": "2024-08-19",
+      "execution_trace_fingerprint": "b5c865f14e101d973c4a76d17c54ba61a84a4a4e0a82f0fe581cd84d08a1642a",
+      "history_trace_fingerprint": "56a0f1777667cbfd1082a2dd60b975f0b3bf677667e0c1e3a13e2d64c3da898a",
+      "execution_job_count": 21227,
+      "history_job_count": 252
+    },
+    {
+      "window_id": "2024-08-20",
+      "execution_trace_fingerprint": "c2b94eb8ced77d49489d7ab1b68d72a59a795ffeaea5a7b15ec9baff89f68bfc",
+      "history_trace_fingerprint": "43ca75e58101be957dad7f697ea4f88f10f982e643a9d17f1f898665c288869b",
+      "execution_job_count": 21361,
+      "history_job_count": 219
+    }
+  ],
+  "data_fingerprint": "580ec3a7dae1cf83f9e77e5a5705208d0a3cc350310eeab467acddcd6acdd18d"
+}

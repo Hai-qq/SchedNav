@@ -4,7 +4,7 @@
     "schednav-manager": ["compare-gpu-policies"],
     "workload-analyst": ["analyze-gpu-workload", "forecast-gpu-demand"],
     "scheduling-strategist": ["select-bounded-policies"],
-    "simulation-agent": ["simulate-gpu-policy", "simulate-predictive-control"],
+    "simulation-agent": ["execute-rolling-control", "simulate-gpu-policy", "simulate-predictive-control"],
     "slo-auditor": ["audit-gpu-slo"]
   }
 }

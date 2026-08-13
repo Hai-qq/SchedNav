@@ -1,0 +1,4 @@
+interface:
+  display_name: "Execute Rolling Control"
+  short_description: "Advance cutoff-safe rolling GPU policy decisions"
+  default_prompt: "Use $execute-rolling-control to advance a bounded rolling scheduling decision with state handoff."

@@ -1,0 +1,29 @@
+{
+  "schema_version": "schednav.rolling-agent-prompts/v1",
+  "prompt_id": "rolling-agent-prompts-v2",
+  "model_id": "deepseek-v4-flash",
+  "candidate_budget": 3,
+  "required_action_id": "rolling-fifo-open",
+  "allowed_action_ids": [
+    "native-fifo",
+    "rolling-fifo-open",
+    "rolling-preemptive-open-d0000",
+    "rolling-preemptive-open-d0900",
+    "rolling-preemptive-open-loss-aware"
+  ],
+  "single_agent": {
+    "roles": ["Scheduling Strategist"],
+    "instruction": "Inspect only the supplied cutoff-safe observation. Select exactly three distinct allowed action IDs including the observation's required_candidate_action_id (rolling-fifo-open). Balance forecast HP risk, current queue/running state, observed Spot demand and action diversity. Do not predict performance, inspect future arrivals, invent parameters or select a winner; the deterministic simulator and SLO hierarchy decide after your set is frozen. Return one bounded reason_code and the three IDs as strict JSON."
+  },
+  "multi_agent": {
+    "roles": ["Workload Analyst", "Scheduling Strategist"],
+    "analyst_instruction": "Inspect only the supplied cutoff-safe observation. Return structured regime, HP forecast risk, observed Spot pressure, queue/carryover risk and recommended action characteristics. Do not choose a winner, inspect future arrivals or invent metrics.",
+    "strategist_instruction": "Use the same cutoff-safe observation plus the Workload Analyst receipt. Select exactly three distinct allowed action IDs including the observation's required_candidate_action_id (rolling-fifo-open). Preserve diversity across predictive admission and preemption behavior. Do not predict performance, inspect future arrivals, invent parameters or select a winner; the deterministic simulator and SLO hierarchy decide after your set is frozen. Return one bounded reason_code and the three IDs as strict JSON."
+  },
+  "output_contract": {
+    "candidate_action_ids": "exactly three unique allowed IDs including rolling-fifo-open",
+    "reason_code": "one line, at most 256 characters",
+    "role_receipts": "AgentTeams project/task/worker identity and SHA-256 of each normalized stage output"
+  },
+  "prompt_fingerprint": "22ee8c481c7a83cca49378ed2ccde07f3365864fdba741a69c09ba43843f638d"
+}

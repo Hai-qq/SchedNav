@@ -35,9 +35,38 @@
           "rank_policies",
           "analyze_run_set",
           "simulate_run_set",
-          "audit_run_set"
+          "audit_run_set",
+          "advance_rolling_policy"
         ]
       }
+    },
+    "rolling_scenario_set_id": {
+      "enum": ["single-calibrated-p90", "dual-forecast-replay-v1"]
+    },
+    "rolling_minimum_action_hold_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 86400
+    },
+    "rolling_decision_interval_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 86400
+    },
+    "rolling_scenario_horizon_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 86400
+    },
+    "rolling_history_window_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2419200
+    },
+    "rolling_candidate_budget": {
+      "type": "integer",
+      "minimum": 3,
+      "maximum": 5
     },
     "run_configs": {"$ref": "#/$defs/pathMap"},
     "run_sets": {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import math
 import tempfile
 import unittest
 
@@ -65,6 +66,86 @@ class NativeSimulatorTests(unittest.TestCase):
         self.assertEqual(jobs["hp"]["queue_seconds"], 8)
         self.assertEqual(result["preemption_events"], [])
         self.assertEqual(result["cluster"]["allocation_rate_mean"], 1.0)
+
+    def test_seeded_carryover_queue_age_is_preserved(self):
+        root = Path(self.temporary.name) / "carryover-queue-age"
+        trace = load_canonical_trace(
+            write_canonical_trace(
+                root,
+                trace_id="carryover-queue-age",
+                time_origin="2026-01-01 00:00:00",
+                source={"dataset": "unit-fixture"},
+                nodes=[TraceNode("n1", "A", 1)],
+                jobs=[TraceJob("queued-hp", 0, 10, 1, "HP", "A")],
+            )
+        )
+
+        result = simulate_trace(
+            trace,
+            _policy("fifo"),
+            initial_queue_wait_seconds_by_job_id={"queued-hp": 4000.0},
+        )
+
+        self.assertEqual(result["jobs"][0]["queue_seconds"], 4000.0)
+        self.assertEqual(result["engine"]["initial_queue_wait"]["job_count"], 1)
+        self.assertEqual(
+            result["engine"]["initial_queue_wait"]["maximum_seconds"], 4000.0
+        )
+
+    def test_window_scoped_zero_quota_drains_after_the_evidence_boundary(self):
+        class WindowQuota:
+            control_window_only = True
+            resource_pool_scoped = False
+            periodic_guarantee_feedback = False
+            next_update_time = math.inf
+            controller_id = "test-window-quota"
+            fingerprint = "c" * 64
+
+            def bind_evidence_window(self, _start, _end):
+                return
+
+            def quota_for_guarantee_seconds(self, _guarantee):
+                return 0
+
+            def allows_spot(self, *_args, **_kwargs):
+                return False
+
+            def is_update_due(self, _now):
+                return False
+
+            def update(self, **_kwargs):
+                raise AssertionError("Frozen quota must not update")
+
+            def observe_spot_run_end(self, _now, **_kwargs):
+                return
+
+            def finalize(self):
+                return {
+                    "schema_version": "schednav.predictive-control-report/v1",
+                    "controller_id": self.controller_id,
+                    "controller_fingerprint": self.fingerprint,
+                    "control_fingerprint": "d" * 64,
+                }
+
+        root = Path(self.temporary.name) / "window-quota"
+        manifest = write_canonical_trace(
+            root,
+            trace_id="window-quota",
+            time_origin="2026-01-01 00:00:00",
+            source={"dataset": "unit-fixture"},
+            nodes=[TraceNode("n1", "A", 1)],
+            jobs=[TraceJob("spot-only", 0, 10, 1, "Spot", "A")],
+            evaluation_start_seconds=0,
+            evaluation_end_seconds=100,
+        )
+        result = simulate_trace(
+            load_canonical_trace(manifest), _policy("fifo"), WindowQuota()
+        )
+        job = result["jobs"][0]
+        self.assertEqual(job["start_time_seconds"], 100)
+        self.assertEqual(job["completion_time_seconds"], 110)
+        self.assertEqual(job["queue_seconds"], 100)
+        self.assertEqual(result["cluster"]["allocation_rate_mean"], 0.0)
 
     def test_priority_policy_preempts_spot_and_emits_canonical_metrics(self):
         result = simulate_trace(self.trace, _policy("priority_preemptive"))
