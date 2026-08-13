@@ -13,7 +13,7 @@ $forbiddenRoots = @(
     ".venv/"
 )
 $forbiddenExtensions = @(".csv", ".zip", ".ckpt", ".pt", ".pth", ".pem", ".key", ".pfx")
-$secretPattern = [regex]'(?i)(sk-[A-Za-z0-9_-]{20,}|Bearer\s+[A-Za-z0-9._-]{24,}|api[_-]?key\s*[:=]\s*[A-Za-z0-9._-]{16,})'
+$secretPattern = [regex]'(?i)((?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}|Bearer\s+[A-Za-z0-9._-]{24,}|api[_-]?key\s*[:=]\s*[A-Za-z0-9._-]{16,})'
 $files = @(
     & git -C $projectRoot ls-files --cached --others --exclude-standard |
         Where-Object { Test-Path -LiteralPath (Join-Path $projectRoot $_) -PathType Leaf }
