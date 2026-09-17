@@ -1,9 +1,10 @@
-# SchedNav
+<p align="center"><img src="docs/assets/brand/mark.svg" width="144" height="144" alt="任务队列与有界路径"></p>
 
-**Agentic Control Plane for GPU Cluster Scheduling**
+<h1 align="center">SchedNav</h1>
+<p align="center">在确定性仿真中，研究有边界的 GPU 调度决策。</p>
 
 [![CI](https://github.com/Hai-qq/SchedNav/actions/workflows/ci.yml/badge.svg)](https://github.com/Hai-qq/SchedNav/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-706358.svg)](LICENSE)
 
 SchedNav 是一个面向 GPU 集群的多智能体调度决策系统。它内置确定性的离散事件仿真引擎，让 Agent 在真实历史 Trace 上分析负载、提出有边界的高层策略、运行反事实实验、审核 SLO，并根据结构化证据给出可审计建议。
 
