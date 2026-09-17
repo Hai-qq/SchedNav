@@ -135,6 +135,8 @@ $env:PYTHONPATH = (Resolve-Path .\src).Path
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
+核心合同测试在 Windows、Linux 和 macOS 的 Python 3.11 环境运行；CI 另行安装 `forecast` 可选依赖运行预测测试。测试只依赖仓库内代码与合成 fixture，不需要本地 `artifacts/` 执行脚本或 AgentTeams 服务。公开传输 helper 与历史外部执行器的区别见[滚动控制说明](docs/rolling-control.md)。
+
 需要可训练的按租户预测器时，安装可选依赖：
 
 ```powershell

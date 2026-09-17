@@ -98,6 +98,17 @@ report is recorded as explicitly omitted from the Simulation Agent's structured
 receipt when it reaches that exact cap; the immutable full report remains in the
 bridge task store for the trusted collector to hash and validate during closeout.
 
+The historical operator wave executor under `artifacts/` is not distributed.
+The public transport contract is implemented in
+[`scripts/agentteams_transport.py`](../scripts/agentteams_transport.py): compact
+artifact reads, read-only visibility retries, and explicit terminal-report
+omission receipts. Tests import this tracked module rather than a local runtime
+artifact. It is a pure helper for external runners, not a bundled wave executor
+or evidence that the historical external runtime has been rerun. The omission
+contract uses a 65,536-character limit; complete JSON and non-read operations
+cannot be converted into omission receipts. Metrics still require a full read,
+and closeout still requires the trusted collector to verify the stored report.
+
 Both protocols write a fingerprinted `context-isolation.json` before assignment
 and audit the post-dispatch Worker context against the exact assignment. The
 receipt is separate from AgentTeams `meta.json` because task acknowledgement may

@@ -1,10 +1,10 @@
 from pathlib import Path
 import hashlib
-import importlib.util
 import json
 import tempfile
 import unittest
 
+from scripts import agentteams_transport
 from scripts.collect_agentteams_rolling_plans import (
     _load_task_meta,
     _verify_context_isolation,
@@ -23,16 +23,6 @@ from schednav.contracts import canonical_sha256
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-
-def _load_execute_wave_module():
-    path = PROJECT_ROOT / "artifacts" / "agentteams-execute-wave-v3.py"
-    spec = importlib.util.spec_from_file_location("agentteams_execute_wave_v3", path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to import {path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _record(arm_id: str, *, spot_jct: float) -> dict:
@@ -69,29 +59,33 @@ class RollingAblationTests(unittest.TestCase):
         }
 
     def test_artifact_visibility_404_is_retryable_only_for_reads(self) -> None:
-        module = _load_execute_wave_module()
+        module = agentteams_transport
         response = {"error": "SSE error: Non-200 status code (404)"}
         self.assertTrue(module.transient_mcp_error("read_artifact", response))
         self.assertFalse(module.transient_mcp_error("advance_rolling_policy", response))
 
     def test_large_artifacts_use_compact_text_transport(self) -> None:
-        module = _load_execute_wave_module()
+        module = agentteams_transport
         self.assertEqual(module.mcp_output_mode("read_artifact"), "text")
         self.assertEqual(module.mcp_output_mode("get_task"), "json")
 
     def test_exact_mcporter_cap_becomes_explicit_omission_receipt(self) -> None:
-        module = _load_execute_wave_module()
+        module = agentteams_transport
+        # Build an exact-cap payload; the old hand-counted literal was one
+        # character over the limit and could not exercise this boundary.
+        prefix = '{"artifact_ref"'
+        output = prefix + "x" * (module.MCPORTER_OUTPUT_LIMIT - len(prefix))
         receipt = module.truncated_artifact_receipt(
             "read_artifact",
             {"artifact_ref": "tasks/x/report.json"},
-            '{"artifact_ref"' + "x" * 65_522,
+            output,
         )
         self.assertEqual(receipt["read_status"], "omitted_mcporter_output_limit")
         self.assertTrue(module.artifact_read_satisfied("rolling_control_report", receipt))
         self.assertFalse(module.artifact_read_satisfied("metrics", receipt))
 
     def test_semantic_artifact_errors_are_not_retryable(self) -> None:
-        module = _load_execute_wave_module()
+        module = agentteams_transport
         self.assertFalse(
             module.transient_mcp_error(
                 "read_artifact", {"error": {"message": "invalid artifact_ref"}}
@@ -440,7 +434,7 @@ class RollingAblationTests(unittest.TestCase):
                     reason_code=stage["reason_code"],
                     task_root=task_root,
                 ),
-                stage_path,
+                stage_path.resolve(),
             )
             receipt["output_fingerprint"] = "0" * 64
             with self.assertRaisesRegex(ValueError, "fingerprint mismatch"):
