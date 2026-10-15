@@ -1,0 +1,25 @@
+name: Bug report
+description: 报告可复现的问题
+title: "[Bug]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 预期与实际行为
+      description: 不要粘贴凭据或原始任务数据；安全漏洞请使用私密报告。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现
+      description: 提供命令、合成 fixture 与必要的脱敏错误信息。
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 操作系统、Python 版本、提交 SHA、是否安装 forecast extra。
+    validations:
+      required: true

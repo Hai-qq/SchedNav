@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 私密漏洞报告
+    url: https://github.com/Hai-qq/SchedNav/security/advisories/new
+    about: 不要在公开 Issue 中披露安全漏洞或凭据。

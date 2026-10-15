@@ -5,10 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "schednav"
 version = "0.1.0.dev0"
-description = "Agentic control plane for GPU cluster scheduling"
+description = "Trace-driven GPU scheduling simulation and bounded agent policy evaluation"
+readme = "README.md"
+keywords = ["gpu", "scheduling", "simulation", "agents", "research"]
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Hai-qq/SchedNav"
+Documentation = "https://github.com/Hai-qq/SchedNav/tree/main/docs"
+Issues = "https://github.com/Hai-qq/SchedNav/issues"
 
 [project.optional-dependencies]
 forecast = [

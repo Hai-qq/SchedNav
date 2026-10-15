@@ -1,0 +1,17 @@
+name: Feature request
+description: 提议有明确使用场景的改进
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景与问题
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议与验收方法
+      description: 涉及数据、指标或 Agent 动作时请说明边界；不要预设性能优势。
+    validations:
+      required: true
